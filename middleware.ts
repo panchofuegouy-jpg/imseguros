@@ -10,6 +10,13 @@ export async function middleware(req: NextRequest) {
     res,
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    cookieOptions: {
+      domain: 'localhost', // For development. Change to your production domain (e.g., '.yourdomain.com') for deployment.
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production', // Use secure in production
+    },
   })
 
   // Log all request headers to inspect cookies
