@@ -1,5 +1,7 @@
-git initimport { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
-import { NextResponse } from "next/server"
+import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
+git add .
+git commit -m "Corrige error en middleware.ts y configura usuario"
+git push -u origin mainimport { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export async function middleware(req: NextRequest) {
