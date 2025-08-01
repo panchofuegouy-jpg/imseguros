@@ -1,72 +1,26 @@
-"use client"
-
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
 
-interface Policy {
-  id: string;
-  client_id: string;
-  company_id: string | null;
-  numero_poliza: string;
-  tipo: string;
-  vigencia_inicio: string;
-  vigencia_fin: string;
-  archivo_url: string | null;
-  notas: string | null;
-  created_at: string;
-  clients?: { nombre: string } | null; // To fetch client name
-  companies?: { name: string } | null; // To fetch company name
-}
-
-export default function PoliciesPage() {
-  const [policies, setPolicies] = useState<Policy[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchAllPolicies() {
-      try {
-        const { data, error } = await supabase
-          .from("policies")
-          .select("*, clients(nombre), companies(name)") // Select policies and join client and company names
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          throw error;
-        }
-        setPolicies(data as Policy[]);
-      } catch (err: any) {
-        console.error("Error fetching all policies:", err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchAllPolicies();
-  }, []);
-
-  if (loading) {
-    return (
-      <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      </AdminLayout>
-    );
-  }
+async function getPolicies() {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("policies")
+    .select("*, clients(nombre), companies(name)")
+    .order("created_at", { ascending: false });
 
   if (error) {
-    return (
-      <AdminLayout>
-        <div className="text-red-500">Error: {error}</div>
-      </AdminLayout>
-    );
+    console.error("Error fetching policies:", error);
+    return [];
   }
+
+  return data;
+}
+
+export default async function PoliciesPage() {
+  const policies = await getPolicies();
 
   return (
     <AdminLayout>
@@ -97,7 +51,7 @@ export default function PoliciesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {policies.map((policy) => (
+                  {policies.map((policy: any) => (
                     <TableRow key={policy.id}>
                       <TableCell>{policy.numero_poliza}</TableCell>
                       <TableCell>

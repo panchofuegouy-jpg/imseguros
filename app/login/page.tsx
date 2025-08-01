@@ -34,22 +34,12 @@ export default function LoginPage() {
       return;
     }
 
-    // Redirect based on user role
+    // Redirect based on user role - let middleware handle the role-based routing
     if (data.user) {
       console.log("User data after signIn:", data.user);
-      const userRole = data.user.profile?.role;
-      console.log("User role:", userRole);
-
-      if (userRole === "admin") {
-        console.log("Redirecting to /admin (client-side)");
-        router.push("/admin");
-      } else if (userRole === "client") {
-        console.log("Redirecting to /cliente (client-side)");
-        router.push("/cliente");
-      } else {
-        console.log("Redirecting to /dashboard (client-side)");
-        router.push("/dashboard"); // Default redirect for other roles or if role is not found
-      }
+      console.log("Login successful, redirecting to /admin (middleware will handle role-based routing)");
+      // Let the middleware handle role-based routing
+      router.push("/admin");
     }
     setLoading(false); // Ensure loading is set to false after redirection attempt
   }

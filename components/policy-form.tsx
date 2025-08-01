@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Upload, FileText, X } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase/client"
 
 interface PolicyFormProps {
   clients: Array<{ id: string; nombre: string }>
@@ -33,8 +33,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [currentFileUrl, setCurrentFileUrl] = useState(initialData?.archivo_url || null)
-
-  
+  const supabase = createClient()
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0]

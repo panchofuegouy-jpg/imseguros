@@ -1,90 +1,36 @@
-"use client"
-
-import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, FileText, Calendar, TrendingUp } from "lucide-react"
 import { AdminLayout } from "@/components/admin-layout"
 
-interface DashboardStats {
-  totalClients: number
-  totalPolicies: number
-  activePolicies: number
-  expiringPolicies: number
+async function getStats() {
+  const supabase = await createClient()
+  const today = new Date().toISOString().split("T")[0]
+  const thirtyDaysFromNow = new Date()
+  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
+
+  const { count: totalClients } = await supabase.from("clients").select("*", { count: "exact", head: true })
+  const { count: totalPolicies } = await supabase.from("policies").select("*", { count: "exact", head: true })
+  const { count: activePolicies } = await supabase
+    .from("policies")
+    .select("*", { count: "exact", head: true })
+    .gte("vigencia_fin", today)
+  const { count: expiringPolicies } = await supabase
+    .from("policies")
+    .select("*", { count: "exact", head: true })
+    .gte("vigencia_fin", today)
+    .lte("vigencia_fin", thirtyDaysFromNow.toISOString().split("T")[0])
+
+  return {
+    totalClients: totalClients || 0,
+    totalPolicies: totalPolicies || 0,
+    activePolicies: activePolicies || 0,
+    expiringPolicies: expiringPolicies || 0,
+  }
 }
 
-export default function AdminDashboard() {
-  console.log("AdminDashboard component rendering...");
-  const [stats, setStats] = useState<DashboardStats>({
-    totalClients: 0,
-    totalPolicies: 0,
-    activePolicies: 0,
-    expiringPolicies: 0,
-  })
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        // Get total clients
-        console.log("Fetching total clients...");
-        const { count: clientCount, error: clientError } = await supabase.from("clients").select("*", { count: "exact", head: true });
-        if (clientError) console.error("Error fetching client count:", clientError);
-        console.log("Total clients:", clientCount);
-
-        // Get total policies
-        console.log("Fetching total policies...");
-        const { count: policyCount, error: policyError } = await supabase.from("policies").select("*", { count: "exact", head: true });
-        if (policyError) console.error("Error fetching policy count:", policyError);
-        console.log("Total policies:", policyCount);
-
-        // Get active policies (not expired)
-        console.log("Fetching active policies...");
-        const today = new Date().toISOString().split("T")[0];
-        const { count: activeCount, error: activeError } = await supabase
-          .from("policies")
-          .select("*", { count: "exact", head: true })
-          .gte("vigencia_fin", today);
-        if (activeError) console.error("Error fetching active policies:", activeError);
-        console.log("Active policies:", activeCount);
-
-        // Get policies expiring in next 30 days
-        console.log("Fetching expiring policies...");
-        const thirtyDaysFromNow = new Date();
-        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-        const { count: expiringCount, error: expiringError } = await supabase
-          .from("policies")
-          .select("*", { count: "exact", head: true })
-          .gte("vigencia_fin", today)
-          .lte("vigencia_fin", thirtyDaysFromNow.toISOString().split("T")[0]);
-        if (expiringError) console.error("Error fetching expiring policies:", expiringError);
-        console.log("Expiring policies:", expiringCount);
-
-        setStats({
-          totalClients: clientCount || 0,
-          totalPolicies: policyCount || 0,
-          activePolicies: activeCount || 0,
-          expiringPolicies: expiringCount || 0,
-        })
-      } catch (error) {
-        console.error("Error fetching stats:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchStats()
-  }, [])
-
-  if (loading) {
-    return (
-      <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      </AdminLayout>
-    )
-  }
+export default async function AdminDashboard() {
+  const stats = await getStats()
 
   return (
     <AdminLayout>

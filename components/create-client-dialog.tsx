@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { createClientUser } from "@/lib/auth"
+// Removed direct import of createClientUser
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -44,7 +44,20 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated }: Crea
     setSuccess(null)
 
     try {
-      const result = await createClientUser(formData)
+      const response = await fetch('/api/create-client', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al crear el cliente')
+      }
+
       setSuccess({ client: result.client, password: result.tempPassword })
       onClientCreated()
     } catch (error: any) {
