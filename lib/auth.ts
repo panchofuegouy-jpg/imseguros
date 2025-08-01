@@ -24,6 +24,8 @@ export async function signIn(email: string, password: string) {
     return { data, error };
   }
   console.log("signInWithPassword successful. Data:", data);
+  const { data: { session: clientSession } } = await supabase.auth.getSession();
+  console.log("Client-side session after signInWithPassword:", clientSession);
 
   let profileData = null;
   let profileError = null;

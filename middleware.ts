@@ -1,11 +1,12 @@
 import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
-git add .
-git commit -m "Corrige error en middleware.ts y configura usuario"
-git push -u origin mainimport { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import { NextResponse } from "next/server"
+git remote set-url origin https://panchofuegouy-jpg@github.com/panchofuegouy-jpg/imseguros.gitimport type { NextRequest } from "next/server"
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
+
+  console.log("Middleware: NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log("Middleware: NEXT_PUBLIC_SUPABASE_ANON_KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
   const supabase = createMiddlewareClient({
     req,
@@ -13,17 +14,17 @@ export async function middleware(req: NextRequest) {
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     cookieOptions: {
-      domain: 'localhost', // For development. Change to your production domain (e.g., '.yourdomain.com') for deployment.
+      domain: 'localhost', // Explicitly localhost for dev
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 1 week
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production', // Use secure in production
+      sameSite: 'Lax', // Explicitly Lax
+      secure: false, // Explicitly false for development (HTTP)
     },
   })
 
   // Log all request headers to inspect cookies
   console.log("Middleware: Request Headers:", req.headers);
-  console.log("Middleware: Cookie Header:", req.headers.get('cookie'));
+  console.log("Middleware: Cookie Header (raw):", req.headers.get('cookie'));
 
   // Refresh session for the user
   // This step is crucial for the middleware to correctly read and update the session cookie

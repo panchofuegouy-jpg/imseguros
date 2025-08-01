@@ -3,7 +3,22 @@ import { createClient } from "@supabase/supabase-js"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce',
+    cookieOptions: {
+      domain: 'localhost', // For development. Change to your production domain (e.g., '.yourdomain.com') for deployment.
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+      sameSite: 'Lax',
+      secure: process.env.NODE_ENV === 'production', // Use secure in production
+    },
+  },
+})
+console.log("Supabase client initialized with cookieOptions:", supabase.auth.api.cookieOptions);
 
 export type Database = {
   public: {
