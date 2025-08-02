@@ -25,9 +25,19 @@ export async function signIn(email: string, password: string) {
     return { data, error }
   }
 
-  // The rest of the logic to handle profiles can be simplified or removed
-  // if the middleware and other parts of the app correctly handle profile creation.
-  return { data, error }
+  // Fetch user profile to get the role
+  const { data: profile, error: profileError } = await supabase
+    .from("user_profiles")
+    .select("role")
+    .eq("id", data.user?.id)
+    .single()
+
+  if (profileError) {
+    console.error("Error fetching user profile after sign in:", profileError)
+    return { data, error: profileError }
+  }
+
+  return { data: { ...data, profile }, error }
 }
 
 export async function signOut() {

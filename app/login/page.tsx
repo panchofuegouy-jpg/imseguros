@@ -35,11 +35,25 @@ export default function LoginPage() {
     }
 
     // Redirect based on user role - let middleware handle the role-based routing
-    if (data.user) {
+    if (data.user && data.profile) {
       console.log("User data after signIn:", data.user);
-      console.log("Login successful, redirecting to /admin (middleware will handle role-based routing)");
-      // Let the middleware handle role-based routing
-      router.push("/admin");
+      console.log("User profile after signIn:", data.profile);
+
+      if (data.profile.role === "admin") {
+        console.log("Login successful, redirecting to /admin");
+        router.push("/admin");
+      } else if (data.profile.role === "client") {
+        console.log("Login successful, redirecting to /dashboard");
+        router.push("/dashboard");
+      } else {
+        // Fallback for unknown roles or if profile.role is missing
+        console.log("Login successful, but unknown role. Redirecting to / (home)");
+        router.push("/");
+      }
+    } else {
+      // This case should ideally not be reached if signIn returns user and profile
+      console.log("Login successful, but no user or profile data. Redirecting to / (home)");
+      router.push("/");
     }
     setLoading(false); // Ensure loading is set to false after redirection attempt
   }
