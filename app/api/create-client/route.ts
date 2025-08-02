@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClientUser, getCurrentUser } from "@/lib/auth-server"
+import { createClient } from "@supabase/supabase-js"
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = await createClientUser({
+    const { client, tempPassword } = await createClientUser({
       nombre,
       email,
       telefono,
@@ -38,10 +39,47 @@ export async function POST(request: NextRequest) {
       direccion,
     })
 
+    if (!client || !tempPassword) {
+      return NextResponse.json(
+        { error: "Error al crear el cliente o la contraseña temporal" },
+        { status: 500 }
+      )
+    }
+
+    let emailSent = false
+    try {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+          },
+        }
+      )
+
+      const { data, error } = await supabase.functions.invoke('send-welcome-email', {
+        body: { email, nombre, tempPassword },
+      })
+
+      if (error) {
+        console.error("Error invoking Supabase function:", error)
+        emailSent = false
+      } else {
+        console.log("Supabase function invoked successfully:", data)
+        emailSent = data.success
+      }
+    } catch (emailError) {
+      console.error("Error sending welcome email:", emailError)
+      emailSent = false
+    }
+
     return NextResponse.json({
-      client: result.client,
-      tempPassword: result.tempPassword,
-      emailSent: result.emailSent
+      client,
+      tempPassword,
+      emailSent,
     })
   } catch (error: any) {
     console.error("Error creating client:", error)
