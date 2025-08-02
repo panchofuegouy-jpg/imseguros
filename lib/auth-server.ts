@@ -1,9 +1,4 @@
-import { createClient as createServerClient } from "@/lib/supabase/server"
-import sgMail from "@sendgrid/mail"
-
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY)
-}
+import { createClient as createServerClient, createAdminClient } from "@/lib/supabase/server"
 
 export async function getCurrentUser() {
   const supabase = await createServerClient()
@@ -25,56 +20,94 @@ export async function createClientUser(clientData: {
   documento: string
   direccion?: string
 }) {
-  const supabase = await createServerClient()
-  // First create the client
-  const { data: client, error: clientError } = await supabase.from("clients").insert(clientData).select().single()
+  console.log('Iniciando creación de cliente:', clientData.email)
+  
+  // Usar cliente admin para operaciones que requieren Service Role
+  const adminSupabase = createAdminClient()
+  const regularSupabase = await createServerClient()
+  
+  try {
+    // Primero crear el cliente en la tabla clients
+    console.log('Creando registro de cliente...')
+    const { data: client, error: clientError } = await adminSupabase
+      .from("clients")
+      .insert(clientData)
+      .select()
+      .single()
 
-  if (clientError) throw clientError
-
-  // Create auth user with temporary password
-  const tempPassword = Math.random().toString(36).slice(-8)
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email: clientData.email,
-    password: tempPassword,
-    email_confirm: true,
-  })
-
-  if (authError) throw authError
-
-  // Create user profile linking to client
-  const { error: profileError } = await supabase.from("user_profiles").insert({
-    id: authData.user.id,
-    client_id: client.id,
-    role: "client",
-  })
-
-  if (profileError) throw profileError
-
-  // Send welcome email with temporary password
-  if (process.env.SENDGRID_API_KEY) {
-    const msg = {
-      to: clientData.email,
-      from: "noreply@example.com", // Change to your verified sender
-      subject: "Bienvenido a nuestro portal de clientes",
-      html: `
-        <h1>Bienvenido, ${clientData.nombre}</h1>
-        <p>Se ha creado una cuenta para ti en nuestro portal de clientes.</p>
-        <p>Puedes iniciar sesión con las siguientes credenciales:</p>
-        <ul>
-          <li><strong>Email:</strong> ${clientData.email}</li>
-          <li><strong>Contraseña temporal:</strong> ${tempPassword}</li>
-        </ul>
-        <p>Se te pedirá que cambies tu contraseña después de iniciar sesión por primera vez.</p>
-      `,
+    if (clientError) {
+      console.error('Error creando cliente:', clientError)
+      throw clientError
     }
+    console.log('Cliente creado exitosamente:', client.id)
+
+    // Crear usuario en Supabase Auth con contraseña temporal
+    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase() + '1!'
+    console.log('Creando usuario en Auth con email:', clientData.email)
+    
+    const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
+      email: clientData.email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: {
+        full_name: clientData.nombre
+      }
+    })
+
+    if (authError) {
+      console.error('Error creando usuario en Auth:', authError)
+      throw new Error(`Error creando usuario: ${authError.message}`)
+    }
+    console.log('Usuario creado en Auth exitosamente:', authData.user.id)
+
+    // Crear perfil de usuario vinculando al cliente
+    console.log('Creando perfil de usuario...')
+    const { error: profileError } = await adminSupabase
+      .from("user_profiles")
+      .insert({
+        id: authData.user.id,
+        client_id: client.id,
+        role: "client",
+      })
+
+    if (profileError) {
+      console.error('Error creando perfil:', profileError)
+      throw new Error(`Error creando perfil: ${profileError.message}`)
+    }
+    console.log('Perfil de usuario creado exitosamente')
+
+    // Enviar email de bienvenida usando Supabase Edge Function
+    let emailSent = false
+    console.log('Enviando email usando Supabase Edge Function...')
+    
     try {
-      await sgMail.send(msg)
-    } catch (error) {
-      console.error("Error sending email:", error)
-      // We don't want to throw an error here, as the user has been created.
-      // We can add more robust error handling later.
-    }
-  }
+      const { data: functionData, error: functionError } = await adminSupabase.functions.invoke('send-welcome-email', {
+        body: {
+          email: clientData.email,
+          nombre: clientData.nombre,
+          tempPassword: tempPassword
+        }
+      })
 
-  return { client, tempPassword }
+      if (functionError) {
+        console.error('Error llamando a Edge Function:', functionError)
+        emailSent = false
+      } else if (functionData?.success) {
+        console.log('Email enviado exitosamente:', functionData)
+        emailSent = true
+      } else {
+        console.error('Edge Function retornó error:', functionData)
+        emailSent = false
+      }
+    } catch (error) {
+      console.error('Error invocando Edge Function:', error)
+      emailSent = false
+    }
+
+    console.log('Proceso completado exitosamente')
+    return { client, tempPassword }
+  } catch (error) {
+    console.error("Error creating client user:", error)
+    return { client: null, tempPassword: null }
+  }
 }

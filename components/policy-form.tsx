@@ -126,16 +126,23 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>{initialData ? "Editar Póliza" : "Nueva Póliza"}</CardTitle>
-        <CardDescription>
+    <div className="w-full">
+      <div className="mb-4 sm:hidden">
+        <h3 className="text-lg font-semibold">{initialData ? "Editar Póliza" : "Nueva Póliza"}</h3>
+        <p className="text-sm text-muted-foreground">
           {initialData ? "Modifica los datos de la póliza" : "Ingresa los datos de la nueva póliza"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        </p>
+      </div>
+      <Card className="w-full sm:max-w-2xl sm:mx-auto border-none sm:border shadow-none sm:shadow-sm">
+        <CardHeader className="hidden sm:block">
+          <CardTitle>{initialData ? "Editar Póliza" : "Nueva Póliza"}</CardTitle>
+          <CardDescription>
+            {initialData ? "Modifica los datos de la póliza" : "Ingresa los datos de la nueva póliza"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="client_id">Cliente *</Label>
               <Select
@@ -143,7 +150,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                 onValueChange={(value) => setFormData({ ...formData, client_id: value })}
                 required
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-11">
                   <SelectValue placeholder="Selecciona un cliente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -162,7 +169,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                 value={formData.company_id}
                 onValueChange={(value) => setFormData({ ...formData, company_id: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-11">
                   <SelectValue placeholder="Selecciona una aseguradora" />
                 </SelectTrigger>
                 <SelectContent>
@@ -176,11 +183,12 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="numero_poliza">Número de Póliza *</Label>
               <Input
                 id="numero_poliza"
+                className="h-11"
                 value={formData.numero_poliza}
                 onChange={(e) => setFormData({ ...formData, numero_poliza: e.target.value })}
                 placeholder="Ej: POL-2024-001"
@@ -195,7 +203,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                 onValueChange={(value) => setFormData({ ...formData, tipo: value })}
                 required
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-11">
                   <SelectValue placeholder="Selecciona el tipo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -209,12 +217,13 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="vigencia_inicio">Fecha de Inicio *</Label>
               <Input
                 id="vigencia_inicio"
                 type="date"
+                className="h-11"
                 value={formData.vigencia_inicio}
                 onChange={(e) => setFormData({ ...formData, vigencia_inicio: e.target.value })}
                 required
@@ -226,6 +235,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
               <Input
                 id="vigencia_fin"
                 type="date"
+                className="h-11"
                 value={formData.vigencia_fin}
                 onChange={(e) => setFormData({ ...formData, vigencia_fin: e.target.value })}
                 required
@@ -235,11 +245,11 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
 
           <div className="space-y-2">
             <Label htmlFor="archivo">Documento de Póliza</Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6">
               {!file && !currentFileUrl ? (
                 <div className="text-center">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                  <div className="mt-4">
+                  <Upload className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
+                  <div className="mt-3 sm:mt-4">
                     <label htmlFor="file-upload" className="cursor-pointer">
                       <span className="mt-2 block text-sm font-medium text-gray-900">
                         Arrastra un archivo aquí o haz clic para seleccionar
@@ -258,16 +268,16 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <FileText className="h-8 w-8 text-blue-500" />
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-900">{file ? file.name : "Archivo actual"}</p>
+                  <div className="flex items-center min-w-0 flex-1">
+                    <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0" />
+                    <div className="ml-3 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{file ? file.name : "Archivo actual"}</p>
                       <p className="text-xs text-gray-500">
                         {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : "Documento de póliza"}
                       </p>
                     </div>
                   </div>
-                  <Button type="button" variant="outline" size="sm" onClick={removeFile}>
+                  <Button type="button" variant="outline" size="sm" onClick={removeFile} className="ml-2 flex-shrink-0">
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
@@ -283,19 +293,21 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
               onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
               placeholder="Notas adicionales sobre la póliza..."
               rows={3}
+              className="min-h-[80px] resize-none"
             />
           </div>
 
-          <div className="flex justify-end space-x-4">
-            <Button type="button" variant="outline">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-4 pt-4">
+            <Button type="button" variant="outline" className="w-full sm:w-auto">
               Cancelar
             </Button>
-            <Button type="submit" disabled={uploading}>
+            <Button type="submit" disabled={uploading} className="w-full sm:w-auto">
               {uploading ? "Subiendo..." : initialData ? "Actualizar" : "Crear Póliza"}
             </Button>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

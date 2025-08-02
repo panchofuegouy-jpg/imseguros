@@ -5,8 +5,10 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import PolicyForm from "@/components/policy-form";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Mail, Phone, FileText, User, CalendarDays } from "lucide-react";
 
 interface Client {
@@ -47,6 +49,7 @@ interface ClientDetailPageContentProps {
 export function ClientDetailPageContent({ client, initialPolicies, companies }: ClientDetailPageContentProps) {
     const [policies, setPolicies] = useState<Policy[]>(initialPolicies);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const isMobile = useIsMobile();
     const supabase = createClient();
 
     const handleCreatePolicy = async (policyData: any) => {
@@ -105,18 +108,35 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                     <h2 className="text-2xl font-bold">Pólizas Asociadas</h2>
                     <p className="text-muted-foreground">Gestiona las pólizas de {client.nombre}</p>
                 </div>
-                <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-                    <DialogTrigger asChild>
-                        <Button>Crear Nueva Póliza</Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[600px]">
-                        <DialogHeader>
-                            <DialogTitle>Crear Nueva Póliza</DialogTitle>
-                            <DialogDescription>Ingresa los detalles de la nueva póliza para {client.nombre}.</DialogDescription>
-                        </DialogHeader>
-                        <PolicyForm clients={[{ id: client.id, nombre: client.nombre }]} companies={companies} onSubmit={handleCreatePolicy} />
-                    </DialogContent>
-                </Dialog>
+                {isMobile ? (
+                    <Drawer open={isFormOpen} onOpenChange={setIsFormOpen}>
+                        <DrawerTrigger asChild>
+                            <Button>Crear Nueva Póliza</Button>
+                        </DrawerTrigger>
+                        <DrawerContent className="max-h-[90vh]">
+                            <DrawerHeader className="text-left">
+                                <DrawerTitle>Crear Nueva Póliza</DrawerTitle>
+                                <DrawerDescription>Ingresa los detalles de la nueva póliza para {client.nombre}.</DrawerDescription>
+                            </DrawerHeader>
+                            <div className="px-4 pb-4 overflow-y-auto">
+                                <PolicyForm clients={[{ id: client.id, nombre: client.nombre }]} companies={companies} onSubmit={handleCreatePolicy} />
+                            </div>
+                        </DrawerContent>
+                    </Drawer>
+                ) : (
+                    <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+                        <DialogTrigger asChild>
+                            <Button>Crear Nueva Póliza</Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                                <DialogTitle>Crear Nueva Póliza</DialogTitle>
+                                <DialogDescription>Ingresa los detalles de la nueva póliza para {client.nombre}.</DialogDescription>
+                            </DialogHeader>
+                            <PolicyForm clients={[{ id: client.id, nombre: client.nombre }]} companies={companies} onSubmit={handleCreatePolicy} />
+                        </DialogContent>
+                    </Dialog>
+                )}
             </div>
 
             <Card>

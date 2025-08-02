@@ -1,8 +1,25 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClientUser } from "@/lib/auth-server"
+import { createClientUser, getCurrentUser } from "@/lib/auth-server"
 
 export async function POST(request: NextRequest) {
   try {
+    // Verificar que el usuario esté autenticado y tenga rol de admin
+    const currentUser = await getCurrentUser()
+    
+    if (!currentUser || !currentUser.profile) {
+      return NextResponse.json(
+        { error: "No autorizado" },
+        { status: 401 }
+      )
+    }
+
+    if (currentUser.profile.role !== "admin") {
+      return NextResponse.json(
+        { error: "Solo los administradores pueden crear clientes" },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { nombre, email, telefono, documento, direccion } = body
 
@@ -24,6 +41,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       client: result.client,
       tempPassword: result.tempPassword,
+      emailSent: result.emailSent
     })
   } catch (error: any) {
     console.error("Error creating client:", error)

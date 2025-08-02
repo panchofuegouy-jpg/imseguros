@@ -28,7 +28,7 @@ interface CreateClientDialogProps {
 export function CreateClientDialog({ open, onOpenChange, onClientCreated }: CreateClientDialogProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [success, setSuccess] = useState<{ client: any; password: string } | null>(null)
+  const [success, setSuccess] = useState<{ client: any; password: string; emailSent: boolean } | null>(null)
   const [formData, setFormData] = useState({
     nombre: "",
     email: "",
@@ -58,7 +58,11 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated }: Crea
         throw new Error(result.error || 'Error al crear el cliente')
       }
 
-      setSuccess({ client: result.client, password: result.tempPassword })
+      setSuccess({ 
+        client: result.client, 
+        password: result.tempPassword,
+        emailSent: result.emailSent || false
+      })
       onClientCreated()
     } catch (error: any) {
       setError(error.message || "Error al crear el cliente")
@@ -106,8 +110,28 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated }: Crea
                 <strong>Contraseña temporal:</strong>{" "}
                 <code className="bg-white px-2 py-1 rounded">{success.password}</code>
               </p>
+              
+              {success.emailSent ? (
+                <Alert className="mt-3">
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    ✅ Email con credenciales enviado exitosamente a {success.client.email}
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert variant="destructive" className="mt-3">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    ⚠️ No se pudo enviar el email automáticamente. Comparte las credenciales manualmente.
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               <p className="text-sm text-muted-foreground">
-                Comparte estas credenciales con el cliente de forma segura.
+                {success.emailSent 
+                  ? "El cliente recibirá un email con instrucciones para acceder."
+                  : "Comparte estas credenciales con el cliente de forma segura."
+                }
               </p>
             </div>
           </div>
