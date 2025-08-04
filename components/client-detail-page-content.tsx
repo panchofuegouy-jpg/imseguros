@@ -9,7 +9,10 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, Dr
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import PolicyForm from "@/components/policy-form";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Mail, Phone, FileText, User, CalendarDays } from "lucide-react";
+import { Mail, Phone, FileText, User, CalendarDays, Edit, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { CreateClientDialog } from "./create-client-dialog";
 
 interface Client {
     id: string;
@@ -19,6 +22,8 @@ interface Client {
     documento: string;
     direccion: string | null;
     created_at: string;
+    numero_cliente: number | null;
+    departamento: string | null;
 }
 
 interface Policy {
@@ -49,8 +54,18 @@ interface ClientDetailPageContentProps {
 export function ClientDetailPageContent({ client, initialPolicies, companies }: ClientDetailPageContentProps) {
     const [policies, setPolicies] = useState<Policy[]>(initialPolicies);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingPolicy, setEditingPolicy] = useState<Policy | null>(null);
+    const [isEditPolicyFormOpen, setIsEditPolicyFormOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [deletingPolicy, setDeletingPolicy] = useState<Policy | null>(null);
     const isMobile = useIsMobile();
     const supabase = createClient();
+
+    const handleClientUpdated = () => {
+        setIsEditModalOpen(false);
+        window.location.reload();
+    };
 
     const handleCreatePolicy = async (policyData: any) => {
         try {
@@ -61,10 +76,87 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
             }
             setPolicies((prev) => [...prev, data as Policy]);
             setIsFormOpen(false);
-            alert("Póliza creada exitosamente!");
+            toast.success("Póliza creada exitosamente!");
         } catch (err: any) {
-            alert(`Error al crear la póliza: ${err.message}`);
+            toast.error(`Error al crear la póliza: ${err.message}`);
         }
+    };
+
+    const handleUpdatePolicy = async (policyData: any) => {
+        if (!editingPolicy) return;
+        try {
+            const { error } = await supabase
+                .from("policies")
+                .update(policyData)
+                .eq("id", editingPolicy.id);
+
+            if (error) {
+                throw error;
+            }
+
+            const { data: updatedPolicy, error: fetchError } = await supabase
+                .from("policies")
+                .select("*, companies(name)")
+                .eq("id", editingPolicy.id)
+                .single();
+
+            if (fetchError) {
+                throw fetchError;
+            }
+
+            setPolicies((prev) =>
+                prev.map((p) => (p.id === editingPolicy.id ? updatedPolicy as Policy : p))
+            );
+            setIsEditPolicyFormOpen(false);
+            setEditingPolicy(null);
+            toast.success("Póliza actualizada exitosamente!");
+        } catch (err: any) {
+            toast.error(`Error al actualizar la póliza: ${err.message}`);
+        }
+    };
+
+    const handleDeletePolicy = async () => {
+        if (!deletingPolicy) return;
+        try {
+            const { error } = await supabase
+                .from("policies")
+                .delete()
+                .eq("id", deletingPolicy.id);
+
+            if (error) {
+                throw error;
+            }
+
+            if (deletingPolicy.archivo_url) {
+                const filePath = new URL(deletingPolicy.archivo_url).pathname.split('/public/policy-documents/')[1];
+                if (filePath) {
+                    const { error: storageError } = await supabase.storage
+                        .from("policy-documents")
+                        .remove([filePath]);
+
+                    if (storageError) {
+                        console.error("Error deleting policy file, but policy record was deleted:", storageError);
+                    }
+                }
+            }
+
+            setPolicies((prev) => prev.filter((p) => p.id !== deletingPolicy.id));
+            setIsDeleteDialogOpen(false);
+            setDeletingPolicy(null);
+            toast.success("Póliza eliminada exitosamente!");
+        } catch (err: any) {
+            toast.error(`Error al eliminar la póliza: ${err.message}`);
+        }
+    };
+
+    const openEditForm = (policy: Policy) => {
+        setEditingPolicy(policy);
+        setIsEditPolicyFormOpen(true);
+    };
+
+    const openDeleteDialog = (policy: Policy) => {
+        setDeletingPolicy(policy);
+        setIsDeleteDialogOpen(true);
     };
 
     return (
@@ -75,6 +167,9 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                     <CardTitle className="text-2xl flex items-center">
                         <User className="h-6 w-6 mr-2" />
                         {client.nombre}
+                        <Button variant="outline" size="icon" className="ml-4" onClick={() => setIsEditModalOpen(true)}>
+                            <Edit className="h-4 w-4" />
+                        </Button>
                     </CardTitle>
                     <CardDescription>Detalles del Cliente</CardDescription>
                 </CardHeader>
@@ -99,8 +194,27 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                             <span>Dirección: {client.direccion}</span>
                         </div>
                     )}
+                    {client.numero_cliente && (
+                        <div className="flex items-center">
+                            <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <span>Número de Cliente: {client.numero_cliente}</span>
+                        </div>
+                    )}
+                    {client.departamento && (
+                        <div className="flex items-center">
+                            <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <span>Departamento: {client.departamento}</span>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
+
+            <CreateClientDialog
+                open={isEditModalOpen}
+                onOpenChange={setIsEditModalOpen}
+                client={client}
+                onClientUpdated={handleClientUpdated}
+            />
 
             {/* Policies Section */}
             <div className="flex justify-between items-center">
@@ -157,6 +271,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                                     <TableHead>Fin Vigencia</TableHead>
                                     <TableHead>Documento</TableHead>
                                     <TableHead>Notas</TableHead>
+                                    <TableHead>Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -177,6 +292,16 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                                             )}
                                         </TableCell>
                                         <TableCell>{policy.notas}</TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                <Button variant="outline" size="icon" onClick={() => openEditForm(policy)}>
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="destructive" size="icon" onClick={() => openDeleteDialog(policy)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -184,6 +309,57 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                     )}
                 </CardContent>
             </Card>
+
+            {/* Edit Policy Dialog/Drawer */}
+            {isMobile ? (
+                <Drawer open={isEditPolicyFormOpen} onOpenChange={setIsEditPolicyFormOpen}>
+                    <DrawerContent className="max-h-[90vh]">
+                        <DrawerHeader className="text-left">
+                            <DrawerTitle>Editar Póliza</DrawerTitle>
+                            <DrawerDescription>Actualiza los detalles de la póliza.</DrawerDescription>
+                        </DrawerHeader>
+                        <div className="px-4 pb-4 overflow-y-auto">
+                            <PolicyForm
+                                clients={[{ id: client.id, nombre: client.nombre }]}
+                                companies={companies}
+                                onSubmit={handleUpdatePolicy}
+                                initialData={editingPolicy}
+                            />
+                        </div>
+                    </DrawerContent>
+                </Drawer>
+            ) : (
+                <Dialog open={isEditPolicyFormOpen} onOpenChange={setIsEditPolicyFormOpen}>
+                    <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Editar Póliza</DialogTitle>
+                            <DialogDescription>Actualiza los detalles de la póliza.</DialogDescription>
+                        </DialogHeader>
+                        <PolicyForm
+                            clients={[{ id: client.id, nombre: client.nombre }]}
+                            companies={companies}
+                            onSubmit={handleUpdatePolicy}
+                            initialData={editingPolicy}
+                        />
+                    </DialogContent>
+                </Dialog>
+            )}
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Esto eliminará permanentemente la póliza y sus archivos asociados.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeletingPolicy(null)}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeletePolicy}>Eliminar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

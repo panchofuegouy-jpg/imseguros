@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { nombre, email, telefono, documento, direccion } = body
+    const { nombre, email, telefono, documento, direccion, numero_cliente, departamento } = body
 
     if (!nombre || !email || !documento) {
       return NextResponse.json(
@@ -37,6 +37,8 @@ export async function POST(request: NextRequest) {
       telefono,
       documento,
       direccion,
+      numero_cliente,
+      departamento,
     })
 
     if (!client || !tempPassword) {

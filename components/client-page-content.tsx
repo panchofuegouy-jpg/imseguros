@@ -8,6 +8,22 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, User, Mail, Phone, FileText } from "lucide-react"
 import { CreateClientDialog } from "@/components/create-client-dialog"
 import Link from "next/link"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 
 interface Client {
     id: string
@@ -17,6 +33,8 @@ interface Client {
     documento: string
     direccion: string | null
     created_at: string
+    numero_cliente: number | null
+    departamento: string | null
     policies?: { count: number }[]
 }
 
@@ -28,6 +46,8 @@ export function ClientPageContent({ initialClients }: ClientPageContentProps) {
     const [clients, setClients] = useState<Client[]>(initialClients)
     const [searchTerm, setSearchTerm] = useState("")
     const [showCreateDialog, setShowCreateDialog] = useState(false)
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 25
 
     const fetchClients = async () => {
         // This function can be improved to re-fetch from the server
@@ -40,6 +60,12 @@ export function ClientPageContent({ initialClients }: ClientPageContentProps) {
             client.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
             client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
             client.documento.includes(searchTerm),
+    )
+
+    const totalPages = Math.ceil(filteredClients.length / itemsPerPage)
+    const paginatedClients = filteredClients.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage,
     )
 
     return (
@@ -67,46 +93,77 @@ export function ClientPageContent({ initialClients }: ClientPageContentProps) {
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredClients.map((client) => (
-                    <Card key={client.id} className="hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center justify-between">
-                                <CardTitle className="text-lg flex items-center">
-                                    <User className="h-5 w-5 mr-2" />
-                                    {client.nombre}
-                                </CardTitle>
-                                <Badge variant="secondary">{client.policies?.[0]?.count || 0} pólizas</Badge>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            <div className="flex items-center text-sm text-muted-foreground">
-                                <Mail className="h-4 w-4 mr-2" />
-                                {client.email}
-                            </div>
-                            {client.telefono && (
-                                <div className="flex items-center text-sm text-muted-foreground">
-                                    <Phone className="h-4 w-4 mr-2" />
-                                    {client.telefono}
-                                </div>
-                            )}
-                            <div className="flex items-center text-sm text-muted-foreground">
-                                <FileText className="h-4 w-4 mr-2" />
-                                Doc: {client.documento}
-                            </div>
-                            <div className="pt-2">
-                                <Link href={`/admin/clientes/${client.id}`}>
-                                    <Button variant="outline" size="sm" className="w-full bg-transparent">
-                                        Ver Detalles
-                                    </Button>
-                                </Link>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
+            <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Nombre</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Documento</TableHead>
+                            <TableHead>Teléfono</TableHead>
+                            <TableHead>Pólizas</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {paginatedClients.map((client) => (
+                            <TableRow key={client.id}>
+                                <TableCell className="font-medium">{client.nombre}</TableCell>
+                                <TableCell>{client.email}</TableCell>
+                                <TableCell>{client.documento}</TableCell>
+                                <TableCell>{client.telefono || "N/A"}</TableCell>
+                                <TableCell>{client.policies?.[0]?.count || 0}</TableCell>
+                                <TableCell className="text-right">
+                                    <Link href={`/admin/clientes/${client.id}`}>
+                                        <Button variant="outline" size="sm">
+                                            Ver Detalles
+                                        </Button>
+                                    </Link>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </div>
 
-            {filteredClients.length === 0 && (
+            <Pagination>
+                <PaginationContent>
+                    <PaginationItem>
+                        <PaginationPrevious
+                            href="#"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                if (currentPage > 1) setCurrentPage(currentPage - 1)
+                            }}
+                        />
+                    </PaginationItem>
+                    {[...Array(totalPages)].map((_, i) => (
+                        <PaginationItem key={i}>
+                            <PaginationLink
+                                href="#"
+                                isActive={currentPage === i + 1}
+                                onClick={(e) => {
+                                    e.preventDefault()
+                                    setCurrentPage(i + 1)
+                                }}
+                            >
+                                {i + 1}
+                            </PaginationLink>
+                        </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                        <PaginationNext
+                            href="#"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                if (currentPage < totalPages) setCurrentPage(currentPage + 1)
+                            }}
+                        />
+                    </PaginationItem>
+                </PaginationContent>
+            </Pagination>
+
+            {paginatedClients.length === 0 && (
                 <Card>
                     <CardContent className="text-center py-8">
                         <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />

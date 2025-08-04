@@ -25,10 +25,10 @@ export async function signIn(email: string, password: string) {
     return { data, error }
   }
 
-  // Fetch user profile to get the role
+  // Fetch user profile to get the role and first_login status
   const { data: profile, error: profileError } = await supabase
     .from("user_profiles")
-    .select("role")
+    .select("role, first_login")
     .eq("id", data.user?.id)
     .single()
 

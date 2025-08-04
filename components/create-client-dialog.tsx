@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import * as React from "react"
 
 import { useState } from "react"
 // Removed direct import of createClientUser
@@ -18,24 +18,65 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle, AlertCircle } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
+
+import { useEffect } from "react";
 
 interface CreateClientDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onClientCreated: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onClientCreated?: () => void; // Optional for create mode
+  onClientUpdated?: (data: any) => void; // Optional for edit mode
+  client?: any; // Pass client data for editing
 }
 
-export function CreateClientDialog({ open, onOpenChange, onClientCreated }: CreateClientDialogProps) {
+const departments = [
+  "Artigas", "Canelones", "Cerro Largo", "Colonia", "Durazno",
+  "Flores", "Florida", "Lavalleja", "Maldonado", "Montevideo",
+  "Paysandú", "Río Negro", "Rivera", "Rocha", "Salto",
+  "San José", "Soriano", "Tacuarembó", "Treinta y Tres"
+];
+
+export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClientUpdated, client }: CreateClientDialogProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [success, setSuccess] = useState<{ client: any; password: string; emailSent: boolean } | null>(null)
+  const [success, setSuccess] = useState<{ client: any; password?: string; emailSent?: boolean } | null>(null)
   const [formData, setFormData] = useState({
     nombre: "",
     email: "",
     telefono: "",
     documento: "",
     direccion: "",
+    numero_cliente: "",
+    departamento: "",
   })
+
+  const isEditMode = !!client;
+
+  useEffect(() => {
+    if (isEditMode && client) {
+      setFormData({
+        nombre: client.nombre || "",
+        email: client.email || "",
+        telefono: client.telefono || "",
+        documento: client.documento || "",
+        direccion: client.direccion || "",
+        numero_cliente: client.numero_cliente || "",
+        departamento: client.departamento || "",
+      });
+    } else {
+      // Reset form for create mode
+      setFormData({
+        nombre: "",
+        email: "",
+        telefono: "",
+        documento: "",
+        direccion: "",
+        numero_cliente: "",
+        departamento: "",
+      });
+    }
+  }, [client, isEditMode, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,28 +85,39 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated }: Crea
     setSuccess(null)
 
     try {
-      const response = await fetch('/api/create-client', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      })
+      let result;
+      if (isEditMode) {
+        // Update existing client
+        const response = await fetch(`/api/clients/${client.id}`,
+         {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+        result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Error al actualizar');
+        setSuccess({ client: result });
+        if(onClientUpdated) onClientUpdated(result);
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Error al crear el cliente')
+      } else {
+        // Create new client
+        const response = await fetch('/api/create-client', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+        result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Error al crear el cliente');
+        setSuccess({ 
+          client: result.client, 
+          password: result.tempPassword,
+          emailSent: result.emailSent || false
+        });
+        if(onClientCreated) onClientCreated();
       }
 
-      setSuccess({ 
-        client: result.client, 
-        password: result.tempPassword,
-        emailSent: result.emailSent || false
-      })
-      onClientCreated()
     } catch (error: any) {
-      setError(error.message || "Error al crear el cliente")
+      setError(error.message || "Ocurrió un error")
     } finally {
       setLoading(false)
     }
@@ -78,6 +130,8 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated }: Crea
       telefono: "",
       documento: "",
       direccion: "",
+      numero_cliente: "",
+      departamento: "",
     })
     setError("")
     setSuccess(null)
@@ -101,28 +155,28 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated }: Crea
               <AlertDescription>Cliente creado exitosamente. Se ha generado una cuenta de acceso.</AlertDescription>
             </Alert>
 
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <div>
               <h4 className="font-semibold">Credenciales de acceso:</h4>
               <p>
                 <strong>Email:</strong> {success.client.email}
               </p>
               <p>
                 <strong>Contraseña temporal:</strong>{" "}
-                <code className="bg-white px-2 py-1 rounded">{success.password}</code>
+                <code className="px-2 py-1 rounded">{success.password}</code>
               </p>
               
               {success.emailSent ? (
                 <Alert className="mt-3">
                   <CheckCircle className="h-4 w-4" />
                   <AlertDescription>
-                    ✅ Email con credenciales enviado exitosamente a {success.client.email}
+                    Email con credenciales enviado exitosamente a {success.client.email}
                   </AlertDescription>
                 </Alert>
               ) : (
                 <Alert variant="destructive" className="mt-3">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    ⚠️ No se pudo enviar el email automáticamente. Comparte las credenciales manualmente.
+                    No se pudo enviar el email automáticamente. Comparte las credenciales manualmente.
                   </AlertDescription>
                 </Alert>
               )}
@@ -190,6 +244,34 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated }: Crea
                 placeholder="Calle Principal 123, Ciudad"
                 rows={3}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="numero_cliente">Número de Cliente</Label>
+              <Input
+                id="numero_cliente"
+                type="number"
+                value={formData.numero_cliente}
+                onChange={(e) => setFormData({ ...formData, numero_cliente: e.target.value })}
+                placeholder="123"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="departamento">Departamento</Label>
+              <Select
+                onValueChange={(value) => setFormData({ ...formData, departamento: value })}
+                value={formData.departamento}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un departamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map(dep => (
+                    <SelectItem key={dep} value={dep}>{dep}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {error && (

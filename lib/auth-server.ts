@@ -19,6 +19,8 @@ export async function createClientUser(clientData: {
   telefono?: string
   documento: string
   direccion?: string
+  numero_cliente?: number
+  departamento?: string
 }) {
   console.log('Iniciando creación de cliente:', clientData.email)
   
@@ -68,6 +70,7 @@ export async function createClientUser(clientData: {
         id: authData.user.id,
         client_id: client.id,
         role: "client",
+        first_login: true, // Marcar que necesita cambiar contraseña en primer login
       })
 
     if (profileError) {

@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS clients (
   telefono TEXT,
   documento TEXT UNIQUE NOT NULL,
   direccion TEXT,
+  numero_cliente INTEGER UNIQUE,
+  departamento TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

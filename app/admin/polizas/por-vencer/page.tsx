@@ -1,55 +1,54 @@
+
 import { createClient } from "@/lib/supabase/server";
-import { ClientLayout } from "@/components/client-layout";
+import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import Link from "next/link";
 
-async function getClientPolicies() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser();
+async function getPoliciesNearExpiration() {
+  const supabase = await createClient();
+  const today = new Date();
+  const nextMonth = new Date();
+  nextMonth.setDate(today.getDate() + 30);
 
-  if (!user) {
-    return { policies: [] };
-  }
-
-  const { data: profileData } = await supabase
-    .from("user_profiles")
-    .select("client_id")
-    .eq("id", user.id)
-    .single();
-
-  if (!profileData || !profileData.client_id) {
-    return { policies: [] };
-  }
-
-  const { data: policiesData } = await supabase
+  const { data, error } = await supabase
     .from("policies")
-    .select("*, companies(name)")
-    .eq("client_id", profileData.client_id)
+    .select("*, clients(nombre), companies(name)")
+    .gte("vigencia_fin", today.toISOString())
+    .lte("vigencia_fin", nextMonth.toISOString())
     .order("vigencia_fin", { ascending: true });
 
-  return {
-    policies: policiesData || [],
-  };
+  if (error) {
+    console.error("Error fetching policies near expiration:", error);
+    return [];
+  }
+
+  return data;
 }
 
-export default async function ClientPoliciesPage() {
-  const { policies } = await getClientPolicies();
+export default async function PoliciesNearExpirationPage() {
+  const policies = await getPoliciesNearExpiration();
 
   return (
-    <ClientLayout>
+    <AdminLayout>
       <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Pólizas por Vencer</h1>
+          <p className="text-muted-foreground">Pólizas que vencerán en los próximos 30 días.</p>
+        </div>
         <Card>
           <CardHeader>
-            <CardTitle>Mis Pólizas</CardTitle>
+            <CardTitle>Listado de Pólizas por Vencer</CardTitle>
           </CardHeader>
           <CardContent>
             {policies.length === 0 ? (
-              <p>No tienes pólizas registradas.</p>
+              <p>No hay pólizas por vencer en los próximos 30 días.</p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Número de Póliza</TableHead>
+                    <TableHead>Cliente</TableHead>
                     <TableHead>Aseguradora</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Inicio Vigencia</TableHead>
@@ -62,13 +61,18 @@ export default async function ClientPoliciesPage() {
                   {policies.map((policy: any) => (
                     <TableRow key={policy.id}>
                       <TableCell>{policy.numero_poliza}</TableCell>
+                      <TableCell>
+                        <Link href={`/admin/clientes/${policy.client_id}`} className="text-blue-600 hover:underline">
+                          {policy.clients?.nombre || "N/A"}
+                        </Link>
+                      </TableCell>
                       <TableCell>{policy.companies?.name || "N/A"}</TableCell>
                       <TableCell>{policy.tipo}</TableCell>
                       <TableCell>{policy.vigencia_inicio}</TableCell>
                       <TableCell>{policy.vigencia_fin}</TableCell>
                       <TableCell>
                         {policy.archivo_url ? (
-                          <a href={policy.archivo_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                          <a href={policy.archivo_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                             Ver Archivo
                           </a>
                         ) : (
@@ -84,6 +88,6 @@ export default async function ClientPoliciesPage() {
           </CardContent>
         </Card>
       </div>
-    </ClientLayout>
+    </AdminLayout>
   );
 }
