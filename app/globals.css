@@ -104,4 +104,52 @@
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
   }
+  
+  /* Mejoras para scroll en móvil */
+  html {
+    /* Prevenir scroll horizontal en móvil */
+    overflow-x: hidden;
+  }
+  
+  /* Mejorar scroll en dialogs y sheets en móvil */
+  @media (max-width: 640px) {
+    /* Para dialogs que necesitan scroll */
+    [data-slot="dialog-content"] {
+      max-height: calc(100vh - 2rem);
+      overflow-y: auto;
+      /* Scroll suave en móvil */
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }
+    
+    /* Para sheets que necesitan scroll */
+    [data-slot="sheet-content"] {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }
+    
+    /* Prevenir zoom en inputs en iOS */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+  
+  /* Prevenir scroll innecesario cuando el contenido cabe */
+  .fit-content {
+    min-height: fit-content;
+  }
+  
+  /* Mejorar el scroll en formularios largos */
+  .scrollable-form {
+    max-height: 80vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }

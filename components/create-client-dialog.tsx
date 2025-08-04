@@ -140,7 +140,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Agregar Nuevo Cliente</DialogTitle>
           <DialogDescription>

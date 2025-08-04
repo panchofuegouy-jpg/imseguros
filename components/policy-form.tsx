@@ -141,7 +141,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4 sm:p-6">
-          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 scrollable-form">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="client_id">Cliente *</Label>
