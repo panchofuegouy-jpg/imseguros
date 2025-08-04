@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Shield } from "lucide-react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -62,8 +61,12 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-            <Shield className="h-6 w-6 text-blue-600" />
+          <div className="mx-auto mb-6 flex items-center justify-center">
+            <img 
+              src="/IM_IDEINTIDAD-LOGO.png" 
+              alt="IM Seguros Logo" 
+              className="h-12 w-auto max-w-[200px] object-contain" 
+            />
           </div>
           <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
           <CardDescription>Accede a tu panel de gestión de pólizas</CardDescription>

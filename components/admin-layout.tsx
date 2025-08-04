@@ -95,7 +95,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-col flex-grow bg-sidebar border-r border-sidebar-border">
-          <div className="flex h-16 items-center justify-left p-4 border-b border-sidebar-border">
+          <div className="flex h-16 items-center justify-center border-b border-sidebar-border">
             <img src="/IM_IDEINTIDAD-LOGO.png" alt="IM Seguros Logo" className="h-8 w-auto" />
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
