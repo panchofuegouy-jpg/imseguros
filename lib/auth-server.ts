@@ -108,9 +108,9 @@ export async function createClientUser(clientData: {
     }
 
     console.log('Proceso completado exitosamente')
-    return { client, tempPassword }
+    return { client, tempPassword, emailSent }
   } catch (error) {
     console.error("Error creating client user:", error)
-    return { client: null, tempPassword: null }
+    return { client: null, tempPassword: null, emailSent: false }
   }
 }

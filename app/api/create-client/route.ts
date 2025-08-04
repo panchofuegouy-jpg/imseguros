@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { client, tempPassword } = await createClientUser({
+    const { client, tempPassword, emailSent } = await createClientUser({
       nombre,
       email,
       telefono,
@@ -48,40 +48,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let emailSent = false
-    try {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false,
-          },
-        }
-      )
-
-      const { data, error } = await supabase.functions.invoke('send-welcome-email', {
-        body: { email, nombre, tempPassword },
-      })
-
-      if (error) {
-        console.error("Error invoking Supabase function:", error)
-        emailSent = false
-      } else {
-        console.log("Supabase function invoked successfully:", data)
-        emailSent = data.success
-      }
-    } catch (emailError) {
-      console.error("Error sending welcome email:", emailError)
-      emailSent = false
-    }
-
     return NextResponse.json({
       client,
       tempPassword,
-      emailSent,
+      emailSent, // Estado real del envío del email desde createClientUser
     })
   } catch (error: any) {
     console.error("Error creating client:", error)
