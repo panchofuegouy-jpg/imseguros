@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, User, Mail, Phone, FileText } from "lucide-react"
+import { Plus, Search, User, Mail, Phone, FileText, Trash2 } from "lucide-react"
 import { CreateClientDialog } from "@/components/create-client-dialog"
 import Link from "next/link"
+import { toast } from "sonner"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import {
   Table,
   TableBody,
@@ -54,6 +56,24 @@ export function ClientPageContent({ initialClients }: ClientPageContentProps) {
         // For now, it will just re-set the initial clients
         setClients(initialClients)
     }
+
+    const handleDeleteClient = async (client: Client) => {
+        try {
+            const response = await fetch(`/api/clients/${client.id}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al eliminar el cliente');
+            }
+
+            setClients(clients.filter((c) => c.id !== client.id));
+            toast.success('Cliente eliminado exitosamente');
+        } catch (error: any) {
+            toast.error(error.message);
+        }
+    };
 
     const filteredClients = clients.filter(
         (client) =>
@@ -114,11 +134,35 @@ export function ClientPageContent({ initialClients }: ClientPageContentProps) {
                                 <TableCell>{client.telefono || "N/A"}</TableCell>
                                 <TableCell>{client.policies?.[0]?.count || 0}</TableCell>
                                 <TableCell className="text-right">
-                                    <Link href={`/admin/clientes/${client.id}`}>
-                                        <Button variant="outline" size="sm">
-                                            Ver Detalles
-                                        </Button>
-                                    </Link>
+                                    <div className="flex justify-end items-center gap-2">
+                                        <Link href={`/admin/clientes/${client.id}`}>
+                                            <Button variant="outline" size="sm">
+                                                Ver Detalles
+                                            </Button>
+                                        </Link>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="destructive" size="sm">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Esta acción no se puede deshacer. Eliminará permanentemente al cliente "{client.nombre}", 
+                                                        todas sus pólizas asociadas, archivos y su cuenta de usuario.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteClient(client)}>
+                                                        Eliminar Cliente
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}

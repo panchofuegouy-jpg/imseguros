@@ -11,7 +11,8 @@ import PolicyForm from "@/components/policy-form";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Mail, Phone, FileText, User, CalendarDays, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useRouter } from "next/navigation";
 import { CreateClientDialog } from "./create-client-dialog";
 
 interface Client {
@@ -59,8 +60,10 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
     const [isEditPolicyFormOpen, setIsEditPolicyFormOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [deletingPolicy, setDeletingPolicy] = useState<Policy | null>(null);
+    const [isDeleteClientDialogOpen, setIsDeleteClientDialogOpen] = useState(false);
     const isMobile = useIsMobile();
     const supabase = createClient();
+    const router = useRouter();
 
     const handleClientUpdated = () => {
         setIsEditModalOpen(false);
@@ -159,17 +162,63 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
         setIsDeleteDialogOpen(true);
     };
 
+    const handleDeleteClient = async () => {
+        try {
+            const response = await fetch(`/api/clients/${client.id}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al eliminar el cliente');
+            }
+
+            toast.success('Cliente eliminado exitosamente');
+            router.push('/admin/clientes');
+        } catch (error: any) {
+            toast.error(error.message);
+        } finally {
+            setIsDeleteClientDialogOpen(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Client Details Card */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-2xl flex items-center">
-                        <User className="h-6 w-6 mr-2" />
-                        {client.nombre}
-                        <Button variant="outline" size="icon" className="ml-4" onClick={() => setIsEditModalOpen(true)}>
-                            <Edit className="h-4 w-4" />
-                        </Button>
+                    <CardTitle className="text-2xl flex items-center justify-between">
+                        <div className="flex items-center">
+                            <User className="h-6 w-6 mr-2" />
+                            {client.nombre}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" onClick={() => setIsEditModalOpen(true)}>
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog open={isDeleteClientDialogOpen} onOpenChange={setIsDeleteClientDialogOpen}>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" size="icon">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta acción no se puede deshacer. Eliminará permanentemente al cliente "{client.nombre}", 
+                                            todas sus pólizas asociadas, archivos y su cuenta de usuario.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleDeleteClient}>
+                                            Eliminar Cliente
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
                     </CardTitle>
                     <CardDescription>Detalles del Cliente</CardDescription>
                 </CardHeader>
