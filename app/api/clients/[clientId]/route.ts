@@ -100,7 +100,7 @@ export async function DELETE(
     // Eliminar las pólizas asociadas y sus archivos
     const { data: policies, error: policiesError } = await adminSupabase
       .from("policies")
-      .select("id, archivo_url")
+      .select("id, archivo_url, archivo_urls")
       .eq("client_id", clientId);
 
     if (policiesError) {
@@ -113,22 +113,38 @@ export async function DELETE(
 
     // Eliminar archivos de pólizas del storage
     if (policies && policies.length > 0) {
+      const filesToDelete: string[] = [];
       for (const policy of policies) {
+        if (policy.archivo_urls && Array.isArray(policy.archivo_urls)) {
+          filesToDelete.push(...policy.archivo_urls);
+        }
         if (policy.archivo_url) {
-          try {
-            const filePath = new URL(policy.archivo_url).pathname.split('/public/policy-documents/')[1];
-            if (filePath) {
-              const { error: storageError } = await adminSupabase.storage
-                .from("policy-documents")
-                .remove([filePath]);
-              
-              if (storageError) {
-                console.error(`Error deleting policy file ${filePath}:`, storageError);
-              }
-            }
-          } catch (err) {
-            console.error(`Error processing policy file URL:`, err);
+          filesToDelete.push(policy.archivo_url);
+        }
+      }
+
+      const uniqueFilesToDelete = [...new Set(filesToDelete)];
+
+      for (const fileUrl of uniqueFilesToDelete) {
+        try {
+          const urlParts = fileUrl.split('/');
+          const bucketIndex = urlParts.findIndex(part => part === 'policy-documents');
+          if (bucketIndex === -1) {
+            console.warn("Could not find bucket in URL:", fileUrl);
+            continue;
           }
+          const filePath = urlParts.slice(bucketIndex + 1).join('/');
+          if (filePath) {
+            const { error: storageError } = await adminSupabase.storage
+              .from("policy-documents")
+              .remove([filePath]);
+            
+            if (storageError) {
+              console.error(`Error deleting policy file ${filePath}:`, storageError);
+            }
+          }
+        } catch (err) {
+          console.error(`Error processing policy file URL:`, err);
         }
       }
 

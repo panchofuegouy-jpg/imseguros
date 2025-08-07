@@ -169,7 +169,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
                 <Alert className="mt-3">
                   <CheckCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Email con credenciales enviado exitosamente a {success.client.email}
+                    Email con credenciales enviado exitosament  e a {success.client.email}
                   </AlertDescription>
                 </Alert>
               ) : (

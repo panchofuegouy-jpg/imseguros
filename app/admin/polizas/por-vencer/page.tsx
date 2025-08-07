@@ -71,10 +71,20 @@ export default async function PoliciesNearExpirationPage() {
                       <TableCell>{policy.vigencia_inicio}</TableCell>
                       <TableCell>{policy.vigencia_fin}</TableCell>
                       <TableCell>
-                        {policy.archivo_url ? (
-                          <a href={policy.archivo_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                            Ver Archivo
-                          </a>
+                        {policy.archivo_urls && Array.isArray(policy.archivo_urls) && policy.archivo_urls.length > 0 ? (
+                          <div className="flex flex-col space-y-1">
+                            {policy.archivo_urls.map((url, index) => (
+                              <a
+                                key={index}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline"
+                              >
+                                Archivo {index + 1}
+                              </a>
+                            ))}
+                          </div>
                         ) : (
                           "N/A"
                         )}

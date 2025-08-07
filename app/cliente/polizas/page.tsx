@@ -50,6 +50,7 @@ export default async function ClientPoliciesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Número de Póliza</TableHead>
+                    <TableHead>Asegurado</TableHead>
                     <TableHead>Aseguradora</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Inicio Vigencia</TableHead>
@@ -62,15 +63,37 @@ export default async function ClientPoliciesPage() {
                   {policies.map((policy: any) => (
                     <TableRow key={policy.id}>
                       <TableCell>{policy.numero_poliza}</TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">
+                            {policy.nombre_asegurado || ''}
+                          </p>
+                          {policy.nombre_asegurado && (
+                            <p className="text-sm text-muted-foreground">
+                              {policy.parentesco} 
+                            </p>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{policy.companies?.name || "N/A"}</TableCell>
                       <TableCell>{policy.tipo}</TableCell>
                       <TableCell>{policy.vigencia_inicio}</TableCell>
                       <TableCell>{policy.vigencia_fin}</TableCell>
                       <TableCell>
-                        {policy.archivo_url ? (
-                          <a href={policy.archivo_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                            Ver Archivo
-                          </a>
+                        {policy.archivo_urls && Array.isArray(policy.archivo_urls) && policy.archivo_urls.length > 0 ? (
+                          <div className="flex flex-col space-y-1">
+                            {policy.archivo_urls.map((url, index) => (
+                              <a
+                                key={index}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                              >
+                                Archivo {index + 1}
+                              </a>
+                            ))}
+                          </div>
                         ) : (
                           "N/A"
                         )}
