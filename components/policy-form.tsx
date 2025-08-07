@@ -258,6 +258,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                         id="file-upload"
                         name="file-upload"
                         type="file"
+                        multiple
                         className="sr-only"
                         accept=".pdf,.doc,.docx"
                         onChange={handleFileChange}
