@@ -389,16 +389,14 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                         <SelectItem value="Hogar">Hogar</SelectItem>
                         <SelectItem value="Salud">Salud</SelectItem>
                         <SelectItem value="Empresarial">Empresarial</SelectItem>
-                        <SelectItem value="Empresarial">Otro</SelectItem>
-                        <SelectItem value="Empresarial">Camiones</SelectItem>
-                        <SelectItem value="Empresarial">Taxi</SelectItem>
-                        <SelectItem value="Empresarial">Agricola</SelectItem>
-                        <SelectItem value="Empresarial">Empresarial</SelectItem>
-                        <SelectItem value="Empresarial">Motos</SelectItem>
-                        
+                        <SelectItem value="Otro">Otro</SelectItem>
+                        <SelectItem value="Camiones">Camiones</SelectItem>
+                        <SelectItem value="Taxi">Taxi</SelectItem>
+                        <SelectItem value="Agricola">Agricola</SelectItem>
+                        <SelectItem value="Motos">Motos</SelectItem>
+                        <SelectItem value="Lancha">Lancha</SelectItem>
 
-
-
+                      
 
 
                       </SelectContent>
