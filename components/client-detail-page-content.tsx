@@ -9,7 +9,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, Dr
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import PolicyForm from "@/components/policy-form";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Mail, Phone, FileText, User, CalendarDays, Edit, Trash2 } from "lucide-react";
+import { Mail, Phone, FileText, User, CalendarDays, Edit, Trash2, ExternalLink } from 'lucide-react';
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
@@ -36,7 +36,11 @@ interface Policy {
     vigencia_inicio: string;
     vigencia_fin: string;
     archivo_url: string | null;
+    archivo_urls: string[] | null;
     notas: string | null;
+    nombre_asegurado: string | null;
+    documento_asegurado: string | null;
+    parentesco: string;
     created_at: string;
     companies?: { name: string } | null;
 }
@@ -61,6 +65,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [deletingPolicy, setDeletingPolicy] = useState<Policy | null>(null);
     const [isDeleteClientDialogOpen, setIsDeleteClientDialogOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const isMobile = useIsMobile();
     const supabase = createClient();
     const router = useRouter();
@@ -73,14 +78,25 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
     const handleCreatePolicy = async (policyData: any) => {
         try {
             const newPolicyData = { ...policyData, client_id: client.id };
-            const { data, error } = await supabase.from("policies").insert([newPolicyData]).select("*, companies(name)").single();
+            console.log("Creating policy with data:", newPolicyData);
+
+            const { data, error } = await supabase
+                .from("policies")
+                .insert([newPolicyData])
+                .select("*, companies(name)")
+                .single();
+
             if (error) {
+                console.error("Error creating policy:", error);
                 throw error;
             }
+
+            console.log("Policy created successfully:", data);
             setPolicies((prev) => [...prev, data as Policy]);
             setIsFormOpen(false);
             toast.success("Póliza creada exitosamente!");
         } catch (err: any) {
+            console.error("Error in handleCreatePolicy:", err);
             toast.error(`Error al crear la póliza: ${err.message}`);
         }
     };
@@ -88,12 +104,15 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
     const handleUpdatePolicy = async (policyData: any) => {
         if (!editingPolicy) return;
         try {
+            console.log("Updating policy with data:", policyData);
+
             const { error } = await supabase
                 .from("policies")
                 .update(policyData)
                 .eq("id", editingPolicy.id);
 
             if (error) {
+                console.error("Error updating policy:", error);
                 throw error;
             }
 
@@ -104,9 +123,11 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                 .single();
 
             if (fetchError) {
+                console.error("Error fetching updated policy:", fetchError);
                 throw fetchError;
             }
 
+            console.log("Policy updated successfully:", updatedPolicy);
             setPolicies((prev) =>
                 prev.map((p) => (p.id === editingPolicy.id ? updatedPolicy as Policy : p))
             );
@@ -114,41 +135,127 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
             setEditingPolicy(null);
             toast.success("Póliza actualizada exitosamente!");
         } catch (err: any) {
+            console.error("Error in handleUpdatePolicy:", err);
             toast.error(`Error al actualizar la póliza: ${err.message}`);
         }
     };
 
+    const deleteFilesFromStorage = async (urls: string[]) => {
+        const deletePromises = urls.map(async (url) => {
+            try {
+                // Extract file path from URL
+                const urlParts = url.split('/');
+                const bucketIndex = urlParts.findIndex(part => part === 'policy-documents');
+                if (bucketIndex === -1) {
+                    console.warn("Could not find bucket in URL:", url);
+                    return;
+                }
+
+                const filePath = urlParts.slice(bucketIndex + 1).join('/');
+                console.log("Deleting file from storage:", filePath);
+
+                const { error } = await supabase.storage
+                    .from("policy-documents")
+                    .remove([filePath]);
+
+                if (error) {
+                    console.error("Error deleting file from storage:", error);
+                } else {
+                    console.log("File deleted successfully from storage:", filePath);
+                }
+            } catch (error) {
+                console.error("Error processing file deletion:", error);
+            }
+        });
+
+        await Promise.all(deletePromises);
+    };
+
     const handleDeletePolicy = async () => {
         if (!deletingPolicy) return;
+
+        setIsDeleting(true);
+        console.log("=== STARTING POLICY DELETION (DIRECT) ===");
+        console.log("Policy to delete:", deletingPolicy);
+
         try {
-            const { error } = await supabase
+            // Verificar autenticación
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            console.log("Current user:", user?.email);
+            if (authError || !user) {
+                throw new Error("Usuario no autenticado");
+            }
+
+            // Verificar permisos del usuario
+            const { data: userProfile, error: profileError } = await supabase
+                .from("user_profiles")
+                .select("role, client_id")
+                .eq("id", user.id)
+                .single();
+
+            if (profileError) {
+                console.error("Error fetching user profile:", profileError);
+                throw new Error("Error al verificar permisos de usuario");
+            }
+
+            console.log("User profile:", userProfile);
+
+            const isAdmin = userProfile?.role === 'admin';
+            const isOwner = userProfile?.client_id === deletingPolicy.client_id;
+
+            if (!isAdmin && !isOwner) {
+                throw new Error("No tienes permisos para eliminar esta póliza");
+            }
+
+            // Collect all file URLs to delete
+            const filesToDelete: string[] = [];
+            if (deletingPolicy.archivo_urls && Array.isArray(deletingPolicy.archivo_urls)) {
+                filesToDelete.push(...deletingPolicy.archivo_urls);
+            }
+            if (deletingPolicy.archivo_url) {
+                filesToDelete.push(deletingPolicy.archivo_url);
+            }
+            console.log("Files to delete:", filesToDelete);
+
+            // Delete policy from database
+            console.log("Deleting policy from database...");
+            const { error: deleteError } = await supabase
                 .from("policies")
                 .delete()
                 .eq("id", deletingPolicy.id);
 
-            if (error) {
-                throw error;
+            if (deleteError) {
+                console.error("Error deleting policy from database:", deleteError);
+                throw deleteError;
             }
 
-            if (deletingPolicy.archivo_url) {
-                const filePath = new URL(deletingPolicy.archivo_url).pathname.split('/public/policy-documents/')[1];
-                if (filePath) {
-                    const { error: storageError } = await supabase.storage
-                        .from("policy-documents")
-                        .remove([filePath]);
+            console.log("Policy deleted from database successfully");
 
-                    if (storageError) {
-                        console.error("Error deleting policy file, but policy record was deleted:", storageError);
-                    }
-                }
+            // Delete files from storage
+            if (filesToDelete.length > 0) {
+                console.log("Deleting files from storage...");
+                await deleteFilesFromStorage(filesToDelete);
             }
 
+            console.log("=== POLICY DELETION COMPLETED SUCCESSFULLY ===");
+
+            // Update local state
             setPolicies((prev) => prev.filter((p) => p.id !== deletingPolicy.id));
             setIsDeleteDialogOpen(false);
             setDeletingPolicy(null);
             toast.success("Póliza eliminada exitosamente!");
+
+            // Force refresh to ensure data consistency
+            setTimeout(() => {
+                router.refresh();
+            }, 1000);
+
         } catch (err: any) {
+            console.error("=== ERROR IN POLICY DELETION ===");
+            console.error("Error details:", err);
             toast.error(`Error al eliminar la póliza: ${err.message}`);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -182,6 +289,38 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
         }
     };
 
+    const renderPolicyFiles = (policy: Policy) => {
+        const files: string[] = [];
+
+        if (policy.archivo_urls && Array.isArray(policy.archivo_urls)) {
+            files.push(...policy.archivo_urls);
+        }
+        if (policy.archivo_url && !files.includes(policy.archivo_url)) {
+            files.push(policy.archivo_url);
+        }
+
+        if (files.length === 0) {
+            return <span className="text-muted-foreground">Sin archivos</span>;
+        }
+
+        return (
+            <div className="space-y-1">
+                {files.map((url, index) => (
+                    <a
+                        key={index}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center text-primary hover:underline text-sm"
+                    >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Archivo {index + 1}
+                    </a>
+                ))}
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-6">
             {/* Client Details Card */}
@@ -206,7 +345,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            Esta acción no se puede deshacer. Eliminará permanentemente al cliente "{client.nombre}", 
+                                            Esta acción no se puede deshacer. Eliminará permanentemente al cliente "{client.nombre}",
                                             todas sus pólizas asociadas, archivos y su cuenta de usuario.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
@@ -314,11 +453,12 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Número de Póliza</TableHead>
+                                    <TableHead>Asegurado</TableHead>
                                     <TableHead>Aseguradora</TableHead>
                                     <TableHead>Tipo</TableHead>
                                     <TableHead>Inicio Vigencia</TableHead>
                                     <TableHead>Fin Vigencia</TableHead>
-                                    <TableHead>Documento</TableHead>
+                                    <TableHead>Documentos</TableHead>
                                     <TableHead>Notas</TableHead>
                                     <TableHead>Acciones</TableHead>
                                 </TableRow>
@@ -327,26 +467,37 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                                 {policies.map((policy) => (
                                     <TableRow key={policy.id}>
                                         <TableCell>{policy.numero_poliza}</TableCell>
+                                        <TableCell>
+                                            <div>
+                                                <p className="font-medium">
+                                                    {policy.nombre_asegurado || client.nombre}
+                                                </p>
+                                                {policy.nombre_asegurado && (
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {policy.parentesco} de {client.nombre}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                         <TableCell>{policy.companies?.name || "N/A"}</TableCell>
                                         <TableCell>{policy.tipo}</TableCell>
                                         <TableCell>{policy.vigencia_inicio}</TableCell>
                                         <TableCell>{policy.vigencia_fin}</TableCell>
                                         <TableCell>
-                                            {policy.archivo_url ? (
-                                                <a href={policy.archivo_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                                    Ver Archivo
-                                                </a>
-                                            ) : (
-                                                "N/A"
-                                            )}
+                                            {renderPolicyFiles(policy)}
                                         </TableCell>
-                                        <TableCell>{policy.notas}</TableCell>
+                                        <TableCell>{policy.notas || "N/A"}</TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 <Button variant="outline" size="icon" onClick={() => openEditForm(policy)}>
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="destructive" size="icon" onClick={() => openDeleteDialog(policy)}>
+                                                <Button
+                                                    variant="destructive"
+                                                    size="icon"
+                                                    onClick={() => openDeleteDialog(policy)}
+                                                    disabled={isDeleting}
+                                                >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -400,12 +551,16 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente la póliza y sus archivos asociados.
+                            Esta acción no se puede deshacer. Esto eliminará permanentemente la póliza "{deletingPolicy?.numero_poliza}" y todos sus archivos asociados.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setDeletingPolicy(null)}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeletePolicy}>Eliminar</AlertDialogAction>
+                        <AlertDialogCancel onClick={() => setDeletingPolicy(null)} disabled={isDeleting}>
+                            Cancelar
+                        </AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeletePolicy} disabled={isDeleting}>
+                            {isDeleting ? "Eliminando..." : "Eliminar"}
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

@@ -47,7 +47,7 @@
   --shadow-md: 0px 1px 3px 0px hsl(0 0% 0% / 0.17), 0px 2px 4px -1px hsl(0 0% 0% / 0.17);
   --shadow-lg: 0px 1px 3px 0px hsl(0 0% 0% / 0.17), 0px 4px 6px -1px hsl(0 0% 0% / 0.17);
   --shadow-xl: 0px 1px 3px 0px hsl(0 0% 0% / 0.17), 0px 8px 10px -1px hsl(0 0% 0% / 0.17);
-  --shadow-2xl: 0px 1px 3px 0px hsl(0 0% 0% / 0.43);
+  --shadow-2xl: 0px 1px 3px 0px hsl(0 0% 0% / 0.17);
   --tracking-normal: 0.025em;
   --spacing: 0.25rem;
 }
@@ -130,7 +130,53 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Mejoras para el formulario de pólizas */
+.policy-form-section {
+  @apply space-y-6;
+}
+
+.policy-form-header {
+  @apply flex items-center gap-3 pb-4 border-b border-border;
+}
+
+.policy-form-divider {
+  @apply w-2 h-8 bg-primary rounded-full;
+}
+
+.file-upload-area {
+  @apply border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors bg-muted/20;
+}
+
+.file-attachment-item {
+  @apply flex items-center justify-between p-4 bg-card rounded-lg border border-border hover:shadow-sm transition-shadow;
+}
+
+/* Animaciones para mejor UX */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Estilos para tablas responsivas */
+@media (max-width: 768px) {
+  .table-responsive {
+    @apply block overflow-x-auto whitespace-nowrap;
   }
 }
