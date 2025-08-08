@@ -15,33 +15,60 @@ export async function getCurrentUser() {
 
 export async function createClientUser(clientData: {
   nombre: string
-  email: string
+  email?: string | null
   telefono?: string
   documento: string
   direccion?: string
   numero_cliente?: number
   departamento?: string
+  createUserAccount?: boolean
 }) {
-  console.log('Iniciando creación de cliente:', clientData.email)
+  console.log('Iniciando creación de cliente:', clientData.email || 'sin email')
   
   // Usar cliente admin para operaciones que requieren Service Role
   const adminSupabase = createAdminClient()
   const regularSupabase = await createServerClient()
   
   try {
+    // Preparar datos del cliente para inserción
+    const { createUserAccount, ...clientInsertData } = clientData
+    
     // Primero crear el cliente en la tabla clients
     console.log('Creando registro de cliente...')
     const { data: client, error: clientError } = await adminSupabase
       .from("clients")
-      .insert(clientData)
+      .insert(clientInsertData)
       .select()
       .single()
 
     if (clientError) {
       console.error('Error creando cliente:', clientError)
-      throw clientError
+      
+      // Manejar errores de duplicados con mensajes específicos
+      if (clientError.code === '23505') { // Unique violation
+        if (clientError.message.includes('email')) {
+          throw new Error('Ya existe un cliente con ese email.')
+        } else if (clientError.message.includes('documento')) {
+          throw new Error('Ya existe un cliente con ese documento de identidad.')
+        } else if (clientError.message.includes('numero_cliente')) {
+          throw new Error('Ya existe un cliente con ese número.')
+        }
+      }
+      
+      throw new Error(clientError.message || 'Error al crear el cliente')
     }
     console.log('Cliente creado exitosamente:', client.id)
+    
+    // Si no se debe crear usuario, retornar solo el cliente
+    if (!createUserAccount || !clientData.email) {
+      console.log('No se creará usuario de acceso')
+      return { 
+        client, 
+        tempPassword: null, 
+        emailSent: false, 
+        userCreated: false 
+      }
+    }
 
     // Crear usuario en Supabase Auth con contraseña temporal
     const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase() + '1!'
@@ -108,9 +135,9 @@ export async function createClientUser(clientData: {
     }
 
     console.log('Proceso completado exitosamente')
-    return { client, tempPassword, emailSent }
+    return { client, tempPassword, emailSent, userCreated: true }
   } catch (error) {
     console.error("Error creating client user:", error)
-    return { client: null, tempPassword: null, emailSent: false }
+    return { client: null, tempPassword: null, emailSent: false, userCreated: false }
   }
 }

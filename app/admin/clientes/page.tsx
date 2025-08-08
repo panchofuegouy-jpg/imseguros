@@ -1,33 +1,52 @@
-import { createClient } from "@/lib/supabase/server"
+"use client"
+
+import { createClient } from "@/lib/supabase/client"
 import { AdminLayout } from "@/components/admin-layout"
 import { ClientPageContent } from "@/components/client-page-content"
+import { useEffect, useState } from "react"
 
-async function getClients() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("clients")
-    .select(
-      `
-      *,
-      policies(count)
-    `,
-    )
-    .order("created_at", { ascending: false })
+export default function ClientsPage() {
+  const [clients, setClients] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  if (error) {
-    console.error("Error fetching clients:", error)
-    return []
+  async function getClients() {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from("clients")
+      .select(
+        `
+        *,
+        policies(count)
+      `,
+      )
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Error fetching clients:", error)
+      setClients([])
+    } else {
+      setClients(data)
+    }
+    setLoading(false)
   }
 
-  return data
-}
+  useEffect(() => {
+    getClients()
+  }, [])
 
-export default async function ClientsPage() {
-  const clients = await getClients()
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex justify-center items-center h-64">
+          <p>Cargando clientes...</p>
+        </div>
+      </AdminLayout>
+    )
+  }
 
   return (
     <AdminLayout>
-      <ClientPageContent initialClients={clients} />
+      <ClientPageContent initialClients={clients} onClientsUpdate={getClients} />
     </AdminLayout>
   )
 }

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -40,7 +41,7 @@ const departments = [
 export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClientUpdated, client }: CreateClientDialogProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [success, setSuccess] = useState<{ client: any; password?: string; emailSent?: boolean } | null>(null)
+  const [success, setSuccess] = useState<{ client: any; password?: string; emailSent?: boolean; userCreated?: boolean } | null>(null)
   const [formData, setFormData] = useState({
     nombre: "",
     email: "",
@@ -50,6 +51,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
     numero_cliente: "",
     departamento: "",
   })
+  const [createUserAccount, setCreateUserAccount] = useState(false)
 
   const isEditMode = !!client;
 
@@ -64,6 +66,8 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
         numero_cliente: client.numero_cliente || "",
         departamento: client.departamento || "",
       });
+      // En modo edición, solo permitir crear cuenta si no tiene email
+      setCreateUserAccount(false);
     } else {
       // Reset form for create mode
       setFormData({
@@ -75,8 +79,26 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
         numero_cliente: "",
         departamento: "",
       });
+      setCreateUserAccount(false);
     }
   }, [client, isEditMode, open]);
+
+  // Efecto para deshabilitar checkbox cuando no hay email
+  useEffect(() => {
+    if (!formData.email) {
+      setCreateUserAccount(false)
+    }
+  }, [formData.email]);
+
+  // Verificar si el cliente puede crear cuenta (no tiene email actual o está agregando email por primera vez)
+  const canCreateUserAccount = () => {
+    if (isEditMode && client) {
+      // En modo edición: solo si no tenía email antes y ahora sí tiene
+      return !client.email && formData.email
+    }
+    // En modo creación: si tiene email
+    return formData.email
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -92,35 +114,66 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
          {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({ 
+            ...formData,
+            createUserAccount: createUserAccount && canCreateUserAccount()
+          }),
         });
         result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Error al actualizar');
-        setSuccess({ client: result });
+        setSuccess({ 
+          client: result,
+          password: result.tempPassword,
+          emailSent: result.emailSent || false,
+          userCreated: result.userCreated || false
+        });
         if(onClientUpdated) onClientUpdated(result);
-        toast.success("Cliente actualizado exitosamente!");
+        
+        const successMessage = result.userCreated
+          ? "Cliente actualizado y cuenta de acceso creada exitosamente!"
+          : "Cliente actualizado exitosamente!";
+        toast.success(successMessage);
 
       } else {
         // Create new client
         const response = await fetch('/api/create-client', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({ 
+            ...formData, 
+            createUserAccount,
+            // Si no se crea cuenta de usuario pero se proporcionó email, lo guardamos para referencia
+            email: formData.email || null
+          }),
         });
         result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Error al crear el cliente');
         setSuccess({ 
           client: result.client, 
           password: result.tempPassword,
-          emailSent: result.emailSent || false
+          emailSent: result.emailSent || false,
+          userCreated: result.userCreated || false
         });
         if(onClientCreated) onClientCreated();
         toast.success("Cliente creado exitosamente!");
       }
 
     } catch (error: any) {
-      setError(error.message || "Ocurrió un error")
-      toast.error(error.message || "Ocurrió un error");
+      let errorMessage = error.message || "Ocurrió un error";
+      
+      // Mejorar mensajes de error basados en el tipo
+      if (error.message && error.message.includes('email')) {
+        errorMessage = "⚠️ " + error.message;
+      } else if (error.message && error.message.includes('documento')) {
+        errorMessage = "📄 " + error.message;
+      } else if (error.message && error.message.includes('número')) {
+        errorMessage = "🔢 " + error.message;
+      } else if (error.message && error.message.includes('registro')) {
+        errorMessage = "👤 " + error.message;
+      }
+      
+      setError(errorMessage)
+      toast.error(errorMessage);
     } finally {
       setLoading(false)
     }
@@ -136,6 +189,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
       numero_cliente: "",
       departamento: "",
     })
+    setCreateUserAccount(false)
     setError("")
     setSuccess(null)
     onOpenChange(false)
@@ -149,7 +203,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
           <DialogDescription>
             {isEditMode 
               ? "Modifica la información del cliente existente." 
-              : "Crea un nuevo cliente y genera automáticamente sus credenciales de acceso."
+              : "Crea un nuevo cliente. Opcionalmente puedes generar credenciales de acceso si el cliente tiene email."
             }
           </DialogDescription>
         </DialogHeader>
@@ -160,13 +214,17 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
                 {isEditMode 
-                  ? "Cliente actualizado exitosamente." 
-                  : "Cliente creado exitosamente. Se ha generado una cuenta de acceso."
+                  ? success?.userCreated 
+                    ? "Cliente actualizado y cuenta de acceso creada exitosamente."
+                    : "Cliente actualizado exitosamente."
+                  : success?.userCreated 
+                    ? "Cliente creado exitosamente. Se ha generado una cuenta de acceso."
+                    : "Cliente creado exitosamente (sin cuenta de acceso)."
                 }
               </AlertDescription>
             </Alert>
 
-            {!isEditMode && (
+            {success?.userCreated && (
               <div>
                 <h4 className="font-semibold">Credenciales de acceso:</h4>
                 <p>
@@ -216,15 +274,35 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-                placeholder="juan@email.com"
+                placeholder="juan@email.com (opcional)"
               />
+           
+              {(!isEditMode || (isEditMode && canCreateUserAccount())) && (
+                <div className="flex items-center space-x-2 mt-2">
+                  <Checkbox 
+                    id="createUserAccount" 
+                    checked={createUserAccount}
+                    onCheckedChange={(checked) => setCreateUserAccount(checked === true)}
+                    disabled={!canCreateUserAccount()}
+                  />
+                  <Label htmlFor="createUserAccount" className={`text-sm ${
+                    !canCreateUserAccount() ? 'text-muted-foreground' : ''
+                  }`}>
+                    {isEditMode 
+                      ? "Crear cuenta de acceso para este cliente"
+                      : "Crear cuenta de acceso para este cliente"
+                    }
+                    {!canCreateUserAccount() && ' (requiere email)'}
+                    {isEditMode && client?.email && ' (ya tiene cuenta)'}
+                  </Label>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -236,6 +314,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
                 required
                 placeholder="12345678"
               />
+            
             </div>
 
             <div className="space-y-2">
@@ -268,6 +347,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
                 onChange={(e) => setFormData({ ...formData, numero_cliente: e.target.value })}
                 placeholder="123"
               />
+          
             </div>
 
             <div className="space-y-2">
@@ -287,12 +367,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
               </Select>
             </div>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+         
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>

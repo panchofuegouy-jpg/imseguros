@@ -1,11 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Search, User, Mail, Phone, FileText, Trash2 } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Plus, Search, User, Trash2, RefreshCw } from "lucide-react"
 import { CreateClientDialog } from "@/components/create-client-dialog"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -42,20 +41,19 @@ interface Client {
 
 interface ClientPageContentProps {
     initialClients: Client[]
+    onClientsUpdate: () => void
 }
 
-export function ClientPageContent({ initialClients }: ClientPageContentProps) {
+export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPageContentProps) {
     const [clients, setClients] = useState<Client[]>(initialClients)
     const [searchTerm, setSearchTerm] = useState("")
     const [showCreateDialog, setShowCreateDialog] = useState(false)
     const [currentPage, setCurrentPage] = useState(1)
     const itemsPerPage = 25
 
-    const fetchClients = async () => {
-        // This function can be improved to re-fetch from the server
-        // For now, it will just re-set the initial clients
+    useEffect(() => {
         setClients(initialClients)
-    }
+    }, [initialClients])
 
     const handleDeleteClient = async (client: Client) => {
         try {
@@ -68,7 +66,7 @@ export function ClientPageContent({ initialClients }: ClientPageContentProps) {
                 throw new Error(errorData.error || 'Error al eliminar el cliente');
             }
 
-            setClients(clients.filter((c) => c.id !== client.id));
+            onClientsUpdate() // Refrescar la lista de clientes
             toast.success('Cliente eliminado exitosamente');
         } catch (error: any) {
             toast.error(error.message);
@@ -78,7 +76,7 @@ export function ClientPageContent({ initialClients }: ClientPageContentProps) {
     const filteredClients = clients.filter(
         (client) =>
             client.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
             client.documento.includes(searchTerm),
     )
 
@@ -95,10 +93,13 @@ export function ClientPageContent({ initialClients }: ClientPageContentProps) {
                     <h1 className="text-3xl font-bold">Gestión de Clientes</h1>
                     <p className="text-muted-foreground">Administra todos los clientes del sistema</p>
                 </div>
-                <Button onClick={() => setShowCreateDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Agregar Cliente
-                </Button>
+                <div className="flex items-center gap-2">
+                    
+                    <Button onClick={() => setShowCreateDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Agregar Cliente
+                    </Button>
+                </div>
             </div>
 
             <div className="flex items-center space-x-2">
@@ -129,7 +130,7 @@ export function ClientPageContent({ initialClients }: ClientPageContentProps) {
                         {paginatedClients.map((client) => (
                             <TableRow key={client.id}>
                                 <TableCell className="font-medium">{client.nombre}</TableCell>
-                                <TableCell>{client.email}</TableCell>
+                                <TableCell>{client.email || "Sin email"}</TableCell>
                                 <TableCell>{client.documento}</TableCell>
                                 <TableCell>{client.telefono || "N/A"}</TableCell>
                                 <TableCell>{client.policies?.[0]?.count || 0}</TableCell>
@@ -225,7 +226,7 @@ export function ClientPageContent({ initialClients }: ClientPageContentProps) {
                 </Card>
             )}
 
-            <CreateClientDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} onClientCreated={fetchClients} />
+            <CreateClientDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} onClientCreated={onClientsUpdate} />
         </div>
     )
 }

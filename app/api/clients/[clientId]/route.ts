@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth-server";
 
+// Helper para generar una contraseña aleatoria
+function generateTemporaryPassword() {
+  return Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase() + '1!';
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ clientId: string }> }
@@ -15,8 +20,7 @@ export async function PATCH(
     const { clientId } = await params;
     const body = await request.json();
 
-    // Remove id and other non-updatable fields from body
-    const { id, created_at, updated_at, ...updateData } = body;
+    const { id, created_at, updated_at, createUserAccount, ...updateData } = body;
 
     if (updateData.numero_cliente) {
       updateData.numero_cliente = parseInt(updateData.numero_cliente, 10);
@@ -36,6 +40,155 @@ export async function PATCH(
 
     const adminSupabase = createAdminClient();
 
+    // 1. Obtener el estado actual del cliente
+    const { data: currentClient, error: fetchError } = await adminSupabase
+      .from("clients")
+      .select("email, numero_cliente, documento")
+      .eq("id", clientId)
+      .single();
+
+    if (fetchError) {
+      console.error("Error fetching client for update:", fetchError);
+      return NextResponse.json(
+        { error: "No se pudo encontrar el cliente para actualizar" },
+        { status: 404 }
+      );
+    }
+
+    // Verificar si el número de cliente ya existe (solo si cambió)
+    if (updateData.numero_cliente && updateData.numero_cliente !== currentClient.numero_cliente) {
+      const { data: existingClientByNumber } = await adminSupabase
+        .from("clients")
+        .select("id")
+        .eq("numero_cliente", updateData.numero_cliente)
+        .neq("id", clientId)
+        .single();
+        
+      if (existingClientByNumber) {
+        return NextResponse.json(
+          { error: "Ya existe otro cliente con ese número. Elige un número diferente." },
+          { status: 409 }
+        )
+      }
+    }
+
+    // Verificar si el documento ya existe (solo si cambió)
+    if (updateData.documento && updateData.documento !== currentClient.documento) {
+      const { data: existingClientByDoc } = await adminSupabase
+        .from("clients")
+        .select("id")
+        .eq("documento", updateData.documento)
+        .neq("id", clientId)
+        .single();
+        
+      if (existingClientByDoc) {
+        return NextResponse.json(
+          { error: "Ya existe otro cliente con ese documento de identidad." },
+          { status: 409 }
+        )
+      }
+    }
+
+    // Verificar si el email ya existe (solo si se va a crear cuenta y cambió)
+    if (createUserAccount && updateData.email && updateData.email !== currentClient.email) {
+      const { data: existingClientByEmail } = await adminSupabase
+        .from("clients")
+        .select("id")
+        .eq("email", updateData.email)
+        .neq("id", clientId)
+        .single();
+        
+      if (existingClientByEmail) {
+        return NextResponse.json(
+          { error: "Ya existe otro cliente con ese email. Usa un email diferente o no crees cuenta de acceso." },
+          { status: 409 }
+        )
+      }
+    }
+
+    // 2. Verificar si se está añadiendo un email por primera vez y se solicita crear usuario
+    const isCreatingUser = !currentClient.email && updateData.email && createUserAccount;
+    let newAuthUser = null;
+    let tempPassword = null;
+    let emailSent = false;
+
+    if (isCreatingUser) {
+      const temporaryPassword = generateTemporaryPassword();
+      
+      // 3. Crear el usuario en Supabase Auth
+      const { data: authUser, error: authError } = await adminSupabase.auth.admin.createUser({
+        email: updateData.email,
+        password: temporaryPassword,
+        email_confirm: true, // El email se considera verificado
+      });
+
+      if (authError) {
+        // Manejar el caso en que el email ya exista en Auth
+        if (authError.message.includes("already exists")) {
+          return NextResponse.json(
+            { error: "Este email ya está registrado por otro usuario." },
+            { status: 409 } // 409 Conflict
+          );
+        }
+        console.error("Error creating auth user:", authError);
+        return NextResponse.json(
+          { error: "Error al crear las credenciales del usuario" },
+          { status: 500 }
+        );
+      }
+      
+      newAuthUser = authUser.user;
+      tempPassword = temporaryPassword; // Guardar para devolver al frontend
+
+      // 4. Crear perfil de usuario vinculando al cliente
+      const { error: profileError } = await adminSupabase
+        .from("user_profiles")
+        .insert({
+          id: newAuthUser.id,
+          client_id: clientId,
+          role: "client",
+          first_login: true, // Marcar que necesita cambiar contraseña en primer login
+        });
+
+      if (profileError) {
+        console.error('Error creando perfil:', profileError);
+        // Revertir la creación del usuario de Auth
+        await adminSupabase.auth.admin.deleteUser(newAuthUser.id);
+        return NextResponse.json(
+          { error: "Error al crear el perfil de usuario" },
+          { status: 500 }
+        );
+      }
+
+      // 5. Invocar la Edge Function para enviar el email de bienvenida
+      console.log('Enviando email usando Supabase Edge Function...')
+      
+      try {
+        const { data: functionData, error: functionError } = await adminSupabase.functions.invoke('send-welcome-email', {
+          body: {
+            email: updateData.email,
+            nombre: updateData.nombre,
+            tempPassword: temporaryPassword
+          }
+        })
+
+        if (functionError) {
+          console.error('Error llamando a Edge Function:', functionError)
+          emailSent = false
+        } else if (functionData?.success) {
+          console.log('Email enviado exitosamente:', functionData)
+          emailSent = true
+        } else {
+          console.error('Edge Function retornó error:', functionData)
+          emailSent = false
+        }
+      } catch (error) {
+        console.error('Error invocando Edge Function:', error)
+        emailSent = false
+      }
+    }
+
+    // 6. Actualizar la información del cliente en la tabla 'clients'
     const { data, error } = await adminSupabase
       .from("clients")
       .update(updateData)
@@ -45,10 +198,24 @@ export async function PATCH(
 
     if (error) {
       console.error("Error updating client:", error);
+      // Si la creación del usuario de Auth funcionó, deberíamos intentar revertirla
+      if (newAuthUser) {
+        await adminSupabase.auth.admin.deleteUser(newAuthUser.id);
+      }
       return NextResponse.json(
         { error: "Error al actualizar el cliente" },
         { status: 500 }
       );
+    }
+
+    // Si se creó usuario, incluir información adicional
+    if (isCreatingUser && newAuthUser) {
+      return NextResponse.json({
+        ...data,
+        tempPassword,
+        emailSent,
+        userCreated: true
+      });
     }
 
     return NextResponse.json(data);
