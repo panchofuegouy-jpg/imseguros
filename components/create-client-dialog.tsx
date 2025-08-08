@@ -20,7 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle, AlertCircle } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 
-import { useEffect } from "react";
+import { toast } from "sonner";
 
 interface CreateClientDialogProps {
   open: boolean;
@@ -98,6 +98,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
         if (!response.ok) throw new Error(result.error || 'Error al actualizar');
         setSuccess({ client: result });
         if(onClientUpdated) onClientUpdated(result);
+        toast.success("Cliente actualizado exitosamente!");
 
       } else {
         // Create new client
@@ -114,10 +115,12 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
           emailSent: result.emailSent || false
         });
         if(onClientCreated) onClientCreated();
+        toast.success("Cliente creado exitosamente!");
       }
 
     } catch (error: any) {
       setError(error.message || "Ocurrió un error")
+      toast.error(error.message || "Ocurrió un error");
     } finally {
       setLoading(false)
     }
