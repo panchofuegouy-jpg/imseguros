@@ -1,0 +1,61 @@
+
+✦ Claro, aquí tienes un resumen de la idea y los archivos que se editaron:
+
+  La Idea Principal:
+
+  Transformar la página de "Pólizas por Vencer" en un CRM interno funcional para que tus empleados puedan gestionar
+  eficientemente las renovaciones de pólizas. Esto incluye:
+
+   1. Visualización Inteligente: Mostrar solo las pólizas relevantes (por vencer en un rango de tiempo, o filtradas por mes,
+      aseguradora, tipo o estado).
+   2. Filtros Avanzados: Permitir a los usuarios filtrar las pólizas por mes de vencimiento, aseguradora, tipo de póliza y un
+      nuevo campo de "estado" de renovación.
+   3. Gestión de Estado: Introducir un sistema de estados (Pendiente, Contactado, En Proceso, Renovada, No Renovada) para cada
+      póliza, permitiendo a los empleados seguir el proceso de renovación.
+   4. Acciones Rápidas: Ofrecer opciones directas para "Renovar" (editar la póliza) o cambiar el estado de la póliza con un
+      solo clic.
+   5. Feedback Visual: Usar notificaciones "toast" para informar sobre el éxito o error de las operaciones, y "badges" de
+      colores para visualizar el estado de cada póliza en la tabla.
+
+  Archivos Editados/Creados:
+
+   1. `migrations/add_status_to_policies.sql` (NUEVO):
+       * Propósito: Añadir la columna estado a la tabla policies en tu base de datos, con un valor por defecto de
+         'Pendiente' y restricciones para asegurar la integridad de los datos.
+       * Acción: Este archivo SQL debe ser ejecutado manualmente en tu base de datos Supabase.
+
+   2. `app/api/policies/near-expiration/route.ts` (MODIFICADO/REESCRITO):
+       * Propósito: Es el endpoint de la API que ahora maneja la lógica de filtrado y obtención de pólizas.
+       * Cambios: Se reescribió para que filtre correctamente por fecha (próximos 60 días por defecto o un mes específico),
+         aseguradora, tipo de póliza y el nuevo campo estado.
+
+   3. `app/api/policies/[policyId]/route.ts` (NUEVO):
+       * Propósito: Endpoint de la API para actualizar una póliza específica (usado para la renovación y para cambiar el
+         estado).
+       * Cambios: Permite realizar operaciones PATCH para modificar los datos de una póliza por su id.
+
+   4. `components/policies-near-expiration-content.tsx` (NUEVO/REESCRITO):
+       * Propósito: Es el componente principal del frontend que contiene toda la interfaz de usuario y la lógica de la página
+         "Pólizas por Vencer".
+       * Cambios: Implementa los filtros, la tabla con los datos de la API, el diálogo de renovación (PolicyForm), los menús
+         desplegables para las acciones rápidas (cambio de estado) y los "badges" de colores para el estado.
+
+   5. `app/admin/polizas/por-vencer/page.tsx` (MODIFICADO):
+       * Propósito: La página principal de "Pólizas por Vencer".
+       * Cambios: Ahora simplemente renderiza el nuevo componente PoliciesNearExpirationContent, delegando toda la lógica y
+         la interfaz a ese componente.
+
+   6. `app/layout.tsx` (MODIFICADO):
+       * Propósito: El layout principal de la aplicación.
+       * Cambios: Se añadió el componente <Toaster /> para que las notificaciones "toast" sean visibles en toda la
+         aplicación.
+
+   7. `components/create-client-dialog.tsx` (MODIFICADO):
+       * Propósito: El formulario para crear/editar clientes.
+       * Cambios: Se integraron las notificaciones "toast" para mostrar mensajes de éxito o error al crear o actualizar
+         clientes.
+
+  El siguiente paso es que me confirmes que has ejecutado la migración SQL en tu base de datos. Una vez hecho eso, podemos
+  verificar que todo funcione correctamente.
+
+                                                    

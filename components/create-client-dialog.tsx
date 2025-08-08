@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 // Removed direct import of createClientUser
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -145,9 +145,12 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Agregar Nuevo Cliente</DialogTitle>
+          <DialogTitle>{isEditMode ? "Editar Cliente" : "Agregar Nuevo Cliente"}</DialogTitle>
           <DialogDescription>
-            Crea un nuevo cliente y genera automáticamente sus credenciales de acceso.
+            {isEditMode 
+              ? "Modifica la información del cliente existente." 
+              : "Crea un nuevo cliente y genera automáticamente sus credenciales de acceso."
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -155,42 +158,49 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
           <div className="space-y-4">
             <Alert>
               <CheckCircle className="h-4 w-4" />
-              <AlertDescription>Cliente creado exitosamente. Se ha generado una cuenta de acceso.</AlertDescription>
+              <AlertDescription>
+                {isEditMode 
+                  ? "Cliente actualizado exitosamente." 
+                  : "Cliente creado exitosamente. Se ha generado una cuenta de acceso."
+                }
+              </AlertDescription>
             </Alert>
 
-            <div>
-              <h4 className="font-semibold">Credenciales de acceso:</h4>
-              <p>
-                <strong>Email:</strong> {success.client.email}
-              </p>
-              <p>
-                <strong>Contraseña temporal:</strong>{" "}
-                <code className="px-2 py-1 rounded">{success.password}</code>
-              </p>
-              
-              {success.emailSent ? (
-                <Alert className="mt-3">
-                  <CheckCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Email con credenciales enviado exitosament  e a {success.client.email}
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <Alert variant="destructive" className="mt-3">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    No se pudo enviar el email automáticamente. Comparte las credenciales manualmente.
-                  </AlertDescription>
-                </Alert>
-              )}
-              
-              <p className="text-sm text-muted-foreground">
-                {success.emailSent 
-                  ? "El cliente recibirá un email con instrucciones para acceder."
-                  : "Comparte estas credenciales con el cliente de forma segura."
-                }
-              </p>
-            </div>
+            {!isEditMode && (
+              <div>
+                <h4 className="font-semibold">Credenciales de acceso:</h4>
+                <p>
+                  <strong>Email:</strong> {success.client.email}
+                </p>
+                <p>
+                  <strong>Contraseña temporal:</strong>{" "}
+                  <code className="px-2 py-1 rounded">{success.password}</code>
+                </p>
+                
+                {success.emailSent ? (
+                  <Alert className="mt-3">
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Email con credenciales enviado exitosamente a {success.client.email}
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Alert variant="destructive" className="mt-3">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      No se pudo enviar el email automáticamente. Comparte las credenciales manualmente.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                <p className="text-sm text-muted-foreground">
+                  {success.emailSent 
+                    ? "El cliente recibirá un email con instrucciones para acceder."
+                    : "Comparte estas credenciales con el cliente de forma segura."
+                  }
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -289,7 +299,10 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
                 Cancelar
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? "Creando..." : "Crear Cliente"}
+                {loading 
+                  ? (isEditMode ? "Actualizando..." : "Creando...") 
+                  : (isEditMode ? "Actualizar Cliente" : "Crear Cliente")
+                }
               </Button>
             </DialogFooter>
           </form>
