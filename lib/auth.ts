@@ -50,7 +50,7 @@ export async function signOut() {
 export async function sendPasswordResetEmail(email: string) {
   const supabase = createClientClient()
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `https://www.app.imseguros.uy/reset-password`,
+    redirectTo: `https://app.imseguros.uy/reset-password`,
   })
   return { error }
 }
