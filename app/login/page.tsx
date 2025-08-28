@@ -4,6 +4,7 @@ import React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { signIn } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -106,6 +107,13 @@ export default function LoginPage() {
               {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
           </form>
+          <div className="mt-4 text-center">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/forgot-password">
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

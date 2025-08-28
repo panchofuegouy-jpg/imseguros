@@ -45,3 +45,20 @@ export async function signOut() {
   const { error } = await supabase.auth.signOut()
   return { error }
 }
+
+// Password reset functions
+export async function sendPasswordResetEmail(email: string) {
+  const supabase = createClientClient()
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `https://www.app.imseguros.uy/reset-password`,
+  })
+  return { error }
+}
+
+export async function resetPassword(password: string) {
+  const supabase = createClientClient()
+  const { data, error } = await supabase.auth.updateUser({
+    password: password
+  })
+  return { data, error }
+}
