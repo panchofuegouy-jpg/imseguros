@@ -3,11 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { policyId: string } }
+  { params }: { params: Promise<{ policyId: string }> }
 ) {
   try {
     const supabase = await createClient();
-    const { policyId } = params;
+    const { policyId } = await params;
     const body = await request.json();
 
     // Actualizar la póliza
@@ -45,11 +45,11 @@ export async function PATCH(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { policyId: string } }
+  { params }: { params: Promise<{ policyId: string }> }
 ) {
   try {
     const supabase = await createClient();
-    const { policyId } = params;
+    const { policyId } = await params;
 
     const { data, error } = await supabase
       .from("policies")

@@ -469,6 +469,7 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
   onCancel: () => void;
 }) {
   const [formData, setFormData] = useState({
+    numero_poliza: policy.numero_poliza,
     vigencia_inicio: policy.vigencia_inicio,
     vigencia_fin: policy.vigencia_fin,
     notas: policy.notas || "",
@@ -615,6 +616,22 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Número de Póliza */}
+        <div>
+          <label htmlFor="numero_poliza" className="block text-sm font-medium mb-2">
+            Número de Póliza
+          </label>
+          <input
+            type="text"
+            id="numero_poliza"
+            value={formData.numero_poliza}
+            onChange={(e) => setFormData({ ...formData, numero_poliza: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Ej: POL-2024-001"
+            required
+          />
+        </div>
+        
         {/* Fechas */}
         <div className="grid grid-cols-2 gap-4">
           <div>
