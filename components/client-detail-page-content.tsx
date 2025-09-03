@@ -382,12 +382,10 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                             <span>Dirección: {client.direccion}</span>
                         </div>
                     )}
-                    {client.numero_cliente && (
-                        <div className="flex items-center">
-                            <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
-                            <span>Número de Cliente: {client.numero_cliente}</span>
-                        </div>
-                    )}
+                    <div className="flex items-center">
+                        <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span>Número de Cliente: <strong className="text-primary">#{client.numero_cliente || 'N/A'}</strong></span>
+                    </div>
                     {client.departamento && (
                         <div className="flex items-center">
                             <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />

@@ -77,7 +77,8 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
         (client) =>
             client.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            client.documento.includes(searchTerm),
+            client.documento.includes(searchTerm) ||
+            (client.numero_cliente && client.numero_cliente.toString().includes(searchTerm)),
     )
 
     const totalPages = Math.ceil(filteredClients.length / itemsPerPage)
@@ -106,7 +107,7 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder="Buscar por nombre, email o documento..."
+                        placeholder="Buscar por nombre, email, documento o número de cliente..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-8"
@@ -118,6 +119,7 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead>N° Cliente</TableHead>
                             <TableHead>Nombre</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead>Documento</TableHead>
@@ -129,6 +131,9 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                     <TableBody>
                         {paginatedClients.map((client) => (
                             <TableRow key={client.id}>
+                                <TableCell className="font-semibold text-primary">
+                                    #{client.numero_cliente || 'N/A'}
+                                </TableCell>
                                 <TableCell className="font-medium">{client.nombre}</TableCell>
                                 <TableCell>{client.email || "Sin email"}</TableCell>
                                 <TableCell>{client.documento}</TableCell>

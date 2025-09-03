@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -62,6 +63,7 @@ export function PoliciesNearExpirationContent() {
   const [selectedCompany, setSelectedCompany] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [clientSearchTerm, setClientSearchTerm] = useState("");
   
   // Dialogo de renovación
   const [renewalDialogOpen, setRenewalDialogOpen] = useState(false);
@@ -153,7 +155,20 @@ export function PoliciesNearExpirationContent() {
     setSelectedCompany("all");
     setSelectedType("all");
     setSelectedStatus("all");
+    setClientSearchTerm("");
   };
+
+  // Filtrar pólizas por cliente localmente
+  const filteredPolicies = policies.filter(policy => {
+    if (clientSearchTerm.trim() === "") return true;
+    
+    const searchLower = clientSearchTerm.toLowerCase();
+    return (
+      policy.clients.nombre.toLowerCase().includes(searchLower) ||
+      (policy.clients.telefono && policy.clients.telefono.includes(clientSearchTerm)) ||
+      (policy.clients.email && policy.clients.email.toLowerCase().includes(searchLower))
+    );
+  });
 
   // Efectos
   useEffect(() => {
@@ -243,10 +258,24 @@ export function PoliciesNearExpirationContent() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-4">
+            {/* Campo de búsqueda por cliente */}
             <div>
-              <label className="text-sm font-medium mb-2 block">Mes de Vencimiento</label>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <label className="text-sm font-medium mb-2 block">Buscar Cliente</label>
+              <Input
+                type="text"
+                placeholder="Buscar por nombre de cliente o número..."
+                value={clientSearchTerm}
+                onChange={(e) => setClientSearchTerm(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            
+            {/* Otros filtros */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Mes de Vencimiento</label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todos los meses" />
                 </SelectTrigger>
@@ -311,6 +340,7 @@ export function PoliciesNearExpirationContent() {
                 </SelectContent>
               </Select>
             </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -319,14 +349,18 @@ export function PoliciesNearExpirationContent() {
       <Card>
         <CardHeader>
           <CardTitle>
-            Pólizas por Vencer ({policies.length})
+            Pólizas por Vencer ({filteredPolicies.length}{filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8">Cargando pólizas...</div>
-          ) : policies.length === 0 ? (
-            <div className="text-center py-8">No hay pólizas que coincidan con los filtros seleccionados.</div>
+          ) : filteredPolicies.length === 0 ? (
+            <div className="text-center py-8">
+              {policies.length === 0 
+                ? "No hay pólizas que coincidan con los filtros seleccionados." 
+                : "No se encontraron pólizas con ese cliente."}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -343,7 +377,7 @@ export function PoliciesNearExpirationContent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {policies.map((policy) => {
+                  {filteredPolicies.map((policy) => {
                     const daysUntilExpiration = getDaysUntilExpiration(policy.vigencia_fin);
                     const isUrgent = daysUntilExpiration <= 7;
                     const isExpired = daysUntilExpiration <= 0;
@@ -470,6 +504,7 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
 }) {
   const [formData, setFormData] = useState({
     numero_poliza: policy.numero_poliza,
+    company_id: policy.company_id || "",
     vigencia_inicio: policy.vigencia_inicio,
     vigencia_fin: policy.vigencia_fin,
     notas: policy.notas || "",
@@ -616,20 +651,43 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Número de Póliza */}
-        <div>
-          <label htmlFor="numero_poliza" className="block text-sm font-medium mb-2">
-            Número de Póliza
-          </label>
-          <input
-            type="text"
-            id="numero_poliza"
-            value={formData.numero_poliza}
-            onChange={(e) => setFormData({ ...formData, numero_poliza: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Ej: POL-2024-001"
-            required
-          />
+        {/* Número de Póliza y Aseguradora */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="numero_poliza" className="block text-sm font-medium mb-2">
+              Número de Póliza
+            </label>
+            <input
+              type="text"
+              id="numero_poliza"
+              value={formData.numero_poliza}
+              onChange={(e) => setFormData({ ...formData, numero_poliza: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Ej: POL-2024-001"
+              required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="company_id" className="block text-sm font-medium mb-2">
+              Aseguradora
+            </label>
+            <Select
+              value={formData.company_id}
+              onValueChange={(value) => setFormData({ ...formData, company_id: value })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Seleccionar aseguradora" />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         
         {/* Fechas */}
