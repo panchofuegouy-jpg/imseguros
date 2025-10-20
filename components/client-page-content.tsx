@@ -57,19 +57,23 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
         setCurrentPage(1)
     }, [initialClients])
 
-    const filteredClients = initialClients.filter((client) => {
+    const filteredClients = clients.filter((client) => {
         if (!searchTerm.trim()) return true;
         
         const searchLower = searchTerm.toLowerCase();
         const searchTerm_trim = searchTerm.trim();
         
+        // Si el término es solo números, buscar SOLO por número de cliente (exacto)
+        if (/^\d+$/.test(searchTerm_trim)) {
+            return client.numero_cliente && client.numero_cliente.toString() === searchTerm_trim;
+        }
+        
+        // Si contiene letras, buscar en todos los campos de texto
         return (
             client.nombre.toLowerCase().includes(searchLower) ||
             (client.email && client.email.toLowerCase().includes(searchLower)) ||
-            client.documento.includes(searchTerm_trim) ||
+            client.documento.toLowerCase().includes(searchLower) ||
             (client.telefono && client.telefono.includes(searchTerm_trim)) ||
-            (client.numero_cliente && 
-             client.numero_cliente.toString().includes(searchTerm_trim)) ||
             (client.departamento && client.departamento.toLowerCase().includes(searchLower)) ||
             (client.direccion && client.direccion.toLowerCase().includes(searchLower))
         );
