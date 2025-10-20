@@ -15,7 +15,13 @@ export default function ClientsPage() {
       .from("clients")
       .select(
         `
-        *,
+        id,
+        nombre,
+        email,
+        telefono,
+        documento,
+        numero_cliente,
+        created_at,
         policies(count)
       `,
       )

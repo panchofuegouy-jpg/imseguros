@@ -11,8 +11,8 @@ async function getData() {
   const thirtyDaysFromNow = new Date()
   thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
 
-  const { count: totalClients, data: clients } = await supabase.from("clients").select("id, created_at", { count: "exact" })
-  const { count: totalPolicies, data: policies } = await supabase.from("policies").select("id, company_id", { count: "exact" })
+  const { count: totalClients, data: clients } = await supabase.from("clients").select("id, created_at", { count: "exact" }).limit(100)
+  const { count: totalPolicies, data: policies } = await supabase.from("policies").select("id, company_id", { count: "exact" }).limit(100)
   const { count: activePolicies } = await supabase
     .from("policies")
     .select("*", { count: "exact", head: true })

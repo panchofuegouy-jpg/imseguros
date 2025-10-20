@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -49,13 +49,33 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
     const [searchTerm, setSearchTerm] = useState("")
     const [showCreateDialog, setShowCreateDialog] = useState(false)
     const [currentPage, setCurrentPage] = useState(1)
+    const [isSearching, setIsSearching] = useState(false)
     const itemsPerPage = 25
 
     useEffect(() => {
         setClients(initialClients)
+        setCurrentPage(1)
     }, [initialClients])
 
-    const handleDeleteClient = async (client: Client) => {
+    const filteredClients = initialClients.filter((client) => {
+        if (!searchTerm.trim()) return true;
+        
+        const searchLower = searchTerm.toLowerCase();
+        const searchTerm_trim = searchTerm.trim();
+        
+        return (
+            client.nombre.toLowerCase().includes(searchLower) ||
+            (client.email && client.email.toLowerCase().includes(searchLower)) ||
+            client.documento.includes(searchTerm_trim) ||
+            (client.telefono && client.telefono.includes(searchTerm_trim)) ||
+            (client.numero_cliente && 
+             client.numero_cliente.toString().includes(searchTerm_trim)) ||
+            (client.departamento && client.departamento.toLowerCase().includes(searchLower)) ||
+            (client.direccion && client.direccion.toLowerCase().includes(searchLower))
+        );
+    });
+
+    const handleDeleteClient = useCallback(async (client: Client) => {
         try {
             const response = await fetch(`/api/clients/${client.id}`, {
                 method: 'DELETE',
@@ -71,15 +91,7 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
         } catch (error: any) {
             toast.error(error.message);
         }
-    };
-
-    const filteredClients = clients.filter(
-        (client) =>
-            client.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            client.documento.includes(searchTerm) ||
-            (client.numero_cliente && client.numero_cliente.toString().includes(searchTerm)),
-    )
+    }, [onClientsUpdate]);
 
     const totalPages = Math.ceil(filteredClients.length / itemsPerPage)
     const paginatedClients = filteredClients.slice(
@@ -107,7 +119,7 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder="Buscar por nombre, email, documento o número de cliente..."
+                        placeholder="Buscar por nombre, email, documento, teléfono o número de cliente..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-8"

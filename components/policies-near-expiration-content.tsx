@@ -43,11 +43,11 @@ interface Company {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'Pendiente', label: 'Pendiente', color: 'bg-gray-500' },
-  { value: 'Contactado', label: 'Contactado', color: 'bg-blue-500' },
-  { value: 'En Proceso', label: 'En Proceso', color: 'bg-yellow-500' },
-  { value: 'Renovada', label: 'Renovada', color: 'bg-green-500' },
-  { value: 'No Renovada', label: 'No Renovada', color: 'bg-red-500' },
+  { value: 'Pendiente', label: 'Pendiente', color: 'bg-gray-500', activeTab: 'pending' },
+  { value: 'Contactado', label: 'Contactado', color: 'bg-green-600', activeTab: 'pending' },
+  { value: 'En Proceso', label: 'En Proceso', color: 'bg-yellow-500', activeTab: 'pending' },
+  { value: 'Renovada', label: 'Renovada', color: 'bg-green-500', activeTab: 'history' },
+  { value: 'No Renovada', label: 'No Renovada', color: 'bg-red-500', activeTab: 'pending' },
 ];
 
 const POLICY_TYPES = ["Auto", "Vida", "Hogar", "Comercial", "Salud"];
@@ -57,6 +57,7 @@ export function PoliciesNearExpirationContent() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
   
   // Filtros
   const [selectedMonth, setSelectedMonth] = useState("all");
@@ -88,7 +89,14 @@ export function PoliciesNearExpirationContent() {
     if (selectedMonth && selectedMonth !== 'all') params.append('month', selectedMonth);
     if (selectedCompany && selectedCompany !== 'all') params.append('company', selectedCompany);
     if (selectedType && selectedType !== 'all') params.append('type', selectedType);
-    if (selectedStatus && selectedStatus !== 'all') params.append('status', selectedStatus);
+    
+    // Si estamos en tab de historial, mostrar solo renovadas
+    // Si estamos en tab de pendientes, el backend ya excluye las renovadas
+    if (activeTab === 'history') {
+      params.append('status', 'Renovada');
+    } else if (selectedStatus && selectedStatus !== 'all') {
+      params.append('status', selectedStatus);
+    }
 
     try {
       const response = await fetch(`/api/policies/near-expiration?${params.toString()}`);
@@ -156,17 +164,64 @@ export function PoliciesNearExpirationContent() {
     setSelectedType("all");
     setSelectedStatus("all");
     setClientSearchTerm("");
+    setActiveTab('pending');
+  };
+  
+  // Cambiar tab
+  const handleTabChange = async (tab: 'pending' | 'history') => {
+    setActiveTab(tab);
+    setSelectedStatus('all');
+    setSelectedMonth('all');
+    setLoading(true);
+    
+    // Recargar datos del tab
+    const params = new URLSearchParams();
+    if (selectedCompany && selectedCompany !== 'all') params.append('company', selectedCompany);
+    if (selectedType && selectedType !== 'all') params.append('type', selectedType);
+    
+    if (tab === 'history') {
+      params.append('status', 'Renovada');
+    }
+    
+    try {
+      const response = await fetch(`/api/policies/near-expiration?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setPolicies(data);
+      }
+    } catch (error) {
+      console.error('Error loading policies:', error);
+      toast.error("Error al cargar las pólizas.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Filtrar pólizas por cliente localmente
+  // Filtrar pólizas por cliente, aseguradora, póliza, notas, tipo, teléfono, etc localmente
   const filteredPolicies = policies.filter(policy => {
     if (clientSearchTerm.trim() === "") return true;
     
     const searchLower = clientSearchTerm.toLowerCase();
+    const searchTerm_trim = clientSearchTerm.trim();
+    
     return (
+      // Búsqueda en nombre del cliente
       policy.clients.nombre.toLowerCase().includes(searchLower) ||
-      (policy.clients.telefono && policy.clients.telefono.includes(clientSearchTerm)) ||
-      (policy.clients.email && policy.clients.email.toLowerCase().includes(searchLower))
+      // Búsqueda en email del cliente
+      (policy.clients.email && policy.clients.email.toLowerCase().includes(searchLower)) ||
+      // Búsqueda en teléfono del cliente
+      (policy.clients.telefono && policy.clients.telefono.includes(searchTerm_trim)) ||
+      // Búsqueda en número de póliza
+      policy.numero_poliza.toLowerCase().includes(searchLower) ||
+      // Búsqueda en aseguradora
+      policy.companies.name.toLowerCase().includes(searchLower) ||
+      // Búsqueda en tipo de póliza
+      policy.tipo.toLowerCase().includes(searchLower) ||
+      // Búsqueda en notas
+      (policy.notas && policy.notas.toLowerCase().includes(searchLower)) ||
+      // Búsqueda en fechas
+      policy.vigencia_inicio.includes(searchTerm_trim) ||
+      policy.vigencia_fin.includes(searchTerm_trim)
     );
   });
 
@@ -180,7 +235,7 @@ export function PoliciesNearExpirationContent() {
     if (!loading) {
       fetchPolicies();
     }
-  }, [selectedMonth, selectedCompany, selectedType, selectedStatus]);
+  }, [selectedMonth, selectedCompany, selectedType, selectedStatus, activeTab]);
 
   // Generar opciones de meses
   const generateMonthOptions = () => {
@@ -229,7 +284,9 @@ export function PoliciesNearExpirationContent() {
         <div>
           <h1 className="text-3xl font-bold">Renovación de Pólizas</h1>
           <p className="text-muted-foreground">
-            Gestiona las renovaciones de pólizas próximas a vencer
+            {activeTab === 'pending' 
+              ? 'Gestiona las renovaciones de pólizas próximas a vencer'
+              : 'Historial de pólizas renovadas'}
           </p>
         </div>
         <Button
@@ -241,6 +298,30 @@ export function PoliciesNearExpirationContent() {
           <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
           Actualizar
         </Button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 border-b">
+        <button
+          onClick={() => handleTabChange('pending')}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+            activeTab === 'pending'
+              ? 'border-green-600 text-green-700'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Pendientes de Renovación
+        </button>
+        <button
+          onClick={() => handleTabChange('history')}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+            activeTab === 'history'
+              ? 'border-green-600 text-green-700'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Historial de Renovadas
+        </button>
       </div>
 
       {/* Filtros */}
@@ -264,7 +345,7 @@ export function PoliciesNearExpirationContent() {
               <label className="text-sm font-medium mb-2 block">Buscar Cliente</label>
               <Input
                 type="text"
-                placeholder="Buscar por nombre de cliente o número..."
+                placeholder="Buscar por cliente, aseguradora, póliza, teléfono o email..."
                 value={clientSearchTerm}
                 onChange={(e) => setClientSearchTerm(e.target.value)}
                 className="w-full"
@@ -273,73 +354,77 @@ export function PoliciesNearExpirationContent() {
             
             {/* Otros filtros */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {activeTab === 'pending' && (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Mes de Vencimiento</label>
+                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos los meses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Próximos 60 días</SelectItem>
+                    {generateMonthOptions().map(month => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              )}
+
               <div>
-                <label className="text-sm font-medium mb-2 block">Mes de Vencimiento</label>
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos los meses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Próximos 60 días</SelectItem>
-                  {generateMonthOptions().map(month => (
-                    <SelectItem key={month.value} value={month.value}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <label className="text-sm font-medium mb-2 block">Aseguradora</label>
+                <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas las aseguradoras" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {companies.map(company => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div>
-              <label className="text-sm font-medium mb-2 block">Aseguradora</label>
-              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas las aseguradoras" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {companies.map(company => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Tipo de Póliza</label>
+                <Select value={selectedType} onValueChange={setSelectedType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos los tipos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {POLICY_TYPES.map(type => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div>
-              <label className="text-sm font-medium mb-2 block">Tipo de Póliza</label>
-              <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos los tipos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {POLICY_TYPES.map(type => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">Estado</label>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos los estados" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {STATUS_OPTIONS.map(status => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              {activeTab === 'pending' && (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Estado</label>
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos los estados" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {STATUS_OPTIONS.filter(s => s.activeTab === 'pending').map(status => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -349,7 +434,9 @@ export function PoliciesNearExpirationContent() {
       <Card>
         <CardHeader>
           <CardTitle>
-            Pólizas por Vencer ({filteredPolicies.length}{filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})
+            {activeTab === 'pending' 
+              ? `Pólizas por Vencer (${filteredPolicies.length}${filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})` 
+              : `Pólizas Renovadas (${filteredPolicies.length}${filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})`}
           </CardTitle>
         </CardHeader>
         <CardContent>

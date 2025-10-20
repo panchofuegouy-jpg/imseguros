@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw } from "lucide-react";
+import { Search, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 interface Policy {
@@ -21,6 +21,8 @@ interface Policy {
   clients: {
     nombre: string;
     numero_cliente: number | null;
+    email?: string;
+    telefono?: string | null;
   } | null;
   companies: {
     name: string;
@@ -35,20 +37,34 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
   const [policies, setPolicies] = useState<Policy[]>(initialPolicies);
   const [searchTerm, setSearchTerm] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
-  // Filtrar pólizas por término de búsqueda
   const filteredPolicies = policies.filter(policy => {
     if (searchTerm.trim() === "") return true;
     
     const searchLower = searchTerm.toLowerCase();
+    const searchTerm_trim = searchTerm.trim();
+    
     return (
       policy.numero_poliza.toLowerCase().includes(searchLower) ||
       (policy.clients?.nombre && policy.clients.nombre.toLowerCase().includes(searchLower)) ||
-      (policy.clients?.numero_cliente && policy.clients.numero_cliente.toString().includes(searchTerm)) ||
+      (policy.clients?.numero_cliente && policy.clients.numero_cliente.toString().includes(searchTerm_trim)) ||
       policy.tipo.toLowerCase().includes(searchLower) ||
-      (policy.companies?.name && policy.companies.name.toLowerCase().includes(searchLower))
+      (policy.companies?.name && policy.companies.name.toLowerCase().includes(searchLower)) ||
+      (policy.clients?.email && policy.clients.email.toLowerCase().includes(searchLower)) ||
+      (policy.clients?.telefono && policy.clients.telefono.includes(searchTerm_trim)) ||
+      (policy.notas && policy.notas.toLowerCase().includes(searchLower)) ||
+      policy.vigencia_inicio.includes(searchTerm_trim) ||
+      policy.vigencia_fin.includes(searchTerm_trim)
     );
   });
+
+  const totalPages = Math.ceil(filteredPolicies.length / itemsPerPage);
+  const paginatedPolicies = filteredPolicies.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   // Refrescar datos
   const handleRefresh = async () => {
@@ -84,34 +100,17 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
         </Button>
       </div>
 
-      {/* Filtros de búsqueda */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            Filtros de Búsqueda
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearFilters}
-            >
-              Limpiar Filtros
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-2">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por número de póliza, cliente, número de cliente, tipo o aseguradora..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center space-x-2 mb-6">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por número de póliza, cliente, aseguradora, teléfono, email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+      </div>
 
       {/* Tabla de pólizas */}
       <Card>
@@ -170,7 +169,7 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
                       <TableCell>
                         {policy.archivo_urls && Array.isArray(policy.archivo_urls) && policy.archivo_urls.length > 0 ? (
                           <div className="flex flex-col space-y-1">
-                            {policy.archivo_urls.map((url, index) => (
+                            {policy.archivo_urls.slice(0, 1).map((url, index) => (
                               <a
                                 key={index}
                                 href={url}
@@ -181,6 +180,11 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
                                 Archivo {index + 1}
                               </a>
                             ))}
+                            {policy.archivo_urls.length > 1 && (
+                              <span className="text-xs text-muted-foreground">
+                                +{policy.archivo_urls.length - 1} más
+                              </span>
+                            )}
                           </div>
                         ) : (
                           "N/A"
@@ -205,6 +209,7 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
           )}
         </CardContent>
       </Card>
+
     </div>
   );
 }
