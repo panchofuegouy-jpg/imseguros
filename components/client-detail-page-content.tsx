@@ -476,7 +476,10 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                         </DialogContent>
                     </Dialog>
                 )}
-                </di            <Card>
+                </div>
+            </div>
+
+            <Card>
                 <CardHeader>
                     <CardTitle>
                         Listado de Pólizas ({filteredPolicies.length}{filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})
