@@ -10,7 +10,6 @@ export const metadata: Metadata = {
   description: 'Aplicación de seguros Isgleas - Gestión completa de pólizas y servicios',
   generator: 'Next.js',
   manifest: '/manifest.json',
-  themeColor: '#1f2937',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -26,11 +25,15 @@ export const metadata: Metadata = {
       { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
     ],
   },
-  viewport: {
+}
+
+export function generateViewport() {
+  return {
     width: 'device-width',
     initialScale: 1,
     maximumScale: 1,
-  },
+    themeColor: '#1f2937',
+  }
 }
 
 export default function RootLayout({

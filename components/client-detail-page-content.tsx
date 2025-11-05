@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import PolicyForm from "@/components/policy-form";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Mail, Phone, FileText, User, CalendarDays, Edit, Trash2, ExternalLink } from 'lucide-react';
+import { Mail, Phone, FileText, User, CalendarDays, Edit, Trash2, ExternalLink, Search } from 'lucide-react';
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
@@ -58,6 +59,7 @@ interface ClientDetailPageContentProps {
 
 export function ClientDetailPageContent({ client, initialPolicies, companies }: ClientDetailPageContentProps) {
     const [policies, setPolicies] = useState<Policy[]>(initialPolicies);
+    const [searchTerm, setSearchTerm] = useState("");
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingPolicy, setEditingPolicy] = useState<Policy | null>(null);
@@ -289,6 +291,26 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
         }
     };
 
+    const filteredPolicies = policies.filter(policy => {
+        if (searchTerm.trim() === "") return true;
+        
+        const searchLower = searchTerm.toLowerCase();
+        const searchTerm_trim = searchTerm.trim();
+        
+        return (
+            policy.numero_poliza.toLowerCase().includes(searchLower) ||
+            policy.tipo.toLowerCase().includes(searchLower) ||
+            (policy.companies?.name && policy.companies.name.toLowerCase().includes(searchLower)) ||
+            (policy.nombre_asegurado && policy.nombre_asegurado.toLowerCase().includes(searchLower)) ||
+            (policy.documento_asegurado && policy.documento_asegurado.includes(searchTerm_trim)) ||
+            (policy.parentesco && policy.parentesco.toLowerCase().includes(searchLower)) ||
+            (policy.notas && policy.notas.toLowerCase().includes(searchLower)) ||
+            (client.telefono && client.telefono.includes(searchTerm_trim)) ||
+            policy.vigencia_inicio.includes(searchTerm_trim) ||
+            policy.vigencia_fin.includes(searchTerm_trim)
+        );
+    });
+
     const renderPolicyFiles = (policy: Policy) => {
         const files: string[] = [];
 
@@ -408,6 +430,23 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                     <h2 className="text-2xl font-bold">Pólizas Asociadas</h2>
                     <p className="text-muted-foreground">Gestiona las pólizas de {client.nombre}</p>
                 </div>
+            </div>
+
+            {/* Search Filter */}
+            <div className="flex items-center space-x-2">
+                <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Buscar por número de póliza, aseguradora, tipo, teléfono, notas..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8"
+                    />
+                </div>
+            </div>
+
+            <div className="flex justify-end">
+                <div>
                 {isMobile ? (
                     <Drawer open={isFormOpen} onOpenChange={setIsFormOpen}>
                         <DrawerTrigger asChild>
@@ -437,15 +476,15 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                         </DialogContent>
                     </Dialog>
                 )}
-            </div>
-
-            <Card>
+                </di            <Card>
                 <CardHeader>
-                    <CardTitle>Listado de Pólizas</CardTitle>
+                    <CardTitle>
+                        Listado de Pólizas ({filteredPolicies.length}{filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})
+                    </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {policies.length === 0 ? (
-                        <p>No hay pólizas registradas para este cliente.</p>
+                    {filteredPolicies.length === 0 ? (
+                        <p>{policies.length === 0 ? "No hay pólizas registradas para este cliente." : "No se encontraron pólizas que coincidan con la búsqueda."}</p>
                     ) : (
                         <Table>
                             <TableHeader>
@@ -462,7 +501,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {policies.map((policy) => (
+                                {filteredPolicies.map((policy) => (
                                     <TableRow key={policy.id}>
                                         <TableCell>{policy.numero_poliza}</TableCell>
                                         <TableCell>

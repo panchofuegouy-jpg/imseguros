@@ -13,7 +13,6 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
-  swcMinify: true,
   reactStrictMode: false, // Desactiva modo strict para evitar renders dobles en dev
   experimental: {
     optimizePackageImports: [
