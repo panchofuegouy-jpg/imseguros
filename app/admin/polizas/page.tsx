@@ -7,8 +7,7 @@ async function getPolicies() {
   const { data, error } = await supabase
     .from("policies")
     .select("id, numero_poliza, client_id, tipo, vigencia_inicio, vigencia_fin, archivo_urls, notas, created_at, clients(nombre, numero_cliente, email, telefono), companies(name)")
-    .order("created_at", { ascending: false })
-    .limit(100);
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Error fetching policies:", error);

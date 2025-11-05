@@ -40,23 +40,53 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
-  const filteredPolicies = policies.filter(policy => {
-    if (searchTerm.trim() === "") return true;
+  // Función de búsqueda mejorada
+  const fuzzyMatch = (text: string, search: string): boolean => {
+    if (!text) return false;
     
-    const searchLower = searchTerm.toLowerCase();
-    const searchTerm_trim = searchTerm.trim();
+    text = text.toLowerCase();
+    search = search.toLowerCase();
+    
+    // Coincidencia exacta o incluye (más estricto)
+    if (text.includes(search)) return true;
+    
+    // Buscar cada palabra del término de búsqueda
+    const searchWords = search.split(/\s+/).filter(w => w.length > 0);
+    const textWords = text.split(/\s+/).filter(w => w.length > 0);
+    
+    // Si todas las palabras de búsqueda están contenidas en alguna palabra del texto
+    const allWordsMatch = searchWords.every(searchWord => 
+      textWords.some(textWord => textWord.includes(searchWord))
+    );
+    
+    if (allWordsMatch) return true;
+    
+    // Búsqueda por iniciales solo si son 2-3 letras y sin espacios
+    if (search.length >= 2 && search.length <= 3 && !search.includes(' ')) {
+      const initials = textWords.map(w => w[0]).join('');
+      if (initials === search || initials.startsWith(search)) return true;
+    }
+    
+    return false;
+  };
+
+  const filteredPolicies = policies.filter(policy => {
+    const trimmedSearch = searchTerm.trim();
+    if (trimmedSearch === "") return true;
+    
+    const searchLower = trimmedSearch.toLowerCase();
     
     return (
-      policy.numero_poliza.toLowerCase().includes(searchLower) ||
-      (policy.clients?.nombre && policy.clients.nombre.toLowerCase().includes(searchLower)) ||
-      (policy.clients?.numero_cliente && policy.clients.numero_cliente.toString().includes(searchTerm_trim)) ||
-      policy.tipo.toLowerCase().includes(searchLower) ||
-      (policy.companies?.name && policy.companies.name.toLowerCase().includes(searchLower)) ||
-      (policy.clients?.email && policy.clients.email.toLowerCase().includes(searchLower)) ||
-      (policy.clients?.telefono && policy.clients.telefono.includes(searchTerm_trim)) ||
-      (policy.notas && policy.notas.toLowerCase().includes(searchLower)) ||
-      policy.vigencia_inicio.includes(searchTerm_trim) ||
-      policy.vigencia_fin.includes(searchTerm_trim)
+      fuzzyMatch(policy.numero_poliza, searchLower) ||
+      fuzzyMatch(policy.clients?.nombre || '', searchLower) ||
+      (policy.clients?.numero_cliente && policy.clients.numero_cliente.toString().includes(trimmedSearch)) ||
+      fuzzyMatch(policy.tipo, searchLower) ||
+      fuzzyMatch(policy.companies?.name || '', searchLower) ||
+      fuzzyMatch(policy.clients?.email || '', searchLower) ||
+      (policy.clients?.telefono && policy.clients.telefono.includes(trimmedSearch)) ||
+      fuzzyMatch(policy.notas || '', searchLower) ||
+      policy.vigencia_inicio.includes(trimmedSearch) ||
+      policy.vigencia_fin.includes(trimmedSearch)
     );
   });
 
@@ -77,10 +107,10 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
     }
   };
 
-  // Limpiar filtros
-  const clearFilters = () => {
-    setSearchTerm("");
-  };
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   return (
     <div className="space-y-6">
@@ -142,7 +172,7 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPolicies.map((policy: Policy) => (
+                  {paginatedPolicies.map((policy: Policy) => (
                     <TableRow key={policy.id}>
                       <TableCell className="font-medium">
                         {policy.numero_poliza}
@@ -205,6 +235,38 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+          
+          {/* Controles de paginación */}
+          {filteredPolicies.length > itemsPerPage && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredPolicies.length)} de {filteredPolicies.length} pólizas
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Anterior
+                </Button>
+                <div className="text-sm">
+                  Página {currentPage} de {totalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
