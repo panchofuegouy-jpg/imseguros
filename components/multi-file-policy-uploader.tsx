@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,50 @@ import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+
+const parseWebhookExtractedData = (payload: any) => {
+    const normalize = (value: any): any => {
+        if (!value) return undefined;
+        if (typeof value === 'string') {
+            try {
+                const parsed = JSON.parse(value);
+                return normalize(parsed);
+            } catch (e) {
+                return undefined;
+            }
+        }
+        if (Array.isArray(value)) {
+            return fromArray(value);
+        }
+        if (typeof value === 'object') {
+            return value;
+        }
+        return undefined;
+    };
+
+    const fromArray = (value: any): any => {
+        if (!Array.isArray(value) || value.length === 0) return undefined;
+        const first = value[0];
+        return normalize(
+            first?.extractedData ||
+            first?.data ||
+            first?.json ||
+            first?.output?.[0]?.content?.[0]?.text ||
+            first?.output?.[0]?.json ||
+            first
+        );
+    };
+
+    const candidates = [
+        normalize(payload?.extractedData),
+        normalize(payload?.data),
+        normalize(payload?.output?.[0]?.content?.[0]?.text || payload?.output?.[0]?.json),
+        fromArray(payload),
+        normalize(payload),
+    ].filter(Boolean);
+
+    return candidates[0] || {};
+}
 
 interface Company {
     id: string;
@@ -99,6 +143,7 @@ export function MultiFilePolicyUploader({
                 formData.append('clientId', clientId);
                 formData.append('fileName', fileStatus.file.name);
 
+
                 const webhookResponse = await fetch(n8nWebhookUrl, {
                     method: 'POST',
                     body: formData,
@@ -109,7 +154,10 @@ export function MultiFilePolicyUploader({
                 }
 
                 const webhookData = await webhookResponse.json();
-                const extracted = webhookData.extractedData || {};
+                const extracted = parseWebhookExtractedData(webhookData);
+
+                console.log('Respuesta del webhook:', webhookData);
+                console.log('Datos extraídos del webhook:', extracted);
 
                 setFiles(prev => prev.map((f, idx) =>
                     idx === i ? { ...f, progress: 80 } : f
@@ -118,18 +166,20 @@ export function MultiFilePolicyUploader({
                 // 3. Create Policy Record in Database
                 const policyData = {
                     client_id: clientId,
-                    numero_poliza: extracted.numero_poliza || `PEND-${Date.now()}`,
-                    tipo: extracted.tipo || 'Desconocido',
-                    vigencia_inicio: extracted.vigencia_inicio || new Date().toISOString().split('T')[0],
-                    vigencia_fin: extracted.vigencia_fin || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
-                    company_id: extracted.company_id || null,
-                    nombre_asegurado: extracted.nombre_asegurado || null,
-                    documento_asegurado: extracted.documento_asegurado || null,
-                    parentesco: extracted.parentesco || 'Titular',
+                    numero_poliza: extracted.numero_poliza ?? `PEND-${Date.now()}`,
+                    tipo: extracted.tipo ?? 'Desconocido',
+                    vigencia_inicio: extracted.vigencia_inicio ?? new Date().toISOString().split('T')[0],
+                    vigencia_fin: extracted.vigencia_fin ?? new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+                    company_id: extracted.company_id ?? null,
+                    nombre_asegurado: extracted.nombre_asegurado ?? null,
+                    documento_asegurado: extracted.documento_asegurado ?? null,
+                    parentesco: extracted.parentesco ?? 'Titular',
                     archivo_url: publicUrl,
                     archivo_urls: [publicUrl],
-                    notas: extracted.notas || `Cargado automáticamente desde ${fileStatus.file.name}`
+                    notas: extracted.notas ?? `Cargado automáticamente desde ${fileStatus.file.name}`
                 };
+
+                console.log('Datos que se guardan en la póliza:', policyData);
 
                 const { data: newPolicy, error: dbError } = await supabase
                     .from('policies')

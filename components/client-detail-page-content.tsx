@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -69,9 +69,37 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
     const [deletingPolicy, setDeletingPolicy] = useState<Policy | null>(null);
     const [isDeleteClientDialogOpen, setIsDeleteClientDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [validatedFiles, setValidatedFiles] = useState<Record<string, string[]>>({});
     const isMobile = useIsMobile();
     const supabase = createClient();
     const router = useRouter();
+
+    // Fetch latest policies from Supabase for this client to ensure we
+    // reflect any server-side changes (uploads that updated archivo_urls, etc.)
+    const fetchPolicies = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('policies')
+                .select('*, companies(name)')
+                .eq('client_id', client.id)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching policies:', error);
+                return;
+            }
+
+            console.log('Fetched policies from DB for client', client.id, data);
+            setPolicies(data as Policy[]);
+        } catch (err) {
+            console.error('Unexpected error fetching policies:', err);
+        }
+    };
+
+    useEffect(() => {
+        // Fetch once on mount (and when client.id changes)
+        fetchPolicies();
+    }, [client.id]);
 
     const handleClientUpdated = () => {
         setIsEditModalOpen(false);
@@ -131,6 +159,30 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
             }
 
             console.log("Policy updated successfully:", updatedPolicy);
+
+            // After successful update, remove any files that were present in the
+            // previous policy but are no longer referenced in the updated policy.
+            try {
+                const oldFiles: string[] = [];
+                if (editingPolicy.archivo_urls && Array.isArray(editingPolicy.archivo_urls)) {
+                    oldFiles.push(...editingPolicy.archivo_urls);
+                }
+                if (editingPolicy.archivo_url) oldFiles.push(editingPolicy.archivo_url);
+
+                const newFiles: string[] = [];
+                if (updatedPolicy.archivo_urls && Array.isArray(updatedPolicy.archivo_urls)) {
+                    newFiles.push(...updatedPolicy.archivo_urls);
+                }
+                if (updatedPolicy.archivo_url) newFiles.push(updatedPolicy.archivo_url);
+
+                const filesToRemove = oldFiles.filter((f) => !newFiles.includes(f));
+                if (filesToRemove.length > 0) {
+                    console.log('Removing old files from storage after update:', filesToRemove);
+                    await deleteFilesFromStorage(filesToRemove);
+                }
+            } catch (err) {
+                console.error('Error deleting old files after update:', err);
+            }
             setPolicies((prev) =>
                 prev.map((p) => (p.id === editingPolicy.id ? updatedPolicy as Policy : p))
             );
@@ -143,18 +195,125 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
         }
     };
 
+    // Helper to check if a file exists in storage. Uses listing of the parent
+    // directory and checks filename presence to avoid downloading the file.
+    const checkFileExistsInStorage = async (fileUrl: string) => {
+        try {
+            const cleanUrl = fileUrl.split('?')[0];
+
+            // extract path inside bucket using same logic as delete helper
+            const match = cleanUrl.match(/\/policy-documents\/(.*)$/);
+            let filePath = null;
+            if (match && match[1]) filePath = decodeURIComponent(match[1]);
+            else {
+                const altMatch = cleanUrl.match(/\/storage\/v\d+\/object\/public\/([^\/]+)\/(.*)$/);
+                if (altMatch && altMatch[2]) filePath = decodeURIComponent(altMatch[2]);
+            }
+
+            if (!filePath) {
+                const parts = cleanUrl.split('/');
+                const idx = parts.findIndex(p => p === 'policy-documents');
+                if (idx !== -1) filePath = parts.slice(idx + 1).join('/');
+            }
+
+            if (!filePath) return false;
+
+            const parts = filePath.split('/');
+            const fileName = parts.pop() as string;
+            const dir = parts.join('/');
+
+            const { data: listData, error: listError } = await supabase.storage
+                .from('policy-documents')
+                .list(dir || '', { limit: 1000 });
+
+            if (listError) {
+                console.error('Error listing storage path for existence check:', listError);
+                return false;
+            }
+
+            if (!listData) return false;
+
+            return listData.some(item => item.name === fileName);
+        } catch (err) {
+            console.error('Error checking file existence:', err);
+            return false;
+        }
+    };
+
+    // Validate files for all policies in `policies` and populate `validatedFiles`.
+    // This runs whenever `policies` changes.
+    useEffect(() => {
+        let mounted = true;
+
+        const validateAll = async () => {
+            const map: Record<string, string[]> = {};
+
+            await Promise.all(policies.map(async (policy) => {
+                // Match renderPolicyFiles behavior: prefer archivo_urls when present.
+                const files: string[] = [];
+                if (policy.archivo_urls && Array.isArray(policy.archivo_urls) && policy.archivo_urls.length > 0) {
+                    files.push(...policy.archivo_urls);
+                } else if (policy.archivo_url) {
+                    files.push(policy.archivo_url);
+                }
+
+                const valid: string[] = [];
+                console.log('Validating files for policy', policy.id, 'candidates:', files);
+                await Promise.all(files.map(async (url) => {
+                    try {
+                        const exists = await checkFileExistsInStorage(url);
+                        console.log('  exists?', exists, url);
+                        if (exists) valid.push(url);
+                    } catch (e) {
+                        console.error('validate file error', e);
+                    }
+                }));
+
+                map[policy.id] = valid;
+            }));
+
+            if (mounted) setValidatedFiles(map);
+        };
+
+        validateAll();
+
+        return () => { mounted = false; };
+    }, [policies]);
+
     const deleteFilesFromStorage = async (urls: string[]) => {
+        const extractFilePathFromUrl = (url: string) => {
+            try {
+                // Strip query params
+                const cleanUrl = url.split('?')[0];
+
+                // Try to capture after /policy-documents/
+                const match = cleanUrl.match(/\/policy-documents\/(.*)$/);
+                if (match && match[1]) return decodeURIComponent(match[1]);
+
+                // Try Supabase public URL pattern: /storage/v1/object/public/<bucket>/<path>
+                const altMatch = cleanUrl.match(/\/storage\/v\d+\/object\/public\/([^\/]+)\/(.*)$/);
+                if (altMatch && altMatch[2]) return decodeURIComponent(altMatch[2]);
+
+                // Fallback: locate the bucket segment and take the rest
+                const urlParts = cleanUrl.split('/');
+                const bucketIndex = urlParts.findIndex(part => part === 'policy-documents');
+                if (bucketIndex === -1) return null;
+
+                return urlParts.slice(bucketIndex + 1).join('/');
+            } catch (error) {
+                console.error('Error extracting file path from URL:', error);
+                return null;
+            }
+        };
+
         const deletePromises = urls.map(async (url) => {
             try {
-                // Extract file path from URL
-                const urlParts = url.split('/');
-                const bucketIndex = urlParts.findIndex(part => part === 'policy-documents');
-                if (bucketIndex === -1) {
-                    console.warn("Could not find bucket in URL:", url);
+                const filePath = extractFilePathFromUrl(url);
+                if (!filePath) {
+                    console.warn("Could not determine file path from URL:", url);
                     return;
                 }
 
-                const filePath = urlParts.slice(bucketIndex + 1).join('/');
                 console.log("Deleting file from storage:", filePath);
 
                 const { error } = await supabase.storage
@@ -220,7 +379,13 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
             }
             console.log("Files to delete:", filesToDelete);
 
-            // Delete policy from database
+            // Delete files from storage first (so we don't orphan files when DB delete succeeds)
+            if (filesToDelete.length > 0) {
+                console.log("Deleting files from storage...");
+                await deleteFilesFromStorage(filesToDelete);
+            }
+
+            // Then delete policy from database
             console.log("Deleting policy from database...");
             const { error: deleteError } = await supabase
                 .from("policies")
@@ -233,12 +398,6 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
             }
 
             console.log("Policy deleted from database successfully");
-
-            // Delete files from storage
-            if (filesToDelete.length > 0) {
-                console.log("Deleting files from storage...");
-                await deleteFilesFromStorage(filesToDelete);
-            }
 
             console.log("=== POLICY DELETION COMPLETED SUCCESSFULLY ===");
 
@@ -313,22 +472,37 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
     });
 
     const renderPolicyFiles = (policy: Policy) => {
+        // Prefer the explicit array of files (`archivo_urls`) when present.
+        // Only fall back to the single `archivo_url` if `archivo_urls` is empty.
         const files: string[] = [];
 
-        if (policy.archivo_urls && Array.isArray(policy.archivo_urls)) {
+        if (policy.archivo_urls && Array.isArray(policy.archivo_urls) && policy.archivo_urls.length > 0) {
             files.push(...policy.archivo_urls);
-        }
-        if (policy.archivo_url && !files.includes(policy.archivo_url)) {
+        } else if (policy.archivo_url) {
             files.push(policy.archivo_url);
         }
 
-        if (files.length === 0) {
+        // If validation has already run for this policy (key exists in the
+        // map), use the validated result (even if empty). If validation has
+        // not yet run (undefined), fall back to showing the raw `files`.
+        const hasValidationRun = Object.prototype.hasOwnProperty.call(validatedFiles, policy.id);
+        const validated = validatedFiles[policy.id];
+        // If validation failed or returned empty (e.g. lack of Storage list perms),
+        // fall back to the raw file list so the attachment is still visible.
+        const toShow = hasValidationRun
+            ? (validated && validated.length > 0 ? validated : files)
+            : files;
+
+        if (!toShow || toShow.length === 0) {
             return <span className="text-muted-foreground">Sin archivos</span>;
         }
 
+        // Deduplicate URLs
+        const unique = Array.from(new Set(toShow));
+
         return (
             <div className="space-y-1">
-                {files.map((url, index) => (
+                {unique.map((url, index) => (
                     <a
                         key={index}
                         href={url}
@@ -468,7 +642,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                             <DialogTrigger asChild>
                                 <Button>Crear Nueva Póliza</Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
+                            <DialogContent className="sm:max-w-6xl max-h-[95vh] overflow-y-auto">
                                 <DialogHeader>
                                     <DialogTitle>Crear Nueva Póliza</DialogTitle>
                                     <DialogDescription>Ingresa los detalles de la nueva póliza para {client.nombre}.</DialogDescription>
@@ -581,7 +755,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                 </Drawer>
             ) : (
                 <Dialog open={isEditPolicyFormOpen} onOpenChange={setIsEditPolicyFormOpen}>
-                    <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
+                    <DialogContent className="sm:max-w-6xl max-h-[95vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>Editar Póliza</DialogTitle>
                             <DialogDescription>Actualiza los detalles de la póliza.</DialogDescription>

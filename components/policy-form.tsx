@@ -197,7 +197,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
 
   return (
     <div className="w-full">
-      <Card className="shadow-lg border bg-card">
+      <Card className="shadow-lg border bg-card w-full">
         <CardContent className="p-4 sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-10">
             {/* Información del Cliente y Aseguradora */}
