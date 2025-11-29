@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
 import { CreateClientDialog } from "./create-client-dialog";
+import { MultiFilePolicyUploader } from "./multi-file-policy-uploader";
 
 interface Client {
     id: string;
@@ -293,10 +294,10 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
 
     const filteredPolicies = policies.filter(policy => {
         if (searchTerm.trim() === "") return true;
-        
+
         const searchLower = searchTerm.toLowerCase();
         const searchTerm_trim = searchTerm.trim();
-        
+
         return (
             policy.numero_poliza.toLowerCase().includes(searchLower) ||
             policy.tipo.toLowerCase().includes(searchLower) ||
@@ -447,35 +448,45 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
 
             <div className="flex justify-end">
                 <div>
-                {isMobile ? (
-                    <Drawer open={isFormOpen} onOpenChange={setIsFormOpen}>
-                        <DrawerTrigger asChild>
-                            <Button>Crear Nueva Póliza</Button>
-                        </DrawerTrigger>
-                        <DrawerContent className="max-h-[90vh]">
-                            <DrawerHeader className="text-left">
-                                <DrawerTitle>Crear Nueva Póliza</DrawerTitle>
-                                <DrawerDescription>Ingresa los detalles de la nueva póliza para {client.nombre}.</DrawerDescription>
-                            </DrawerHeader>
-                            <div className="px-4 pb-4 overflow-y-auto">
+                    {isMobile ? (
+                        <Drawer open={isFormOpen} onOpenChange={setIsFormOpen}>
+                            <DrawerTrigger asChild>
+                                <Button>Crear Nueva Póliza</Button>
+                            </DrawerTrigger>
+                            <DrawerContent className="h-[95vh]">
+                                <DrawerHeader className="text-left">
+                                    <DrawerTitle>Crear Nueva Póliza</DrawerTitle>
+                                    <DrawerDescription>Ingresa los detalles de la nueva póliza para {client.nombre}.</DrawerDescription>
+                                </DrawerHeader>
+                                <div className="px-4 pb-4 overflow-y-auto flex-1">
+                                    <PolicyForm clients={[{ id: client.id, nombre: client.nombre }]} companies={companies} onSubmit={handleCreatePolicy} />
+                                </div>
+                            </DrawerContent>
+                        </Drawer>
+                    ) : (
+                        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+                            <DialogTrigger asChild>
+                                <Button>Crear Nueva Póliza</Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
+                                <DialogHeader>
+                                    <DialogTitle>Crear Nueva Póliza</DialogTitle>
+                                    <DialogDescription>Ingresa los detalles de la nueva póliza para {client.nombre}.</DialogDescription>
+                                </DialogHeader>
                                 <PolicyForm clients={[{ id: client.id, nombre: client.nombre }]} companies={companies} onSubmit={handleCreatePolicy} />
-                            </div>
-                        </DrawerContent>
-                    </Drawer>
-                ) : (
-                    <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-                        <DialogTrigger asChild>
-                            <Button>Crear Nueva Póliza</Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-                            <DialogHeader>
-                                <DialogTitle>Crear Nueva Póliza</DialogTitle>
-                                <DialogDescription>Ingresa los detalles de la nueva póliza para {client.nombre}.</DialogDescription>
-                            </DialogHeader>
-                            <PolicyForm clients={[{ id: client.id, nombre: client.nombre }]} companies={companies} onSubmit={handleCreatePolicy} />
-                        </DialogContent>
-                    </Dialog>
-                )}
+                            </DialogContent>
+                        </Dialog>
+                    )}
+                </div>
+                <div className="ml-2">
+                    <MultiFilePolicyUploader
+                        clientId={client.id}
+                        companies={companies}
+                        onUploadComplete={() => {
+                            toast.success("Pólizas cargadas. Actualizando...");
+                            setTimeout(() => window.location.reload(), 1500);
+                        }}
+                    />
                 </div>
             </div>
 
@@ -553,12 +564,12 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
             {/* Edit Policy Dialog/Drawer */}
             {isMobile ? (
                 <Drawer open={isEditPolicyFormOpen} onOpenChange={setIsEditPolicyFormOpen}>
-                    <DrawerContent className="max-h-[90vh]">
+                    <DrawerContent className="h-[95vh]">
                         <DrawerHeader className="text-left">
                             <DrawerTitle>Editar Póliza</DrawerTitle>
                             <DrawerDescription>Actualiza los detalles de la póliza.</DrawerDescription>
                         </DrawerHeader>
-                        <div className="px-4 pb-4 overflow-y-auto">
+                        <div className="px-4 pb-4 overflow-y-auto flex-1">
                             <PolicyForm
                                 clients={[{ id: client.id, nombre: client.nombre }]}
                                 companies={companies}
@@ -570,7 +581,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                 </Drawer>
             ) : (
                 <Dialog open={isEditPolicyFormOpen} onOpenChange={setIsEditPolicyFormOpen}>
-                    <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>Editar Póliza</DialogTitle>
                             <DialogDescription>Actualiza los detalles de la póliza.</DialogDescription>

@@ -196,355 +196,343 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 lg:p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
-            {initialData ? "Editar Póliza" : "Nueva Póliza"}
-          </h1>
-          <p className="text-muted-foreground mt-3 text-lg">
-            {initialData ? "Modifica los datos de la póliza existente" : "Completa la información para crear una nueva póliza"}
-          </p>
-        </div>
-
-        <Card className="shadow-lg border bg-card">
-          <CardContent className="p-8 lg:p-10">
-            <form onSubmit={handleSubmit} className="space-y-10">
-              {/* Información del Cliente y Aseguradora */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 pb-4 border-b border-border">
-                  <div className="w-2 h-8 bg-primary rounded-full"></div>
-                  <h2 className="text-xl font-semibold text-foreground">Información General</h2>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <Label htmlFor="client_id" className="text-sm font-medium text-foreground">
-                      Cliente Gestor <span className="text-destructive">*</span>
-                    </Label>
-                    <Select
-                      value={formData.client_id}
-                      onValueChange={(value) => setFormData({ ...formData, client_id: value })}
-                      required
-                    >
-                      <SelectTrigger className="h-12 bg-background border-input">
-                        <SelectValue placeholder="Selecciona un cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clients.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Cliente que gestiona esta póliza
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label htmlFor="company_id" className="text-sm font-medium text-foreground">Aseguradora</Label>
-                    <Select
-                      value={formData.company_id}
-                      onValueChange={(value) => setFormData({ ...formData, company_id: value })}
-                    >
-                      <SelectTrigger className="h-12 bg-background border-input">
-                        <SelectValue placeholder="Selecciona una aseguradora" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {companies.map((company) => (
-                          <SelectItem key={company.id} value={company.id}>
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+    <div className="w-full">
+      <Card className="shadow-lg border bg-card">
+        <CardContent className="p-4 sm:p-6">
+          <form onSubmit={handleSubmit} className="space-y-10">
+            {/* Información del Cliente y Aseguradora */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-border">
+                <div className="w-2 h-8 bg-primary rounded-full"></div>
+                <h2 className="text-xl font-semibold text-foreground">Información General</h2>
               </div>
 
-              {/* Información del Asegurado */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 pb-4 border-b border-border">
-                  <div className="w-2 h-8 bg-primary rounded-full"></div>
-                  <User className="h-5 w-5 text-primary" />
-                  <h2 className="text-xl font-semibold text-foreground">Información del Asegurado</h2>
-                </div>
-
-                <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg border border-border">
-                  <input
-                    type="checkbox"
-                    id="useClientAsInsured"
-                    checked={useClientAsInsured}
-                    onChange={(e) => setUseClientAsInsured(e.target.checked)}
-                    className="h-4 w-4 text-primary focus:ring-primary border-input rounded"
-                  />
-                  <Label htmlFor="useClientAsInsured" className="text-sm font-medium text-foreground">
-                    El asegurado es el mismo cliente gestor
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <Label htmlFor="client_id" className="text-sm font-medium text-foreground">
+                    Cliente Gestor <span className="text-destructive">*</span>
                   </Label>
-                </div>
-
-                {!useClientAsInsured && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-muted/30 rounded-lg border border-border">
-                    <div className="space-y-3">
-                      <Label htmlFor="nombre_asegurado" className="text-sm font-medium text-foreground">
-                        Nombre del Asegurado <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="nombre_asegurado"
-                        className="h-12 bg-background border-input"
-                        value={formData.nombre_asegurado}
-                        onChange={(e) => setFormData({ ...formData, nombre_asegurado: e.target.value })}
-                        placeholder="Nombre completo"
-                        required={!useClientAsInsured}
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label htmlFor="documento_asegurado" className="text-sm font-medium text-foreground">Documento</Label>
-                      <Input
-                        id="documento_asegurado"
-                        className="h-12 bg-background border-input"
-                        value={formData.documento_asegurado}
-                        onChange={(e) => setFormData({ ...formData, documento_asegurado: e.target.value })}
-                        placeholder="CI del asegurado"
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label htmlFor="parentesco" className="text-sm font-medium text-foreground">
-                        Parentesco <span className="text-destructive">*</span>
-                      </Label>
-                      <Select
-                        value={formData.parentesco}
-                        onValueChange={(value) => setFormData({ ...formData, parentesco: value })}
-                        required={!useClientAsInsured}
-                      >
-                        <SelectTrigger className="h-12 bg-background border-input">
-                          <SelectValue placeholder="Relación" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Cónyuge">Cónyuge</SelectItem>
-                          <SelectItem value="Hijo/a">Hijo/a</SelectItem>
-                          <SelectItem value="Padre">Padre</SelectItem>
-                          <SelectItem value="Madre">Madre</SelectItem>
-                          <SelectItem value="Hermano/a">Hermano/a</SelectItem>
-                          <SelectItem value="Familiar">Familiar</SelectItem>
-                          <SelectItem value="Tercero">Tercero</SelectItem>
-                          <SelectItem value="Otro">Otro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                )}
-
-                {useClientAsInsured && selectedClient && (
-                  <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                    <p className="text-sm text-primary font-medium">
-                      <strong>Asegurado:</strong> {selectedClient.nombre} (Titular)
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Detalles de la Póliza */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 pb-4 border-b border-border">
-                  <div className="w-2 h-8 bg-primary rounded-full"></div>
-                  <h2 className="text-xl font-semibold text-foreground">Detalles de la Póliza</h2>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <Label htmlFor="numero_poliza" className="text-sm font-medium text-foreground">
-                      Número de Póliza <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="numero_poliza"
-                      className="h-12 bg-background border-input"
-                      value={formData.numero_poliza}
-                      onChange={(e) => setFormData({ ...formData, numero_poliza: e.target.value })}
-                      placeholder="Ej: POL-2024-001"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label htmlFor="tipo" className="text-sm font-medium text-foreground">
-                      Tipo de Póliza <span className="text-destructive">*</span>
-                    </Label>
-                    <Select
-                      value={formData.tipo}
-                      onValueChange={(value) => setFormData({ ...formData, tipo: value })}
-                      required
-                    >
-                      <SelectTrigger className="h-12 bg-background border-input">
-                        <SelectValue placeholder="Selecciona el tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Auto">Auto</SelectItem>
-                        <SelectItem value="Vida">Vida</SelectItem>
-                        <SelectItem value="Hogar">Hogar</SelectItem>
-                        <SelectItem value="Salud">Salud</SelectItem>
-                        <SelectItem value="Empresarial">Empresarial</SelectItem>
-                        <SelectItem value="Otro">Otro</SelectItem>
-                        <SelectItem value="Camiones">Camiones</SelectItem>
-                        <SelectItem value="Taxi">Taxi</SelectItem>
-                        <SelectItem value="Agricola">Agricola</SelectItem>
-                        <SelectItem value="Motos">Motos</SelectItem>
-                        <SelectItem value="Lancha">Lancha</SelectItem>
-
-                      
-
-
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <Label htmlFor="vigencia_inicio" className="text-sm font-medium text-foreground">
-                      Fecha de Inicio <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="vigencia_inicio"
-                      type="date"
-                      className="h-12 bg-background border-input"
-                      value={formData.vigencia_inicio}
-                      onChange={(e) => setFormData({ ...formData, vigencia_inicio: e.target.value })}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label htmlFor="vigencia_fin" className="text-sm font-medium text-foreground">
-                      Fecha de Fin <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="vigencia_fin"
-                      type="date"
-                      className="h-12 bg-background border-input"
-                      value={formData.vigencia_fin}
-                      onChange={(e) => setFormData({ ...formData, vigencia_fin: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Documentos */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 pb-4 border-b border-border">
-                  <div className="w-2 h-8 bg-primary rounded-full"></div>
-                  <h2 className="text-xl font-semibold text-foreground">Documentos de la Póliza</h2>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Área de carga de archivos */}
-                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors bg-muted/20">
-                    <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                    <div>
-                      <label htmlFor="file-upload" className="cursor-pointer">
-                        <span className="text-sm font-medium text-foreground hover:text-primary transition-colors">
-                          Arrastra archivos aquí o haz clic para seleccionar
-                        </span>
-                        <input
-                          id="file-upload"
-                          name="file-upload"
-                          type="file"
-                          multiple
-                          className="sr-only"
-                          accept=".pdf,.doc,.docx"
-                          onChange={handleFileChange}
-                        />
-                      </label>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        PDF, DOC, DOCX hasta 10MB cada uno. Puedes seleccionar múltiples archivos.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Lista de archivos */}
-                  {fileAttachments.length > 0 && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-medium text-foreground">
-                          Archivos adjuntos
-                        </h3>
-                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                          {fileAttachments.length} archivo{fileAttachments.length !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                      <div className="space-y-3 max-h-64 overflow-y-auto">
-                        {fileAttachments.map((attachment) => (
-                          <div
-                            key={attachment.id}
-                            className="flex items-center justify-between p-4 bg-card rounded-lg border border-border hover:shadow-sm transition-shadow"
-                          >
-                            <div className="flex items-center min-w-0 flex-1">
-                              <FileText className="h-6 w-6 text-primary flex-shrink-0" />
-                              <div className="ml-3 min-w-0 flex-1">
-                                <p className="text-sm font-medium text-foreground truncate">
-                                  {attachment.name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {attachment.size ? formatFileSize(attachment.size) : "Archivo existente"}
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeFile(attachment.id)}
-                              className="ml-2 flex-shrink-0 text-muted-foreground hover:text-destructive"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Notas */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 pb-4 border-b border-border">
-                  <div className="w-2 h-8 bg-primary rounded-full"></div>
-                  <h2 className="text-xl font-semibold text-foreground">Información Adicional</h2>
+                  <Select
+                    value={formData.client_id}
+                    onValueChange={(value) => setFormData({ ...formData, client_id: value })}
+                    required
+                  >
+                    <SelectTrigger className="h-12 bg-background border-input">
+                      <SelectValue placeholder="Selecciona un cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Cliente que gestiona esta póliza
+                  </p>
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="notas" className="text-sm font-medium text-foreground">Notas</Label>
-                  <Textarea
-                    id="notas"
-                    value={formData.notas}
-                    onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
-                    placeholder="Notas adicionales sobre la póliza..."
-                    rows={4}
-                    className="resize-none bg-background border-input"
+                  <Label htmlFor="company_id" className="text-sm font-medium text-foreground">Aseguradora</Label>
+                  <Select
+                    value={formData.company_id}
+                    onValueChange={(value) => setFormData({ ...formData, company_id: value })}
+                  >
+                    <SelectTrigger className="h-12 bg-background border-input">
+                      <SelectValue placeholder="Selecciona una aseguradora" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Información del Asegurado */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-border">
+                <div className="w-2 h-8 bg-primary rounded-full"></div>
+                <User className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold text-foreground">Información del Asegurado</h2>
+              </div>
+
+              <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg border border-border">
+                <input
+                  type="checkbox"
+                  id="useClientAsInsured"
+                  checked={useClientAsInsured}
+                  onChange={(e) => setUseClientAsInsured(e.target.checked)}
+                  className="h-4 w-4 text-primary focus:ring-primary border-input rounded"
+                />
+                <Label htmlFor="useClientAsInsured" className="text-sm font-medium text-foreground">
+                  El asegurado es el mismo cliente gestor
+                </Label>
+              </div>
+
+              {!useClientAsInsured && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-muted/30 rounded-lg border border-border">
+                  <div className="space-y-3">
+                    <Label htmlFor="nombre_asegurado" className="text-sm font-medium text-foreground">
+                      Nombre del Asegurado <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="nombre_asegurado"
+                      className="h-12 bg-background border-input"
+                      value={formData.nombre_asegurado}
+                      onChange={(e) => setFormData({ ...formData, nombre_asegurado: e.target.value })}
+                      placeholder="Nombre completo"
+                      required={!useClientAsInsured}
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="documento_asegurado" className="text-sm font-medium text-foreground">Documento</Label>
+                    <Input
+                      id="documento_asegurado"
+                      className="h-12 bg-background border-input"
+                      value={formData.documento_asegurado}
+                      onChange={(e) => setFormData({ ...formData, documento_asegurado: e.target.value })}
+                      placeholder="CI del asegurado"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="parentesco" className="text-sm font-medium text-foreground">
+                      Parentesco <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={formData.parentesco}
+                      onValueChange={(value) => setFormData({ ...formData, parentesco: value })}
+                      required={!useClientAsInsured}
+                    >
+                      <SelectTrigger className="h-12 bg-background border-input">
+                        <SelectValue placeholder="Relación" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Cónyuge">Cónyuge</SelectItem>
+                        <SelectItem value="Hijo/a">Hijo/a</SelectItem>
+                        <SelectItem value="Padre">Padre</SelectItem>
+                        <SelectItem value="Madre">Madre</SelectItem>
+                        <SelectItem value="Hermano/a">Hermano/a</SelectItem>
+                        <SelectItem value="Familiar">Familiar</SelectItem>
+                        <SelectItem value="Tercero">Tercero</SelectItem>
+                        <SelectItem value="Otro">Otro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {useClientAsInsured && selectedClient && (
+                <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                  <p className="text-sm text-primary font-medium">
+                    <strong>Asegurado:</strong> {selectedClient.nombre} (Titular)
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Detalles de la Póliza */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-border">
+                <div className="w-2 h-8 bg-primary rounded-full"></div>
+                <h2 className="text-xl font-semibold text-foreground">Detalles de la Póliza</h2>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <Label htmlFor="numero_poliza" className="text-sm font-medium text-foreground">
+                    Número de Póliza <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="numero_poliza"
+                    className="h-12 bg-background border-input"
+                    value={formData.numero_poliza}
+                    onChange={(e) => setFormData({ ...formData, numero_poliza: e.target.value })}
+                    placeholder="Ej: POL-2024-001"
+                    required
                   />
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="tipo" className="text-sm font-medium text-foreground">
+                    Tipo de Póliza <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={formData.tipo}
+                    onValueChange={(value) => setFormData({ ...formData, tipo: value })}
+                    required
+                  >
+                    <SelectTrigger className="h-12 bg-background border-input">
+                      <SelectValue placeholder="Selecciona el tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Auto">Auto</SelectItem>
+                      <SelectItem value="Vida">Vida</SelectItem>
+                      <SelectItem value="Hogar">Hogar</SelectItem>
+                      <SelectItem value="Salud">Salud</SelectItem>
+                      <SelectItem value="Empresarial">Empresarial</SelectItem>
+                      <SelectItem value="Otro">Otro</SelectItem>
+                      <SelectItem value="Camiones">Camiones</SelectItem>
+                      <SelectItem value="Taxi">Taxi</SelectItem>
+                      <SelectItem value="Agricola">Agricola</SelectItem>
+                      <SelectItem value="Motos">Motos</SelectItem>
+                      <SelectItem value="Lancha">Lancha</SelectItem>
+
+
+
+
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              {/* Botones de acción */}
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-8 border-t border-border">
-                <Button type="button" variant="outline" className="w-full sm:w-auto h-12">
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={uploading} className="w-full sm:w-auto h-12">
-                  {uploading ? "Procesando..." : initialData ? "Actualizar Póliza" : "Crear Póliza"}
-                </Button>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <Label htmlFor="vigencia_inicio" className="text-sm font-medium text-foreground">
+                    Fecha de Inicio <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="vigencia_inicio"
+                    type="date"
+                    className="h-12 bg-background border-input"
+                    value={formData.vigencia_inicio}
+                    onChange={(e) => setFormData({ ...formData, vigencia_inicio: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="vigencia_fin" className="text-sm font-medium text-foreground">
+                    Fecha de Fin <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="vigencia_fin"
+                    type="date"
+                    className="h-12 bg-background border-input"
+                    value={formData.vigencia_fin}
+                    onChange={(e) => setFormData({ ...formData, vigencia_fin: e.target.value })}
+                    required
+                  />
+                </div>
               </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+
+            {/* Documentos */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-border">
+                <div className="w-2 h-8 bg-primary rounded-full"></div>
+                <h2 className="text-xl font-semibold text-foreground">Documentos de la Póliza</h2>
+              </div>
+
+              <div className="space-y-6">
+                {/* Área de carga de archivos */}
+                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors bg-muted/20">
+                  <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <div>
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <span className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                        Arrastra archivos aquí o haz clic para seleccionar
+                      </span>
+                      <input
+                        id="file-upload"
+                        name="file-upload"
+                        type="file"
+                        multiple
+                        className="sr-only"
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      PDF, DOC, DOCX hasta 10MB cada uno. Puedes seleccionar múltiples archivos.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Lista de archivos */}
+                {fileAttachments.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-foreground">
+                        Archivos adjuntos
+                      </h3>
+                      <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                        {fileAttachments.length} archivo{fileAttachments.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {fileAttachments.map((attachment) => (
+                        <div
+                          key={attachment.id}
+                          className="flex items-center justify-between p-4 bg-card rounded-lg border border-border hover:shadow-sm transition-shadow"
+                        >
+                          <div className="flex items-center min-w-0 flex-1">
+                            <FileText className="h-6 w-6 text-primary flex-shrink-0" />
+                            <div className="ml-3 min-w-0 flex-1">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {attachment.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {attachment.size ? formatFileSize(attachment.size) : "Archivo existente"}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFile(attachment.id)}
+                            className="ml-2 flex-shrink-0 text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Notas */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-border">
+                <div className="w-2 h-8 bg-primary rounded-full"></div>
+                <h2 className="text-xl font-semibold text-foreground">Información Adicional</h2>
+              </div>
+
+              <div className="space-y-3">
+                <Label htmlFor="notas" className="text-sm font-medium text-foreground">Notas</Label>
+                <Textarea
+                  id="notas"
+                  value={formData.notas}
+                  onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
+                  placeholder="Notas adicionales sobre la póliza..."
+                  rows={4}
+                  className="resize-none bg-background border-input"
+                />
+              </div>
+            </div>
+
+            {/* Botones de acción */}
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-8 border-t border-border">
+              <Button type="button" variant="outline" className="w-full sm:w-auto h-12">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={uploading} className="w-full sm:w-auto h-12">
+                {uploading ? "Procesando..." : initialData ? "Actualizar Póliza" : "Crear Póliza"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }
