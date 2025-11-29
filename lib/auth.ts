@@ -50,7 +50,7 @@ export async function signOut() {
 export async function sendPasswordResetEmail(email: string) {
   const supabase = createClientClient()
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `https://app.imseguros.uy/reset-password`,
+    redirectTo: `${window.location.origin}/auth/confirm?next=/reset-password`,
   })
   return { error }
 }
@@ -61,4 +61,15 @@ export async function resetPassword(password: string) {
     password: password
   })
   return { data, error }
+}
+
+export async function signInWithMagicLink(email: string) {
+  const supabase = createClientClient()
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${window.location.origin}/auth/confirm?next=/dashboard`,
+    },
+  })
+  return { error }
 }

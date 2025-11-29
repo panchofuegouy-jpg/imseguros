@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { resetPassword } from "@/lib/auth"
+import { resetPassword, getCurrentUser } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,15 +24,14 @@ function ResetPasswordForm() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    // Verificar si hay parámetros de reset en la URL
-    const accessToken = searchParams.get('access_token')
-    const refreshToken = searchParams.get('refresh_token')
-    const type = searchParams.get('type')
-    
-    if (type !== 'recovery') {
-      setError("Enlace de restablecimiento inválido o expirado")
+    const checkSession = async () => {
+      const result = await getCurrentUser()
+      if (!result?.user) {
+        setError("Enlace inválido o sesión expirada. Por favor solicita un nuevo cambio de contraseña.")
+      }
     }
-  }, [searchParams])
+    checkSession()
+  }, [])
 
   const validatePassword = (pass: string) => {
     const minLength = 8
@@ -128,10 +127,10 @@ function ResetPasswordForm() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-6 flex items-center justify-center">
-            <img 
-              src="/IM_IDEINTIDAD-LOGO.png" 
-              alt="IM Seguros Logo" 
-              className="h-12 w-auto max-w-[200px] object-contain" 
+            <img
+              src="/IM_IDEINTIDAD-LOGO.png"
+              alt="IM Seguros Logo"
+              className="h-12 w-auto max-w-[200px] object-contain"
             />
           </div>
           <CardTitle className="text-2xl">Nueva Contraseña</CardTitle>
@@ -195,7 +194,7 @@ function ResetPasswordForm() {
                 </Button>
               </div>
             </div>
-            
+
             <div className="text-xs text-muted-foreground space-y-1">
               <p>La contraseña debe cumplir con:</p>
               <ul className="list-disc list-inside space-y-1">
@@ -236,10 +235,10 @@ function ResetPasswordLoading() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-6 flex items-center justify-center">
-            <img 
-              src="/IM_IDEINTIDAD-LOGO.png" 
-              alt="IM Seguros Logo" 
-              className="h-12 w-auto max-w-[200px] object-contain" 
+            <img
+              src="/IM_IDEINTIDAD-LOGO.png"
+              alt="IM Seguros Logo"
+              className="h-12 w-auto max-w-[200px] object-contain"
             />
           </div>
           <CardTitle className="text-2xl">Nueva Contraseña</CardTitle>

@@ -57,25 +57,55 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
         setCurrentPage(1)
     }, [initialClients])
 
-    const filteredClients = clients.filter((client) => {
-        if (!searchTerm.trim()) return true;
+    // Función de búsqueda mejorada
+    const fuzzyMatch = (text: string, search: string): boolean => {
+        if (!text) return false;
         
-        const searchLower = searchTerm.toLowerCase();
-        const searchTerm_trim = searchTerm.trim();
+        text = text.toLowerCase();
+        search = search.toLowerCase();
         
-        // Si el término es solo números, buscar SOLO por número de cliente (exacto)
-        if (/^\d+$/.test(searchTerm_trim)) {
-            return client.numero_cliente && client.numero_cliente.toString() === searchTerm_trim;
+        // Coincidencia exacta o incluye (más estricto)
+        if (text.includes(search)) return true;
+        
+        // Buscar cada palabra del término de búsqueda
+        const searchWords = search.split(/\s+/).filter(w => w.length > 0);
+        const textWords = text.split(/\s+/).filter(w => w.length > 0);
+        
+        // Si todas las palabras de búsqueda están contenidas en alguna palabra del texto
+        const allWordsMatch = searchWords.every(searchWord => 
+            textWords.some(textWord => textWord.includes(searchWord))
+        );
+        
+        if (allWordsMatch) return true;
+        
+        // Búsqueda por iniciales solo si son 2-3 letras y sin espacios
+        if (search.length >= 2 && search.length <= 3 && !search.includes(' ')) {
+            const initials = textWords.map(w => w[0]).join('');
+            if (initials === search || initials.startsWith(search)) return true;
         }
         
-        // Si contiene letras, buscar en todos los campos de texto
+        return false;
+    };
+
+    const filteredClients = clients.filter((client) => {
+        const trimmedSearch = searchTerm.trim();
+        if (trimmedSearch === "") return true;
+        
+        const searchLower = trimmedSearch.toLowerCase();
+        
+        // Si el término es solo números, buscar SOLO por número de cliente (exacto)
+        if (/^\d+$/.test(trimmedSearch)) {
+            return client.numero_cliente && client.numero_cliente.toString() === trimmedSearch;
+        }
+        
+        // Si contiene letras, buscar en todos los campos de texto con fuzzy matching
         return (
-            client.nombre.toLowerCase().includes(searchLower) ||
-            (client.email && client.email.toLowerCase().includes(searchLower)) ||
-            client.documento.toLowerCase().includes(searchLower) ||
-            (client.telefono && client.telefono.includes(searchTerm_trim)) ||
-            (client.departamento && client.departamento.toLowerCase().includes(searchLower)) ||
-            (client.direccion && client.direccion.toLowerCase().includes(searchLower))
+            fuzzyMatch(client.nombre, searchLower) ||
+            fuzzyMatch(client.email || '', searchLower) ||
+            fuzzyMatch(client.documento, searchLower) ||
+            (client.telefono && client.telefono.includes(trimmedSearch)) ||
+            fuzzyMatch(client.departamento || '', searchLower) ||
+            fuzzyMatch(client.direccion || '', searchLower)
         );
     });
 
