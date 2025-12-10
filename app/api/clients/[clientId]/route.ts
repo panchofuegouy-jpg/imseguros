@@ -113,9 +113,13 @@ export async function PATCH(
     let emailSent = false;
 
     if (isCreatingUser) {
+      const logPrefix = `[ClientUpdate][${clientId}][${Date.now()}]`
+      console.log(`${logPrefix} Iniciando creación de usuario para cliente existente`)
+      
       const temporaryPassword = generateTemporaryPassword();
       
       // 3. Crear el usuario en Supabase Auth
+      console.log(`${logPrefix}[Step:Auth] Creando usuario en Auth...`)
       const { data: authUser, error: authError } = await adminSupabase.auth.admin.createUser({
         email: updateData.email,
         password: temporaryPassword,
@@ -123,14 +127,14 @@ export async function PATCH(
       });
 
       if (authError) {
+        console.error(`${logPrefix}[Step:Auth] Error creando usuario en Auth:`, authError)
         // Manejar el caso en que el email ya exista en Auth
-        if (authError.message.includes("already exists")) {
+        if (authError.message.includes("already exists") || authError.message.includes("already registered")) {
           return NextResponse.json(
             { error: "Este email ya está registrado por otro usuario." },
             { status: 409 } // 409 Conflict
           );
         }
-        console.error("Error creating auth user:", authError);
         return NextResponse.json(
           { error: "Error al crear las credenciales del usuario" },
           { status: 500 }
@@ -139,8 +143,10 @@ export async function PATCH(
       
       newAuthUser = authUser.user;
       tempPassword = temporaryPassword; // Guardar para devolver al frontend
+      console.log(`${logPrefix}[Step:Auth] Usuario creado en Auth:`, newAuthUser.id)
 
       // 4. Crear perfil de usuario vinculando al cliente
+      console.log(`${logPrefix}[Step:Profile] Creando perfil de usuario...`)
       const { error: profileError } = await adminSupabase
         .from("user_profiles")
         .insert({
@@ -151,39 +157,45 @@ export async function PATCH(
         });
 
       if (profileError) {
-        console.error('Error creando perfil:', profileError);
-        // Revertir la creación del usuario de Auth
-        await adminSupabase.auth.admin.deleteUser(newAuthUser.id);
+        console.error(`${logPrefix}[Step:Profile] Error creando perfil:`, profileError)
+        
+        // ROLLBACK: Revertir la creación del usuario de Auth
+        console.log(`${logPrefix}[Rollback] Borrando usuario Auth...`)
+        const { error: deleteAuthError } = await adminSupabase.auth.admin.deleteUser(newAuthUser.id);
+        if (deleteAuthError) console.error(`${logPrefix}[Rollback] Error borrando usuario Auth:`, deleteAuthError)
+        else console.log(`${logPrefix}[Rollback] Usuario Auth borrado`)
+
         return NextResponse.json(
           { error: "Error al crear el perfil de usuario" },
           { status: 500 }
         );
       }
+      console.log(`${logPrefix}[Step:Profile] Perfil creado exitosamente`)
 
       // 5. Invocar la Edge Function para enviar el email de bienvenida
-      console.log('Enviando email usando Supabase Edge Function...')
+      console.log(`${logPrefix}[Step:Email] Enviando email...`)
       
       try {
         const { data: functionData, error: functionError } = await adminSupabase.functions.invoke('send-welcome-email', {
           body: {
             email: updateData.email,
-            nombre: updateData.nombre,
+            nombre: updateData.nombre || currentClient.nombre, // Usar nombre nuevo o existente
             tempPassword: temporaryPassword
           }
         })
 
         if (functionError) {
-          console.error('Error llamando a Edge Function:', functionError)
+          console.error(`${logPrefix}[Step:Email] Error llamando a Edge Function:`, functionError)
           emailSent = false
         } else if (functionData?.success) {
-          console.log('Email enviado exitosamente:', functionData)
+          console.log(`${logPrefix}[Step:Email] Email enviado exitosamente:`, functionData)
           emailSent = true
         } else {
-          console.error('Edge Function retornó error:', functionData)
+          console.error(`${logPrefix}[Step:Email] Edge Function retornó error:`, functionData)
           emailSent = false
         }
       } catch (error) {
-        console.error('Error invocando Edge Function:', error)
+        console.error(`${logPrefix}[Step:Email] Error invocando Edge Function:`, error)
         emailSent = false
       }
     }
