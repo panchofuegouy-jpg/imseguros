@@ -169,7 +169,7 @@ export async function createClientUser(clientData: {
       emailSent = false
     }
 
-    console.log(`${logPrefix] Proceso completado exitosamente`)
+    console.log(`${logPrefix} Proceso completado exitosamente`)
     return { client, tempPassword, emailSent, userCreated: true }
   } catch (error) {
     console.error("Error creating client user:", error)
