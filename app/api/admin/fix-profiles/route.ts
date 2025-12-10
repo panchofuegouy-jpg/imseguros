@@ -46,7 +46,6 @@ export async function POST(request: NextRequest) {
     if (profilesError) throw new Error(`Error fetching profiles: ${profilesError.message}`);
 
     // Fetch all Auth users to build Email -> ID map
-    // Note: This might be heavy if there are thousands of users, but necessary for conflict detection
     const authUsersMap = new Map<string, string>(); // Email -> ID
     let page = 1;
     let hasMore = true;
@@ -64,7 +63,7 @@ export async function POST(request: NextRequest) {
         hasMore = false;
       } else {
         users.forEach(u => {
-          if (u.email) authUsersMap.set(u.email.toLowerCase(), u.id);
+          if (u.email) authUsersMap.set(u.email.trim().toLowerCase(), u.id);
         });
         if (users.length < perPage) hasMore = false;
         page++;
@@ -119,7 +118,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        const normalizedEmail = client.email.toLowerCase();
+        const normalizedEmail = client.email.trim().toLowerCase();
         const existingAuthId = authUsersMap.get(normalizedEmail);
 
         if (existingAuthId) {
@@ -151,19 +150,11 @@ export async function POST(request: NextRequest) {
               if (linkError) throw linkError;
               summary.linkedProfiles++;
               
-              // Send Email if requested (and not dryRun)
               if (sendEmails) {
-                 // For linked users, we might NOT want to send a welcome email with a temp password
-                 // because we don't know their password.
-                 // We should probably send a "Account Linked" email or just skip?
-                 // User request said: "Invoca tu Edge Function... para disparar Resend."
-                 // But we can't send tempPassword for existing user.
-                 // So we skip email for Linked users or send a different one.
-                 // Let's skip for safety and log it.
                  detail.reason += " (Email skipped for existing user)";
               }
             } else {
-               summary.linkedProfiles++; // Count as if it would happen
+               summary.linkedProfiles++; 
             }
           }
         } else {
@@ -176,7 +167,7 @@ export async function POST(request: NextRequest) {
             
             // Create Auth User
             const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
-              email: client.email,
+              email: normalizedEmail, // Use normalized email
               password: tempPassword,
               email_confirm: true,
               user_metadata: {
@@ -184,51 +175,61 @@ export async function POST(request: NextRequest) {
               }
             });
 
-            if (authError) throw new Error(`Auth create failed: ${authError.message}`);
-            
-            const newUserId = authData.user.id;
-            detail.authUserId = newUserId;
+            if (authError) {
+               // Fallback: Check if it failed because it exists (race condition or map miss)
+               if (authError.message.includes("already been registered") || authError.message.includes("already registered")) {
+                  detail.action = "error_exists";
+                  detail.reason = "User exists in Auth but was not found in map (possible whitespace mismatch). Run again to link.";
+                  summary.errors++;
+                  // We could try to link here, but simpler to just let the user run again now that we fixed the trimming logic
+               } else {
+                  throw new Error(`Auth create failed: ${authError.message}`);
+               }
+            } else {
+                const newUserId = authData.user.id;
+                detail.authUserId = newUserId;
 
-            // Create Profile
-            const { error: profileError } = await adminSupabase
-              .from("user_profiles")
-              .insert({
-                id: newUserId,
-                client_id: client.id,
-                role: "client",
-                first_login: true,
-              });
-
-            if (profileError) {
-              // ROLLBACK Auth User
-              await adminSupabase.auth.admin.deleteUser(newUserId);
-              throw new Error(`Profile create failed (Rolled back Auth): ${profileError.message}`);
-            }
-            
-            summary.createdProfiles++;
-
-            // Send Email
-            if (sendEmails) {
-              try {
-                const { data: functionData, error: functionError } = await adminSupabase.functions.invoke('send-welcome-email', {
-                  body: {
-                    email: client.email,
-                    nombre: client.nombre,
-                    tempPassword: tempPassword
-                  }
+                // Create Profile
+                const { error: profileError } = await adminSupabase
+                .from("user_profiles")
+                .insert({
+                    id: newUserId,
+                    client_id: client.id,
+                    role: "client",
+                    first_login: true,
                 });
 
-                if (functionError || !functionData?.success) {
-                  detail.reason += " (Profile created, Email FAILED)";
-                  console.error(`Email failed for ${client.email}:`, functionError || functionData);
-                } else {
-                  summary.emailsSent++;
-                  detail.reason += " (Email sent)";
+                if (profileError) {
+                // ROLLBACK Auth User
+                await adminSupabase.auth.admin.deleteUser(newUserId);
+                throw new Error(`Profile create failed (Rolled back Auth): ${profileError.message}`);
                 }
-              } catch (emailErr) {
-                 detail.reason += " (Profile created, Email EXCEPTION)";
-                 console.error(`Email exception for ${client.email}:`, emailErr);
-              }
+                
+                summary.createdProfiles++;
+
+                // Send Email
+                if (sendEmails) {
+                try {
+                    const { data: functionData, error: functionError } = await adminSupabase.functions.invoke('send-welcome-email', {
+                    body: {
+                        email: normalizedEmail,
+                        nombre: client.nombre,
+                        tempPassword: tempPassword
+                    }
+                    });
+
+                    if (functionError || !functionData?.success) {
+                    detail.reason += " (Profile created, Email FAILED)";
+                    console.error(`Email failed for ${client.email}:`, functionError || functionData);
+                    } else {
+                    summary.emailsSent++;
+                    detail.reason += " (Email sent)";
+                    }
+                } catch (emailErr) {
+                    detail.reason += " (Profile created, Email EXCEPTION)";
+                    console.error(`Email exception for ${client.email}:`, emailErr);
+                }
+                }
             }
           } else {
             summary.createdProfiles++;
