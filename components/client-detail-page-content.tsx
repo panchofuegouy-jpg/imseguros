@@ -43,6 +43,10 @@ interface Policy {
     nombre_asegurado: string | null;
     documento_asegurado: string | null;
     parentesco: string;
+    prima_monto: number | null;
+    moneda: string | null;
+    forma_pago: string | null;
+    numero_factura: string | null;
     created_at: string;
     companies?: { name: string } | null;
 }

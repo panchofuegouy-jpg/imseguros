@@ -164,6 +164,12 @@ export function MultiFilePolicyUploader({
                 ));
 
                 // 3. Create Policy Record in Database
+                const parsePrimaMonto = (val: any): number | null => {
+                    if (val === null || val === undefined || val === '') return null;
+                    const num = parseFloat(String(val).replace(/[^\d.,-]/g, '').replace(',', '.'));
+                    return isNaN(num) ? null : num;
+                };
+
                 const policyData = {
                     client_id: clientId,
                     numero_poliza: extracted.numero_poliza ?? `PEND-${Date.now()}`,
@@ -176,7 +182,12 @@ export function MultiFilePolicyUploader({
                     parentesco: extracted.parentesco ?? 'Titular',
                     archivo_url: publicUrl,
                     archivo_urls: [publicUrl],
-                    notas: extracted.notas ?? `Cargado automáticamente desde ${fileStatus.file.name}`
+                    notas: extracted.notas ?? `Cargado automáticamente desde ${fileStatus.file.name}`,
+                    // Campos de facturación
+                    prima_monto: parsePrimaMonto(extracted.prima_monto ?? extracted.prima ?? extracted.monto ?? extracted.importe ?? extracted.premio),
+                    moneda: extracted.moneda ?? 'UYU',
+                    forma_pago: extracted.forma_pago ?? extracted.frecuencia_pago ?? null,
+                    numero_factura: extracted.numero_factura ?? extracted.factura ?? null,
                 };
 
                 console.log('Datos que se guardan en la póliza:', policyData);
@@ -345,6 +356,19 @@ export function MultiFilePolicyUploader({
                                                     <p><span className="text-muted-foreground">Asegurado:</span> {fileStatus.extractedData.nombre_asegurado || 'N/A'}</p>
                                                     {fileStatus.extractedData.vigencia_inicio && fileStatus.extractedData.vigencia_fin && (
                                                         <p><span className="text-muted-foreground">Vigencia:</span> {fileStatus.extractedData.vigencia_inicio} a {fileStatus.extractedData.vigencia_fin}</p>
+                                                    )}
+                                                    {(fileStatus.extractedData.prima_monto ?? fileStatus.extractedData.prima ?? fileStatus.extractedData.monto ?? fileStatus.extractedData.importe ?? fileStatus.extractedData.premio) != null && (
+                                                        <p>
+                                                            <span className="text-muted-foreground">Prima:</span>{' '}
+                                                            {fileStatus.extractedData.moneda || 'UYU'}{' '}
+                                                            {fileStatus.extractedData.prima_monto ?? fileStatus.extractedData.prima ?? fileStatus.extractedData.monto ?? fileStatus.extractedData.importe ?? fileStatus.extractedData.premio}
+                                                        </p>
+                                                    )}
+                                                    {(fileStatus.extractedData.forma_pago ?? fileStatus.extractedData.frecuencia_pago) && (
+                                                        <p><span className="text-muted-foreground">Forma de pago:</span> {fileStatus.extractedData.forma_pago ?? fileStatus.extractedData.frecuencia_pago}</p>
+                                                    )}
+                                                    {(fileStatus.extractedData.numero_factura ?? fileStatus.extractedData.factura) && (
+                                                        <p><span className="text-muted-foreground">N° Factura:</span> {fileStatus.extractedData.numero_factura ?? fileStatus.extractedData.factura}</p>
                                                     )}
                                                 </div>
                                             )}

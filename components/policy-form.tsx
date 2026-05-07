@@ -38,6 +38,11 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
     documento_asegurado: initialData?.documento_asegurado || "",
     parentesco: initialData?.parentesco || "",
     notas: initialData?.notas || "",
+    // Facturación
+    prima_monto: initialData?.prima_monto?.toString() || "",
+    moneda: initialData?.moneda || "UYU",
+    forma_pago: initialData?.forma_pago || "",
+    numero_factura: initialData?.numero_factura || "",
   })
 
   const [fileAttachments, setFileAttachments] = useState<FileAttachment[]>(() => {
@@ -175,6 +180,11 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
         nombre_asegurado: useClientAsInsured ? "" : formData.nombre_asegurado,
         documento_asegurado: useClientAsInsured ? "" : formData.documento_asegurado,
         parentesco: useClientAsInsured ? "Titular" : formData.parentesco,
+        // Facturación: convertir prima_monto a número o null
+        prima_monto: formData.prima_monto !== "" ? parseFloat(formData.prima_monto) : null,
+        moneda: formData.moneda || "UYU",
+        forma_pago: formData.forma_pago || null,
+        numero_factura: formData.numero_factura || null,
       }
       console.log("PolicyForm: Submitting policy data to parent component:", policyData);
 
@@ -419,6 +429,85 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                     value={formData.vigencia_fin}
                     onChange={(e) => setFormData({ ...formData, vigencia_fin: e.target.value })}
                     required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Facturación */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-border">
+                <div className="w-2 h-8 bg-primary rounded-full"></div>
+                <h2 className="text-xl font-semibold text-foreground">Facturación</h2>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <Label htmlFor="prima_monto" className="text-sm font-medium text-foreground">
+                    Prima / Monto Facturado
+                  </Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={formData.moneda}
+                      onValueChange={(value) => setFormData({ ...formData, moneda: value })}
+                    >
+                      <SelectTrigger className="h-12 w-28 bg-background border-input">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="UYU">UYU</SelectItem>
+                        <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="EUR">EUR</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      id="prima_monto"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      className="h-12 bg-background border-input flex-1"
+                      value={formData.prima_monto}
+                      onChange={(e) => setFormData({ ...formData, prima_monto: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="forma_pago" className="text-sm font-medium text-foreground">
+                    Forma de Pago
+                  </Label>
+                  <Select
+                    value={formData.forma_pago}
+                    onValueChange={(value) => setFormData({ ...formData, forma_pago: value })}
+                  >
+                    <SelectTrigger className="h-12 bg-background border-input">
+                      <SelectValue placeholder="Seleccionar frecuencia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Mensual">Mensual</SelectItem>
+                      <SelectItem value="Bimestral">Bimestral</SelectItem>
+                      <SelectItem value="Trimestral">Trimestral</SelectItem>
+                      <SelectItem value="Semestral">Semestral</SelectItem>
+                      <SelectItem value="Anual">Anual</SelectItem>
+                      <SelectItem value="Contado">Contado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <Label htmlFor="numero_factura" className="text-sm font-medium text-foreground">
+                    N° de Factura / Recibo
+                  </Label>
+                  <Input
+                    id="numero_factura"
+                    type="text"
+                    placeholder="Ej: F-001234"
+                    className="h-12 bg-background border-input"
+                    value={formData.numero_factura}
+                    onChange={(e) => setFormData({ ...formData, numero_factura: e.target.value })}
                   />
                 </div>
               </div>
