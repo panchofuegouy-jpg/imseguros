@@ -11,7 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import PolicyForm from "@/components/policy-form";
 import { toast } from "sonner";
-import { MoreHorizontal, RefreshCw, Edit, CheckCircle, AlertCircle, Clock, XCircle, Phone, MessageCircle } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, MoreHorizontal, RefreshCw, Edit, CheckCircle, AlertCircle, Clock, XCircle, Phone, MessageCircle, Upload, FileText, X, User, Wand2 } from "lucide-react";
 import Link from "next/link";
 
 interface Policy {
@@ -25,6 +27,13 @@ interface Policy {
   status: string;
   client_id: string;
   company_id: string;
+  nombre_asegurado?: string;
+  documento_asegurado?: string;
+  parentesco?: string;
+  prima_monto?: number;
+  moneda?: string;
+  forma_pago?: string;
+  numero_factura?: string;
   clients: {
     id: string;
     nombre: string;
@@ -606,335 +615,416 @@ export function PoliciesNearExpirationContent() {
   );
 }
 
-// Componente completo para renovación de pólizas
+// Formulario completo de renovación
 function RenewalForm({ policy, companies, onSuccess, onCancel }: {
   policy: Policy;
   companies: Company[];
   onSuccess: () => void;
   onCancel: () => void;
 }) {
+  const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL || 'https://centro-n8n.xqnwvv.easypanel.host/webhook/75fb7c2d-82f0-4514-b137-6aee42432f42';
+
   const [formData, setFormData] = useState({
     numero_poliza: policy.numero_poliza,
     company_id: policy.company_id || "",
+    tipo: policy.tipo || "",
     vigencia_inicio: policy.vigencia_inicio,
     vigencia_fin: policy.vigencia_fin,
+    nombre_asegurado: policy.nombre_asegurado || "",
+    documento_asegurado: policy.documento_asegurado || "",
+    parentesco: policy.parentesco || "Titular",
+    prima_monto: policy.prima_monto?.toString() || "",
+    moneda: policy.moneda || "UYU",
+    forma_pago: policy.forma_pago || "",
+    numero_factura: policy.numero_factura || "",
     notas: policy.notas || "",
   });
-  const [fileAttachments, setFileAttachments] = useState(() => {
+
+  const [useClientAsInsured, setUseClientAsInsured] = useState(
+    !policy.nombre_asegurado || policy.nombre_asegurado === ""
+  );
+
+  const [fileAttachments, setFileAttachments] = useState<Array<{
+    id: string; file?: File; url?: string; name: string; size?: number; isExisting?: boolean;
+  }>>(() => {
     if (policy.archivo_urls && Array.isArray(policy.archivo_urls)) {
       return policy.archivo_urls.map((url: string, index: number) => ({
-        id: `existing-${index}`,
-        url,
-        name: `Archivo ${index + 1}`,
-        isExisting: true,
+        id: `existing-${index}`, url, name: `Archivo ${index + 1}`, isExisting: true,
       }));
     }
     return [];
   });
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
-  // Manejar cambio de archivos
+  const [loading, setLoading] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrFile, setOcrFile] = useState<File | null>(null);
+
+  const formatFileSize = (bytes: number) => (bytes / 1024 / 1024).toFixed(2) + ' MB';
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
+    const allowed = ["application/pdf", "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
 
     selectedFiles.forEach(file => {
-      // Validar tipo de archivo (PDF, DOC, DOCX)
-      const allowedTypes = [
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ];
-
-      if (allowedTypes.includes(file.type)) {
-        const newAttachment = {
-          id: `new-${Date.now()}-${Math.random()}`,
-          file,
-          name: file.name,
-          size: file.size,
-          isExisting: false,
-        };
-
-        setFileAttachments(prev => [...prev, newAttachment]);
+      if (allowed.includes(file.type)) {
+        setFileAttachments(prev => [...prev, {
+          id: `new-${Date.now()}-${Math.random()}`, file, name: file.name, size: file.size,
+        }]);
       } else {
-        toast.error(`El archivo ${file.name} no es válido. Solo se permiten archivos PDF, DOC o DOCX`);
+        toast.error(`${file.name} no es válido. Solo PDF, DOC o DOCX`);
       }
     });
-
-    // Reset input
     event.target.value = '';
   };
 
-  // Remover archivo
-  const removeFile = (fileId: string) => {
-    setFileAttachments(prev => prev.filter(file => file.id !== fileId));
-  };
+  const handleOcrFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setOcrFile(file);
+    event.target.value = '';
 
-  // Subir archivo
-  const uploadFile = async (file: File, policyId: string, clientId: string): Promise<string | null> => {
+    setOcrLoading(true);
+    toast.info("Analizando documento con OCR...");
+
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${policyId}-renewal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-      const filePath = `policies/${clientId}/${fileName}`;
-
-      // Crear cliente Supabase
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
 
-      const { data, error } = await supabase.storage
-        .from("policy-documents")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${policy.client_id}/ocr-renewal-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('policy-documents').upload(filePath, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('policy-documents').getPublicUrl(filePath);
 
-      if (error) {
-        console.error("Error uploading file:", error);
-        return null;
-      }
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('fileUrl', publicUrl);
+      fd.append('clientId', policy.client_id);
+      fd.append('fileName', file.name);
 
-      const { data: publicUrlData } = supabase.storage
-        .from("policy-documents")
-        .getPublicUrl(filePath);
+      const res = await fetch(N8N_WEBHOOK_URL, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(`Error OCR: ${res.statusText}`);
 
-      return publicUrlData.publicUrl;
-    } catch (error) {
-      console.error("Upload error:", error);
-      return null;
+      const raw = await res.json();
+      const ext = parseOcrData(raw);
+
+      const parsePrima = (v: any) => {
+        if (!v) return "";
+        const n = parseFloat(String(v).replace(/[^\d.,-]/g, '').replace(',', '.'));
+        return isNaN(n) ? "" : String(n);
+      };
+
+      setFormData(prev => ({
+        ...prev,
+        numero_poliza: ext.numero_poliza || prev.numero_poliza,
+        tipo: ext.tipo || prev.tipo,
+        vigencia_inicio: ext.vigencia_inicio || prev.vigencia_inicio,
+        vigencia_fin: ext.vigencia_fin || prev.vigencia_fin,
+        nombre_asegurado: ext.nombre_asegurado || prev.nombre_asegurado,
+        documento_asegurado: ext.documento_asegurado || prev.documento_asegurado,
+        parentesco: ext.parentesco || prev.parentesco,
+        prima_monto: parsePrima(ext.total_a_pagar ?? ext.prima_monto ?? ext.prima ?? ext.monto ?? ext.importe ?? ext.premio) || prev.prima_monto,
+        moneda: ext.moneda || prev.moneda,
+        forma_pago: ext.forma_pago ?? ext.frecuencia_pago ?? prev.forma_pago,
+        numero_factura: ext.numero_factura ?? ext.factura ?? prev.numero_factura,
+      }));
+
+      // Agregar el archivo a adjuntos
+      setFileAttachments(prev => [...prev, {
+        id: `ocr-${Date.now()}`, url: publicUrl, name: file.name, isExisting: true,
+      }]);
+
+      toast.success("Datos extraídos del documento");
+    } catch (err: any) {
+      toast.error("No se pudo analizar el documento: " + err.message);
+    } finally {
+      setOcrLoading(false);
     }
   };
 
-  // Formatear tamaño de archivo
-  const formatFileSize = (bytes: number) => {
-    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  const uploadFile = async (file: File): Promise<string | null> => {
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const fileExt = file.name.split('.').pop();
+      const filePath = `policies/${policy.client_id}/${policy.id}-renewal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+      const { error } = await supabase.storage.from('policy-documents').upload(filePath, file, { cacheControl: '3600', upsert: false });
+      if (error) { console.error(error); return null; }
+      const { data: { publicUrl } } = supabase.storage.from('policy-documents').getPublicUrl(filePath);
+      return publicUrl;
+    } catch { return null; }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setUploading(true);
-
     try {
       const archivo_urls: string[] = [];
-
-      // Procesar archivos
-      for (const attachment of fileAttachments) {
-        if (attachment.file) {
-          // Nuevo archivo a subir
-          const uploadedUrl = await uploadFile(attachment.file, policy.id, policy.client_id);
-          if (uploadedUrl) {
-            archivo_urls.push(uploadedUrl);
-          } else {
-            toast.error(`Error al subir el archivo ${attachment.name}`);
-            return;
-          }
-        } else if (attachment.url) {
-          // Archivo existente
-          archivo_urls.push(attachment.url);
+      for (const att of fileAttachments) {
+        if (att.file) {
+          const url = await uploadFile(att.file);
+          if (url) archivo_urls.push(url);
+          else { toast.error(`Error al subir ${att.name}`); return; }
+        } else if (att.url) {
+          archivo_urls.push(att.url);
         }
       }
 
-      const response = await fetch(`/api/policies/${policy.id}`, {
+      const payload = {
+        ...formData,
+        archivo_urls,
+        status: 'Renovada',
+        nombre_asegurado: useClientAsInsured ? "" : formData.nombre_asegurado,
+        documento_asegurado: useClientAsInsured ? "" : formData.documento_asegurado,
+        parentesco: useClientAsInsured ? "Titular" : formData.parentesco,
+        prima_monto: formData.prima_monto !== "" ? parseFloat(formData.prima_monto) : null,
+        moneda: formData.moneda || "UYU",
+        forma_pago: formData.forma_pago || null,
+        numero_factura: formData.numero_factura || null,
+      };
+
+      const res = await fetch(`/api/policies/${policy.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          archivo_urls,
-          status: 'Renovada'
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
 
-      if (response.ok) {
-        onSuccess();
-      } else {
-        throw new Error('Error al renovar');
-      }
-    } catch (error) {
+      if (res.ok) onSuccess();
+      else throw new Error('Error al renovar');
+    } catch {
       toast.error("Error al renovar la póliza.");
     } finally {
       setLoading(false);
-      setUploading(false);
     }
   };
 
+  const POLICY_TYPES = ["Auto", "Vida", "Hogar", "Salud", "Empresarial", "Camiones", "Taxi", "Agricola", "Motos", "Lancha", "Otro"];
+
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Número de Póliza y Aseguradora */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="numero_poliza" className="block text-sm font-medium mb-2">
-              Número de Póliza
-            </label>
-            <input
-              type="text"
-              id="numero_poliza"
-              value={formData.numero_poliza}
-              onChange={(e) => setFormData({ ...formData, numero_poliza: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Ej: POL-2024-001"
-              required
-            />
+    <div className="max-h-[80vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit} className="space-y-8">
+
+        {/* OCR Banner */}
+        <div className="flex items-center gap-4 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <Wand2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Cargar documento de renovación y extraer datos automáticamente</p>
+            <p className="text-xs text-blue-700 dark:text-blue-300">El OCR leerá el documento y pre-llenará los campos del formulario</p>
           </div>
-          
-          <div>
-            <label htmlFor="company_id" className="block text-sm font-medium mb-2">
-              Aseguradora
-            </label>
-            <Select
-              value={formData.company_id}
-              onValueChange={(value) => setFormData({ ...formData, company_id: value })}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Seleccionar aseguradora" />
-              </SelectTrigger>
-              <SelectContent>
-                {companies.map((company) => (
-                  <SelectItem key={company.id} value={company.id}>
-                    {company.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <label className="cursor-pointer">
+            <Button type="button" variant="outline" size="sm" disabled={ocrLoading} asChild>
+              <span>
+                {ocrLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                {ocrLoading ? "Analizando..." : "Analizar con OCR"}
+              </span>
+            </Button>
+            <input type="file" className="sr-only" accept=".pdf,.png,.jpg,.jpeg" onChange={handleOcrFileChange} disabled={ocrLoading} />
+          </label>
         </div>
-        
-        {/* Fechas */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="vigencia_inicio" className="block text-sm font-medium mb-2">
-              Nueva Fecha de Inicio
-            </label>
-            <input
-              type="date"
-              id="vigencia_inicio"
-              value={formData.vigencia_inicio}
-              onChange={(e) => setFormData({ ...formData, vigencia_inicio: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="vigencia_fin" className="block text-sm font-medium mb-2">
-              Nueva Fecha de Fin
-            </label>
-            <input
-              type="date"
-              id="vigencia_fin"
-              value={formData.vigencia_fin}
-              onChange={(e) => setFormData({ ...formData, vigencia_fin: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-        </div>
-        
-        {/* Archivos */}
+
+        {/* Información General */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">Documentos de la Renovación</h3>
-          
-          {/* Área de carga */}
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+          <div className="flex items-center gap-3 pb-3 border-b">
+            <div className="w-1.5 h-6 bg-primary rounded-full" />
+            <h3 className="text-base font-semibold">Información General</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <svg className="mx-auto h-8 w-8 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <div>
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <span className="text-sm font-medium text-blue-600 hover:text-blue-500">
-                    Cargar archivos de renovación
-                  </span>
-                  <input
-                    id="file-upload"
-                    name="file-upload"
-                    type="file"
-                    multiple
-                    className="sr-only"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleFileChange}
-                  />
-                </label>
-                <p className="text-sm text-gray-500">o arrastra archivos aquí</p>
-              </div>
-              <p className="text-xs text-gray-500">
-                PDF, DOC, DOCX hasta 10MB cada uno
-              </p>
+              <Label>Número de Póliza <span className="text-destructive">*</span></Label>
+              <Input value={formData.numero_poliza} onChange={e => setFormData({ ...formData, numero_poliza: e.target.value })} placeholder="Ej: POL-2025-001" required />
+            </div>
+            <div className="space-y-2">
+              <Label>Aseguradora</Label>
+              <Select value={formData.company_id} onValueChange={v => setFormData({ ...formData, company_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar aseguradora" /></SelectTrigger>
+                <SelectContent>
+                  {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de Póliza <span className="text-destructive">*</span></Label>
+              <Select value={formData.tipo} onValueChange={v => setFormData({ ...formData, tipo: v })} required>
+                <SelectTrigger><SelectValue placeholder="Seleccionar tipo" /></SelectTrigger>
+                <SelectContent>
+                  {POLICY_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
+        </div>
 
-          {/* Lista de archivos */}
-          {fileAttachments.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-gray-900">
-                  Archivos adjuntos ({fileAttachments.length})
-                </h4>
+        {/* Vigencia */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 pb-3 border-b">
+            <div className="w-1.5 h-6 bg-primary rounded-full" />
+            <h3 className="text-base font-semibold">Nueva Vigencia</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Fecha de Inicio <span className="text-destructive">*</span></Label>
+              <Input type="date" value={formData.vigencia_inicio} onChange={e => setFormData({ ...formData, vigencia_inicio: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label>Fecha de Fin <span className="text-destructive">*</span></Label>
+              <Input type="date" value={formData.vigencia_fin} onChange={e => setFormData({ ...formData, vigencia_fin: e.target.value })} required />
+            </div>
+          </div>
+        </div>
+
+        {/* Asegurado */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 pb-3 border-b">
+            <div className="w-1.5 h-6 bg-primary rounded-full" />
+            <User className="h-4 w-4 text-primary" />
+            <h3 className="text-base font-semibold">Información del Asegurado</h3>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+            <input type="checkbox" id="sameClient" checked={useClientAsInsured} onChange={e => setUseClientAsInsured(e.target.checked)} className="h-4 w-4" />
+            <Label htmlFor="sameClient" className="font-normal cursor-pointer">El asegurado es el mismo cliente ({policy.clients.nombre})</Label>
+          </div>
+          {!useClientAsInsured && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg border">
+              <div className="space-y-2">
+                <Label>Nombre del Asegurado</Label>
+                <Input value={formData.nombre_asegurado} onChange={e => setFormData({ ...formData, nombre_asegurado: e.target.value })} placeholder="Nombre completo" />
               </div>
               <div className="space-y-2">
-                {fileAttachments.map((attachment) => (
-                  <div
-                    key={attachment.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {attachment.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {attachment.size ? formatFileSize(attachment.size) : 'Archivo existente'}
-                          {attachment.isExisting && ' (actual)'}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(attachment.id)}
-                      className="text-red-400 hover:text-red-600 p-1"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+                <Label>Documento</Label>
+                <Input value={formData.documento_asegurado} onChange={e => setFormData({ ...formData, documento_asegurado: e.target.value })} placeholder="CI del asegurado" />
+              </div>
+              <div className="space-y-2">
+                <Label>Parentesco</Label>
+                <Select value={formData.parentesco} onValueChange={v => setFormData({ ...formData, parentesco: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Cónyuge","Hijo/a","Padre","Madre","Hermano/a","Familiar","Tercero","Otro"].map(p =>
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
         </div>
-        
-        {/* Notas */}
-        <div>
-          <label htmlFor="notas" className="block text-sm font-medium mb-2">
-            Notas de Renovación
-          </label>
-          <textarea
-            id="notas"
-            value={formData.notas}
-            onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
-            placeholder="Agregar notas sobre la renovación..."
-          />
+
+        {/* Facturación */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 pb-3 border-b">
+            <div className="w-1.5 h-6 bg-primary rounded-full" />
+            <h3 className="text-base font-semibold">Facturación</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Prima / Monto</Label>
+              <div className="flex gap-2">
+                <Select value={formData.moneda} onValueChange={v => setFormData({ ...formData, moneda: v })}>
+                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="UYU">UYU</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input type="number" min="0" step="0.01" placeholder="0.00" className="flex-1" value={formData.prima_monto} onChange={e => setFormData({ ...formData, prima_monto: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Forma de Pago</Label>
+              <Select value={formData.forma_pago} onValueChange={v => setFormData({ ...formData, forma_pago: v })}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar frecuencia" /></SelectTrigger>
+                <SelectContent>
+                  {["Mensual","Bimestral","Trimestral","Semestral","Anual","Contado"].map(f =>
+                    <SelectItem key={f} value={f}>{f}</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>N° de Factura / Recibo</Label>
+              <Input placeholder="Ej: F-001234" value={formData.numero_factura} onChange={e => setFormData({ ...formData, numero_factura: e.target.value })} />
+            </div>
+          </div>
         </div>
-        
+
+        {/* Documentos */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 pb-3 border-b">
+            <div className="w-1.5 h-6 bg-primary rounded-full" />
+            <h3 className="text-base font-semibold">Documentos</h3>
+          </div>
+          <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors bg-muted/20">
+            <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+            <label htmlFor="renewal-file-upload" className="cursor-pointer text-sm font-medium hover:text-primary transition-colors">
+              Cargar archivos adjuntos
+              <input id="renewal-file-upload" type="file" multiple className="sr-only" accept=".pdf,.doc,.docx" onChange={handleFileChange} />
+            </label>
+            <p className="text-xs text-muted-foreground mt-1">PDF, DOC, DOCX hasta 10MB</p>
+          </div>
+          {fileAttachments.length > 0 && (
+            <div className="space-y-2">
+              {fileAttachments.map(att => (
+                <div key={att.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{att.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {att.size ? formatFileSize(att.size) : 'Archivo existente'}
+                        {att.isExisting && ' (actual)'}
+                      </p>
+                    </div>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setFileAttachments(prev => prev.filter(f => f.id !== att.id))} className="text-muted-foreground hover:text-destructive">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Notas */}
+        <div className="space-y-2">
+          <Label>Notas de Renovación</Label>
+          <Textarea value={formData.notas} onChange={e => setFormData({ ...formData, notas: e.target.value })} placeholder="Observaciones sobre la renovación..." rows={3} className="resize-none" />
+        </div>
+
         {/* Botones */}
-        <div className="flex justify-end space-x-2 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={loading || uploading}>
-            {uploading ? "Subiendo archivos..." : (loading ? "Renovando..." : "Renovar Póliza")}
+        <div className="flex justify-end gap-3 pt-4 border-t">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>Cancelar</Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Renovando...</> : "Confirmar Renovación"}
           </Button>
         </div>
       </form>
     </div>
   );
+}
+
+// Parser de datos OCR (mismo formato que multi-file-policy-uploader)
+function parseOcrData(payload: any): any {
+  const normalize = (value: any): any => {
+    if (!value) return undefined;
+    if (typeof value === 'string') {
+      try { return normalize(JSON.parse(value)); } catch { return undefined; }
+    }
+    if (Array.isArray(value)) return fromArray(value);
+    if (typeof value === 'object') return value;
+    return undefined;
+  };
+  const fromArray = (value: any): any => {
+    if (!Array.isArray(value) || value.length === 0) return undefined;
+    const first = value[0];
+    return normalize(first?.extractedData || first?.data || first?.json || first?.output?.[0]?.content?.[0]?.text || first?.output?.[0]?.json || first);
+  };
+  const candidates = [
+    normalize(payload?.extractedData),
+    normalize(payload?.data),
+    normalize(payload?.output?.[0]?.content?.[0]?.text || payload?.output?.[0]?.json),
+    fromArray(payload),
+    normalize(payload),
+  ].filter(Boolean);
+  return candidates[0] || {};
 }
