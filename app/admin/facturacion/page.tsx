@@ -12,7 +12,8 @@ async function getData() {
 
   const { data: policies } = await supabase
     .from("policies")
-    .select("id, prima_monto, moneda, forma_pago, tipo, companies(name)")
+    .select("id, numero_poliza, nombre_asegurado, prima_monto, moneda, forma_pago, tipo, numero_factura, companies(name)")
+    .order("created_at", { ascending: false })
 
   const { count: totalPolicies } = await supabase
     .from("policies")
@@ -71,6 +72,7 @@ async function getData() {
     byCompany,
     byTipo,
     companyDetail,
+    allPolicies: policies || [],
   }
 }
 
@@ -156,6 +158,44 @@ export default async function FacturacionPage() {
             <div />
           </div>
         )}
+
+        {/* Tabla de pólizas individuales */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Pólizas — Detalle de Facturación</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>N° Póliza</TableHead>
+                  <TableHead>Asegurado</TableHead>
+                  <TableHead>Aseguradora</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Forma de pago</TableHead>
+                  <TableHead className="text-right">Total a pagar</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.allPolicies.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="font-mono text-sm">{p.numero_poliza || "—"}</TableCell>
+                    <TableCell>{p.nombre_asegurado || "—"}</TableCell>
+                    <TableCell>{(p.companies as any)?.name || "—"}</TableCell>
+                    <TableCell>{p.tipo || "—"}</TableCell>
+                    <TableCell>{p.forma_pago || <span className="text-muted-foreground text-xs">Sin dato</span>}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {p.prima_monto != null
+                        ? <span>{p.moneda || "UYU"} {Number(p.prima_monto).toLocaleString("es-UY", { minimumFractionDigits: 2 })}</span>
+                        : <Badge variant="outline" className="text-muted-foreground">Sin monto</Badge>
+                      }
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
         {/* Tabla de detalle por compañía */}
         <Card>
