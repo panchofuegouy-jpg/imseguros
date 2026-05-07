@@ -154,8 +154,11 @@ export function PoliciesNearExpirationContent() {
 
   // Generar link de WhatsApp con mensaje pre-escrito
   const getWhatsAppLink = (policy: Policy) => {
-    const phone = policy.clients.telefono?.replace(/\D/g, "");
-    if (!phone) return null;
+    const digits = policy.clients.telefono?.replace(/\D/g, "");
+    if (!digits) return null;
+    // Normalizar: quitar 0 inicial y agregar código de país Uruguay (+598)
+    const local = digits.startsWith("598") ? digits : digits.startsWith("0") ? "598" + digits.slice(1) : "598" + digits;
+    const phone = local;
     const daysLeft = getDaysUntilExpiration(policy.vigencia_fin);
     const expirationFormatted = formatDate(policy.vigencia_fin);
     const daysText = daysLeft > 0 ? `vence en ${daysLeft} días (${expirationFormatted})` : `venció el ${expirationFormatted}`;
@@ -526,62 +529,66 @@ export function PoliciesNearExpirationContent() {
                           {formatDate(policy.vigencia_fin)}
                         </TableCell>
                         <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem
-                                onClick={() => handleRenewal(policy)}
-                                className="cursor-pointer"
-                              >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Renovar Póliza
-                              </DropdownMenuItem>
-                              
-                              {policy.clients.telefono && (
-                                <DropdownMenuItem
-                                  onClick={() => window.open(`tel:${policy.clients.telefono}`, '_self')}
-                                  className="cursor-pointer"
-                                >
-                                  <Phone className="h-4 w-4 mr-2" />
-                                  Llamar Cliente
-                                </DropdownMenuItem>
-                              )}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRenewal(policy)}
+                              className="h-8 px-2 text-xs"
+                            >
+                              <Edit className="h-3 w-3 mr-1" />
+                              Renovar
+                            </Button>
 
-                              {policy.clients.telefono && (() => {
-                                const waLink = getWhatsAppLink(policy);
-                                return waLink ? (
-                                  <DropdownMenuItem
-                                    onClick={() => window.open(waLink, '_blank')}
-                                    className="cursor-pointer text-green-700"
-                                  >
-                                    <MessageCircle className="h-4 w-4 mr-2" />
-                                    Notificar por WhatsApp
-                                  </DropdownMenuItem>
-                                ) : null;
-                              })()}
-                              
-                              <div className="border-t my-1" />
-                              <div className="px-2 py-1 text-sm font-medium text-muted-foreground">
-                                Cambiar Estado:
-                              </div>
-                              
-                              {STATUS_OPTIONS.map((status) => (
-                                <DropdownMenuItem
-                                  key={status.value}
-                                  onClick={() => updatePolicyStatus(policy.id, status.value)}
-                                  className="cursor-pointer"
-                                  disabled={policy.status === status.value}
+                            {policy.clients.telefono && (() => {
+                              const waLink = getWhatsAppLink(policy);
+                              return waLink ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(waLink, '_blank')}
+                                  className="h-8 px-2 text-xs text-green-700 border-green-300 hover:bg-green-50"
                                 >
-                                  <div className={`h-2 w-2 rounded-full mr-2 ${status.color}`} />
-                                  {status.label}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                  <MessageCircle className="h-3 w-3 mr-1" />
+                                  WA
+                                </Button>
+                              ) : null;
+                            })()}
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                {policy.clients.telefono && (
+                                  <DropdownMenuItem
+                                    onClick={() => window.open(`tel:${policy.clients.telefono}`, '_self')}
+                                    className="cursor-pointer"
+                                  >
+                                    <Phone className="h-4 w-4 mr-2" />
+                                    Llamar Cliente
+                                  </DropdownMenuItem>
+                                )}
+                                <div className="border-t my-1" />
+                                <div className="px-2 py-1 text-sm font-medium text-muted-foreground">
+                                  Cambiar Estado:
+                                </div>
+                                {STATUS_OPTIONS.map((status) => (
+                                  <DropdownMenuItem
+                                    key={status.value}
+                                    onClick={() => updatePolicyStatus(policy.id, status.value)}
+                                    className="cursor-pointer"
+                                    disabled={policy.status === status.value}
+                                  >
+                                    <div className={`h-2 w-2 rounded-full mr-2 ${status.color}`} />
+                                    {status.label}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
