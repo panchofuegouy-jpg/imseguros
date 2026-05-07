@@ -603,6 +603,59 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                 onClientUpdated={handleClientUpdated}
             />
 
+            {/* Resumen de facturación del cliente */}
+            {(() => {
+                const withMonto = policies.filter(p => p.prima_monto != null)
+                const totalUYU = withMonto
+                    .filter(p => (p.moneda || 'UYU') === 'UYU')
+                    .reduce((acc, p) => acc + Number(p.prima_monto), 0)
+                const totalUSD = withMonto
+                    .filter(p => p.moneda === 'USD')
+                    .reduce((acc, p) => acc + Number(p.prima_monto), 0)
+
+                if (withMonto.length === 0) return null
+
+                return (
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Prima Total UYU</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">
+                                    {totalUYU.toLocaleString('es-UY', { minimumFractionDigits: 2 })}
+                                </div>
+                                <p className="text-xs text-muted-foreground">Pesos uruguayos</p>
+                            </CardContent>
+                        </Card>
+                        {totalUSD > 0 && (
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Prima Total USD</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">
+                                        {totalUSD.toLocaleString('es-UY', { minimumFractionDigits: 2 })}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Dólares</p>
+                                </CardContent>
+                            </Card>
+                        )}
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Pólizas con Monto</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{withMonto.length}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    de {policies.length} pólizas totales
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )
+            })()}
+
             {/* Policies Section */}
             <div className="flex justify-between items-center">
                 <div>

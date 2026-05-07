@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser, signOut } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, FileText, LogOut, Menu } from "lucide-react"
+import { LayoutDashboard, Users, FileText, LogOut, Menu, DollarSign } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -43,6 +43,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { name: "Clientes", href: "/admin/clientes", icon: Users },
     { name: "Pólizas", href: "/admin/polizas", icon: FileText },
     { name: "Pólizas por Vencer", href: "/admin/polizas/por-vencer", icon: FileText },
+    { name: "Facturación", href: "/admin/facturacion", icon: DollarSign },
   ]
 
   if (!user) {
