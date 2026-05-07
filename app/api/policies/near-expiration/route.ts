@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllSupabaseRows } from "@/lib/supabase/fetch-all";
 import { NextRequest, NextResponse } from "next/server";
 
 // Función auxiliar para actualizar pólizas renovadas a pendiente
@@ -11,12 +12,15 @@ async function updateRenewedPoliciesToPending(supabase: any) {
     fifteenDaysFromNow.setDate(today.getDate() + 15);
     
     // Buscar pólizas renovadas que vencen en los próximos 15 días
-    const { data: policiesToUpdate, error: fetchError } = await supabase
-      .from("policies")
-      .select("id")
-      .eq("status", "Renovada")
-      .gte("vigencia_fin", today.toISOString().split('T')[0])
-      .lte("vigencia_fin", fifteenDaysFromNow.toISOString().split('T')[0]);
+    const { data: policiesToUpdate, error: fetchError } = await fetchAllSupabaseRows((from, to) =>
+      supabase
+        .from("policies")
+        .select("id")
+        .eq("status", "Renovada")
+        .gte("vigencia_fin", today.toISOString().split('T')[0])
+        .lte("vigencia_fin", fifteenDaysFromNow.toISOString().split('T')[0])
+        .range(from, to)
+    );
     
     if (fetchError) {
       console.error("Error fetching renewed policies:", fetchError);
@@ -61,63 +65,68 @@ export async function GET(request: NextRequest) {
     const company = searchParams.get('company');
     const type = searchParams.get('type');
     
-    let query = supabase
-      .from("policies")
-      .select(`
-        *,
-        clients(id, nombre, email, telefono),
-        companies(id, name)
-      `)
-      .order("vigencia_fin", { ascending: true });
-
     // Obtener el parámetro status primero para decidir filtros de fecha
     const showRenewed = status === "Renovada";
-    
-    // Filtro por fecha
-    if (month) {
-      // Filtrar por mes específico (formato: 2024-01)
-      const [year, monthNum] = month.split('-');
-      const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
-      const endDate = new Date(parseInt(year), parseInt(monthNum), 0);
+    const applyFilters = (query: any) => {
+      // Filtro por fecha
+      if (month) {
+        // Filtrar por mes específico (formato: 2024-01)
+        const [year, monthNum] = month.split('-');
+        const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+        const endDate = new Date(parseInt(year), parseInt(monthNum), 0);
+        
+        query = query
+          .gte("vigencia_fin", startDate.toISOString().split('T')[0])
+          .lte("vigencia_fin", endDate.toISOString().split('T')[0]);
+      } else if (!showRenewed) {
+        // Por defecto, mostrar pólizas que vencen en los próximos 60 días
+        // Solo aplica cuando NO estamos buscando renovadas
+        const today = new Date();
+        const futureDate = new Date();
+        futureDate.setDate(today.getDate() + 60);
+        
+        query = query
+          .gte("vigencia_fin", today.toISOString().split('T')[0])
+          .lte("vigencia_fin", futureDate.toISOString().split('T')[0]);
+      }
       
-      query = query
-        .gte("vigencia_fin", startDate.toISOString().split('T')[0])
-        .lte("vigencia_fin", endDate.toISOString().split('T')[0]);
-    } else if (!showRenewed) {
-      // Por defecto, mostrar pólizas que vencen en los próximos 60 días
-      // Solo aplica cuando NO estamos buscando renovadas
-      const today = new Date();
-      const futureDate = new Date();
-      futureDate.setDate(today.getDate() + 60);
+      // Excluir pólizas renovadas del listado por defecto
+      // Las pólizas renovadas deben mostrarse solo en el historial
+      if (!showRenewed) {
+        query = query.neq("status", "Renovada");
+      }
       
-      query = query
-        .gte("vigencia_fin", today.toISOString().split('T')[0])
-        .lte("vigencia_fin", futureDate.toISOString().split('T')[0]);
-    }
-    
-    // Excluir pólizas renovadas del listado por defecto
-    // Las pólizas renovadas deben mostrarse solo en el historial
-    if (!showRenewed) {
-      query = query.neq("status", "Renovada");
-    }
-    
-    // Filtros adicionales
-    if (company) {
-      query = query.eq("company_id", company);
-    }
-    
-    if (type) {
-      query = query.eq("tipo", type);
-    }
-    
-    if (status) {
-      query = query.eq("status", status);
-    } else if (showRenewed) {
-      // Si no hay status explícito pero estamos en historial, mostrar solo Renovada
-      query = query.eq("status", "Renovada");
-    }
+      // Filtros adicionales
+      if (company) {
+        query = query.eq("company_id", company);
+      }
+      
+      if (type) {
+        query = query.eq("tipo", type);
+      }
+      
+      if (status) {
+        query = query.eq("status", status);
+      } else if (showRenewed) {
+        // Si no hay status explícito pero estamos en historial, mostrar solo Renovada
+        query = query.eq("status", "Renovada");
+      }
 
-    const { data, error } = await query;
+      return query;
+    };
+    
+    const { data, error } = await fetchAllSupabaseRows((from, to) =>
+      applyFilters(
+        supabase
+          .from("policies")
+          .select(`
+            *,
+            clients(id, nombre, email, telefono),
+            companies(id, name)
+          `)
+          .order("vigencia_fin", { ascending: true })
+      ).range(from, to)
+    );
 
     if (error) {
       console.error("Error fetching policies near expiration:", error);

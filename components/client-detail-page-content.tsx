@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react";
+import { fetchAllSupabaseRows } from "@/lib/supabase/fetch-all";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -82,11 +83,14 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
     // reflect any server-side changes (uploads that updated archivo_urls, etc.)
     const fetchPolicies = async () => {
         try {
-            const { data, error } = await supabase
-                .from('policies')
-                .select('*, companies(name)')
-                .eq('client_id', client.id)
-                .order('created_at', { ascending: false });
+            const { data, error } = await fetchAllSupabaseRows((from, to) =>
+                supabase
+                    .from('policies')
+                    .select('*, companies(name)')
+                    .eq('client_id', client.id)
+                    .order('created_at', { ascending: false })
+                    .range(from, to)
+            );
 
             if (error) {
                 console.error('Error fetching policies:', error);

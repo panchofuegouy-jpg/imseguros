@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllSupabaseRows } from "@/lib/supabase/fetch-all";
 import { AdminLayout } from "@/components/admin-layout";
 import { ClientDetailPageContent } from "@/components/client-detail-page-content";
 
@@ -16,10 +17,14 @@ async function getClientData(clientId: string) {
     return { client: null, policies: [], companies: [] };
   }
 
-  const { data: policies, error: policiesError } = await supabase
-    .from("policies")
-    .select("*, companies(name)")
-    .eq("client_id", clientId);
+  const { data: policies, error: policiesError } = await fetchAllSupabaseRows((from, to) =>
+    supabase
+      .from("policies")
+      .select("*, companies(name)")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .range(from, to)
+  );
 
   if (policiesError) {
     console.error("Error fetching policies:", policiesError);
