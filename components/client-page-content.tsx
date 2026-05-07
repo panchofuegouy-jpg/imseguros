@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { Plus, Search, User, Trash2, RefreshCw } from "lucide-react"
+import { Plus, Search, User, Trash2, RefreshCw, MessageCircle } from "lucide-react"
 import { CreateClientDialog } from "@/components/create-client-dialog"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -183,7 +183,22 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                                 <TableCell className="font-medium">{client.nombre}</TableCell>
                                 <TableCell>{client.email || "Sin email"}</TableCell>
                                 <TableCell>{client.documento}</TableCell>
-                                <TableCell>{client.telefono || "N/A"}</TableCell>
+                                <TableCell>
+                                    {client.telefono ? (
+                                        <div className="flex items-center gap-2">
+                                            <span>{client.telefono}</span>
+                                            {(() => {
+                                                const digits = client.telefono.replace(/\D/g, "");
+                                                const phone = digits.startsWith("598") ? digits : digits.startsWith("0") ? "598" + digits.slice(1) : "598" + digits;
+                                                return phone ? (
+                                                    <a href={`https://wa.me/${phone}`} target="_blank" rel="noopener noreferrer" title="Abrir WhatsApp">
+                                                        <MessageCircle className="h-4 w-4 text-green-600 hover:text-green-700" />
+                                                    </a>
+                                                ) : null;
+                                            })()}
+                                        </div>
+                                    ) : "N/A"}
+                                </TableCell>
                                 <TableCell>{client.policies?.[0]?.count || 0}</TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex justify-end items-center gap-2">

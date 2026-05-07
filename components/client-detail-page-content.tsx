@@ -10,7 +10,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, Dr
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import PolicyForm from "@/components/policy-form";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Mail, Phone, FileText, User, CalendarDays, Edit, Trash2, ExternalLink, Search } from 'lucide-react';
+import { Mail, Phone, FileText, User, CalendarDays, Edit, Trash2, ExternalLink, Search, MessageCircle } from 'lucide-react';
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
@@ -455,6 +455,14 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
         }
     };
 
+    const getWhatsAppLink = (telefono: string | null) => {
+        if (!telefono) return null;
+        const digits = telefono.replace(/\D/g, "");
+        if (!digits) return null;
+        const phone = digits.startsWith("598") ? digits : digits.startsWith("0") ? "598" + digits.slice(1) : "598" + digits;
+        return `https://wa.me/${phone}`;
+    };
+
     const filteredPolicies = policies.filter(policy => {
         if (searchTerm.trim() === "") return true;
 
@@ -533,6 +541,17 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                             {client.nombre}
                         </div>
                         <div className="flex items-center gap-2">
+                            {client.telefono && getWhatsAppLink(client.telefono) && (
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => window.open(getWhatsAppLink(client.telefono)!, '_blank')}
+                                    className="text-green-700 border-green-300 hover:bg-green-50"
+                                    title="Abrir WhatsApp"
+                                >
+                                    <MessageCircle className="h-4 w-4" />
+                                </Button>
+                            )}
                             <Button variant="outline" size="icon" onClick={() => setIsEditModalOpen(true)}>
                                 <Edit className="h-4 w-4" />
                             </Button>
@@ -568,9 +587,20 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                         <span>{client.email}</span>
                     </div>
                     {client.telefono && (
-                        <div className="flex items-center">
-                            <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <div className="flex items-center gap-3">
+                            <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                             <span>{client.telefono}</span>
+                            {getWhatsAppLink(client.telefono) && (
+                                <a
+                                    href={getWhatsAppLink(client.telefono)!}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium"
+                                >
+                                    <MessageCircle className="h-3 w-3" />
+                                    WhatsApp
+                                </a>
+                            )}
                         </div>
                     )}
                     <div className="flex items-center">
