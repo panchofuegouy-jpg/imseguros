@@ -183,8 +183,8 @@ export function MultiFilePolicyUploader({
                     archivo_url: publicUrl,
                     archivo_urls: [publicUrl],
                     notas: extracted.notas ?? `Cargado automáticamente desde ${fileStatus.file.name}`,
-                    // Campos de facturación
-                    prima_monto: parsePrimaMonto(extracted.prima_monto ?? extracted.prima ?? extracted.monto ?? extracted.importe ?? extracted.premio),
+                    // Campos de facturación — total_a_pagar tiene prioridad sobre prima_monto
+                    prima_monto: parsePrimaMonto(extracted.total_a_pagar ?? extracted.prima_monto ?? extracted.prima ?? extracted.monto ?? extracted.importe ?? extracted.premio),
                     moneda: extracted.moneda ?? 'UYU',
                     forma_pago: extracted.forma_pago ?? extracted.frecuencia_pago ?? null,
                     numero_factura: extracted.numero_factura ?? extracted.factura ?? null,
@@ -357,7 +357,14 @@ export function MultiFilePolicyUploader({
                                                     {fileStatus.extractedData.vigencia_inicio && fileStatus.extractedData.vigencia_fin && (
                                                         <p><span className="text-muted-foreground">Vigencia:</span> {fileStatus.extractedData.vigencia_inicio} a {fileStatus.extractedData.vigencia_fin}</p>
                                                     )}
-                                                    {(fileStatus.extractedData.prima_monto ?? fileStatus.extractedData.prima ?? fileStatus.extractedData.monto ?? fileStatus.extractedData.importe ?? fileStatus.extractedData.premio) != null && (
+                                                    {fileStatus.extractedData.total_a_pagar != null && (
+                                                        <p>
+                                                            <span className="text-muted-foreground">Total a pagar:</span>{' '}
+                                                            {fileStatus.extractedData.moneda || 'UYU'}{' '}
+                                                            {fileStatus.extractedData.total_a_pagar}
+                                                        </p>
+                                                    )}
+                                                    {fileStatus.extractedData.total_a_pagar == null && (fileStatus.extractedData.prima_monto ?? fileStatus.extractedData.prima ?? fileStatus.extractedData.monto ?? fileStatus.extractedData.importe ?? fileStatus.extractedData.premio) != null && (
                                                         <p>
                                                             <span className="text-muted-foreground">Prima:</span>{' '}
                                                             {fileStatus.extractedData.moneda || 'UYU'}{' '}
