@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import PolicyForm from "@/components/policy-form";
 import { toast } from "sonner";
-import { MoreHorizontal, RefreshCw, Edit, CheckCircle, AlertCircle, Clock, XCircle, Phone } from "lucide-react";
+import { MoreHorizontal, RefreshCw, Edit, CheckCircle, AlertCircle, Clock, XCircle, Phone, MessageCircle } from "lucide-react";
 import Link from "next/link";
 
 interface Policy {
@@ -141,6 +141,17 @@ export function PoliciesNearExpirationContent() {
   const handleRenewal = (policy: Policy) => {
     setSelectedPolicy(policy);
     setRenewalDialogOpen(true);
+  };
+
+  // Generar link de WhatsApp con mensaje pre-escrito
+  const getWhatsAppLink = (policy: Policy) => {
+    const phone = policy.clients.telefono?.replace(/\D/g, "");
+    if (!phone) return null;
+    const daysLeft = getDaysUntilExpiration(policy.vigencia_fin);
+    const expirationFormatted = formatDate(policy.vigencia_fin);
+    const daysText = daysLeft > 0 ? `vence en ${daysLeft} días (${expirationFormatted})` : `venció el ${expirationFormatted}`;
+    const message = `Estimado/a ${policy.clients.nombre}, le informamos que su póliza N° ${policy.numero_poliza} (${policy.tipo} - ${policy.companies.name}) ${daysText}. Por favor contáctenos para proceder con la renovación. Gracias, IM Seguros.`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   };
 
   // Manejar éxito de renovación
@@ -530,6 +541,19 @@ export function PoliciesNearExpirationContent() {
                                   Llamar Cliente
                                 </DropdownMenuItem>
                               )}
+
+                              {policy.clients.telefono && (() => {
+                                const waLink = getWhatsAppLink(policy);
+                                return waLink ? (
+                                  <DropdownMenuItem
+                                    onClick={() => window.open(waLink, '_blank')}
+                                    className="cursor-pointer text-green-700"
+                                  >
+                                    <MessageCircle className="h-4 w-4 mr-2" />
+                                    Notificar por WhatsApp
+                                  </DropdownMenuItem>
+                                ) : null;
+                              })()}
                               
                               <div className="border-t my-1" />
                               <div className="px-2 py-1 text-sm font-medium text-muted-foreground">
