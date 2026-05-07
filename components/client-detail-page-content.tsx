@@ -738,6 +738,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                                     <TableHead>Asegurado</TableHead>
                                     <TableHead>Aseguradora</TableHead>
                                     <TableHead>Tipo</TableHead>
+                                    <TableHead>Prima</TableHead>
                                     <TableHead>Inicio Vigencia</TableHead>
                                     <TableHead>Fin Vigencia</TableHead>
                                     <TableHead>Documentos</TableHead>
@@ -763,6 +764,14 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                                         </TableCell>
                                         <TableCell>{policy.companies?.name || "N/A"}</TableCell>
                                         <TableCell>{policy.tipo}</TableCell>
+                                        <TableCell>
+                                            {policy.prima_monto != null ? (
+                                                <span className="font-medium text-sm">
+                                                    {policy.moneda || 'UYU'} {Number(policy.prima_monto).toLocaleString('es-UY', { minimumFractionDigits: 2 })}
+                                                    {policy.forma_pago && <span className="text-xs text-muted-foreground block">{policy.forma_pago}</span>}
+                                                </span>
+                                            ) : <span className="text-muted-foreground">—</span>}
+                                        </TableCell>
                                         <TableCell>{policy.vigencia_inicio}</TableCell>
                                         <TableCell>{policy.vigencia_fin}</TableCell>
                                         <TableCell>
