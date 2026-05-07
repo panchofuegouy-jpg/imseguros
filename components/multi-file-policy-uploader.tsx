@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { normalizeOcrDate } from "@/lib/ocr-date"
 
 const parseWebhookExtractedData = (payload: any) => {
     const normalize = (value: any): any => {
@@ -174,8 +175,8 @@ export function MultiFilePolicyUploader({
                     client_id: clientId,
                     numero_poliza: extracted.numero_poliza ?? `PEND-${Date.now()}`,
                     tipo: extracted.tipo ?? 'Desconocido',
-                    vigencia_inicio: extracted.vigencia_inicio ?? new Date().toISOString().split('T')[0],
-                    vigencia_fin: extracted.vigencia_fin ?? new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+                    vigencia_inicio: normalizeOcrDate(extracted.vigencia_inicio, new Date().toISOString().split('T')[0]),
+                    vigencia_fin: normalizeOcrDate(extracted.vigencia_fin, new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]),
                     company_id: extracted.company_id ?? null,
                     nombre_asegurado: extracted.nombre_asegurado ?? null,
                     documento_asegurado: extracted.documento_asegurado ?? null,
@@ -205,7 +206,11 @@ export function MultiFilePolicyUploader({
                         ...f,
                         status: 'completed',
                         progress: 100,
-                        extractedData: extracted,
+                        extractedData: {
+                            ...extracted,
+                            vigencia_inicio: policyData.vigencia_inicio,
+                            vigencia_fin: policyData.vigencia_fin,
+                        },
                         policyId: newPolicy.id
                     } : f
                 ));

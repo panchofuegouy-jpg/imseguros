@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, MoreHorizontal, RefreshCw, Edit, CheckCircle, AlertCircle, Clock, XCircle, Phone, MessageCircle, Upload, FileText, X, User, Wand2 } from "lucide-react";
 import Link from "next/link";
+import { normalizeOcrDate } from "@/lib/ocr-date";
 
 interface Policy {
   id: string;
@@ -726,8 +727,8 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         ...prev,
         numero_poliza: ext.numero_poliza || prev.numero_poliza,
         tipo: ext.tipo || prev.tipo,
-        vigencia_inicio: ext.vigencia_inicio || prev.vigencia_inicio,
-        vigencia_fin: ext.vigencia_fin || prev.vigencia_fin,
+        vigencia_inicio: normalizeOcrDate(ext.vigencia_inicio, prev.vigencia_inicio),
+        vigencia_fin: normalizeOcrDate(ext.vigencia_fin, prev.vigencia_fin),
         nombre_asegurado: ext.nombre_asegurado || prev.nombre_asegurado,
         documento_asegurado: ext.documento_asegurado || prev.documento_asegurado,
         parentesco: ext.parentesco || prev.parentesco,

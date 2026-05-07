@@ -27,6 +27,8 @@ Te adjunto una póliza. Debes analizarla y devolver ÚNICAMENTE un JSON válido 
 Reglas IMPORTANTES:
 
 1. Usa el formato de fecha ISO: "YYYY-MM-DD" (ejemplo: 2025-09-30).
+   - Las fechas del documento están en formato uruguayo/latino: DD/MM/AAAA (día/mes/año), nunca MM/DD/AAAA.
+   - Ejemplo: si el documento dice "04/05/2026", debes devolver "2026-05-04" (4 de mayo de 2026), no "2026-04-05".
 2. El campo "parentesco" SIEMPRE debe ser "Titular".
 3. El "numero_poliza" debe ser el número de póliza SIN ceros a la izquierda.
 4. "company_id" debes obtenerlo de esta lista de compañías por nombre (campo "name"):
