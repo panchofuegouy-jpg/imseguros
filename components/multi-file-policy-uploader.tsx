@@ -67,7 +67,6 @@ interface MultiFilePolicyUploaderProps {
     companies: Company[];
     onUploadComplete: () => void;
     trigger?: React.ReactNode;
-    n8nWebhookUrl?: string; // URL del webhook de n8n
 }
 
 interface FileStatus {
@@ -83,8 +82,7 @@ export function MultiFilePolicyUploader({
     clientId,
     companies,
     onUploadComplete,
-    trigger,
-    n8nWebhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL || 'https://centro-n8n.xqnwvv.easypanel.host/webhook/75fb7c2d-82f0-4514-b137-6aee42432f42'
+    trigger
 }: MultiFilePolicyUploaderProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [files, setFiles] = useState<FileStatus[]>([]);
@@ -129,23 +127,26 @@ export function MultiFilePolicyUploader({
 
                 if (uploadError) throw uploadError;
 
-                const { data: { publicUrl } } = supabase.storage
+                // Create a signed URL (valid for 1 hour) for n8n to access the file
+                const { data: signedUrlData, error: signedUrlError } = await supabase.storage
                     .from('policy-documents')
-                    .getPublicUrl(filePath);
+                    .createSignedUrl(filePath, 3600); // 1 hour expiration
 
-                // 2. Send to n8n webhook for OCR processing
+                if (signedUrlError || !signedUrlData) throw signedUrlError || new Error('Failed to create signed URL');
+                const signedUrl = signedUrlData.signedUrl;
+
+                // 2. Send to API route (server-side intermediary) for OCR processing
                 setFiles(prev => prev.map((f, idx) =>
                     idx === i ? { ...f, status: 'processing', progress: 50 } : f
                 ));
 
                 const formData = new FormData();
                 formData.append('file', fileStatus.file);
-                formData.append('fileUrl', publicUrl);
+                formData.append('fileUrl', signedUrl);
                 formData.append('clientId', clientId);
                 formData.append('fileName', fileStatus.file.name);
 
-
-                const webhookResponse = await fetch(n8nWebhookUrl, {
+                const webhookResponse = await fetch('/api/ocr-webhook', {
                     method: 'POST',
                     body: formData,
                 });
@@ -181,8 +182,8 @@ export function MultiFilePolicyUploader({
                     nombre_asegurado: extracted.nombre_asegurado ?? null,
                     documento_asegurado: extracted.documento_asegurado ?? null,
                     parentesco: extracted.parentesco ?? 'Titular',
-                    archivo_url: publicUrl,
-                    archivo_urls: [publicUrl],
+                    archivo_url: filePath,
+                    archivo_urls: [filePath],
                     notas: extracted.notas ?? `Cargado automáticamente desde ${fileStatus.file.name}`,
                     // Campos de facturación — total_a_pagar tiene prioridad sobre prima_monto
                     prima_monto: parsePrimaMonto(extracted.total_a_pagar ?? extracted.prima_monto ?? extracted.prima ?? extracted.monto ?? extracted.importe ?? extracted.premio),
@@ -277,12 +278,6 @@ export function MultiFilePolicyUploader({
                 </DialogHeader>
 
                 <div className="space-y-4">
-                    {!n8nWebhookUrl && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-sm text-yellow-800">
-                            ⚠️ URL del webhook de n8n no configurada. Configura NEXT_PUBLIC_N8N_WEBHOOK_URL en tu archivo .env
-                        </div>
-                    )}
-
                     <div className="grid w-full items-center gap-1.5">
                         <Input
                             id="policy-files"
@@ -290,7 +285,7 @@ export function MultiFilePolicyUploader({
                             multiple
                             accept=".pdf,.png,.jpg,.jpeg"
                             onChange={handleFileSelect}
-                            disabled={isProcessing || !n8nWebhookUrl}
+                            disabled={isProcessing}
                         />
                         <p className="text-xs text-muted-foreground">
                             Formatos soportados: PDF, PNG, JPG, JPEG
@@ -418,7 +413,7 @@ export function MultiFilePolicyUploader({
                             </Button>
                             <Button
                                 onClick={processFiles}
-                                disabled={files.length === 0 || isProcessing || !n8nWebhookUrl}
+                                disabled={files.length === 0 || isProcessing}
                                 size="sm"
                             >
                                 {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

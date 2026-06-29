@@ -630,7 +630,6 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
   onSuccess: () => void;
   onCancel: () => void;
 }) {
-  const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL || 'https://centro-n8n.xqnwvv.easypanel.host/webhook/75fb7c2d-82f0-4514-b137-6aee42432f42';
 
   const [formData, setFormData] = useState({
     numero_poliza: policy.numero_poliza,
@@ -703,15 +702,20 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
       const filePath = `${policy.client_id}/ocr-renewal-${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from('policy-documents').upload(filePath, file);
       if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from('policy-documents').getPublicUrl(filePath);
+
+      // Create a signed URL for n8n to access the file
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('policy-documents')
+        .createSignedUrl(filePath, 3600);
+      if (signedUrlError || !signedUrlData) throw signedUrlError || new Error('Failed to create signed URL');
 
       const fd = new FormData();
       fd.append('file', file);
-      fd.append('fileUrl', publicUrl);
+      fd.append('fileUrl', signedUrlData.signedUrl);
       fd.append('clientId', policy.client_id);
       fd.append('fileName', file.name);
 
-      const res = await fetch(N8N_WEBHOOK_URL, { method: 'POST', body: fd });
+      const res = await fetch('/api/ocr-webhook', { method: 'POST', body: fd });
       if (!res.ok) throw new Error(`Error OCR: ${res.statusText}`);
 
       const raw = await res.json();
