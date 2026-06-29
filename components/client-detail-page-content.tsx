@@ -11,7 +11,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, Dr
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import PolicyForm from "@/components/policy-form";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Mail, Phone, FileText, User, CalendarDays, Edit, Trash2, ExternalLink, Search, MessageCircle } from 'lucide-react';
+import { Mail, Phone, FileText, User, CalendarDays, Edit, Trash2, ExternalLink, Search, MessageCircle, Send } from 'lucide-react';
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
@@ -61,9 +61,10 @@ interface ClientDetailPageContentProps {
     client: Client;
     initialPolicies: Policy[];
     companies: Company[];
+    hasAccount: boolean;
 }
 
-export function ClientDetailPageContent({ client, initialPolicies, companies }: ClientDetailPageContentProps) {
+export function ClientDetailPageContent({ client, initialPolicies, companies, hasAccount }: ClientDetailPageContentProps) {
     const [policies, setPolicies] = useState<Policy[]>(initialPolicies);
     const [searchTerm, setSearchTerm] = useState("");
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -75,6 +76,10 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
     const [isDeleteClientDialogOpen, setIsDeleteClientDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [validatedFiles, setValidatedFiles] = useState<Record<string, string[]>>({});
+    const [isSendCredentialsOpen, setIsSendCredentialsOpen] = useState(false);
+    const [isSendingCredentials, setIsSendingCredentials] = useState(false);
+    const [credentialsEmail, setCredentialsEmail] = useState(client.email);
+    const [sentTempPassword, setSentTempPassword] = useState<string | null>(null);
     const isMobile = useIsMobile();
     const supabase = createClient();
     const router = useRouter();
@@ -112,6 +117,44 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
     const handleClientUpdated = () => {
         setIsEditModalOpen(false);
         window.location.reload();
+    };
+
+    const handleSendCredentials = async () => {
+        if (!credentialsEmail) {
+            toast.error("Email es requerido");
+            return;
+        }
+
+        setIsSendingCredentials(true);
+        try {
+            const response = await fetch(`/api/clients/${client.id}/resend-credentials`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    newEmail: credentialsEmail !== client.email ? credentialsEmail : undefined
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al enviar credenciales');
+            }
+
+            const data = await response.json();
+            setSentTempPassword(data.tempPassword);
+
+            setIsSendCredentialsOpen(false);
+            toast.success(`Credenciales enviadas a ${credentialsEmail}. Contraseña temporal: ${data.tempPassword}`);
+
+            // Si el email cambió, actualizar el estado
+            if (credentialsEmail !== client.email) {
+                client.email = credentialsEmail;
+            }
+        } catch (error: any) {
+            toast.error(error.message || 'Error al enviar credenciales');
+        } finally {
+            setIsSendingCredentials(false);
+        }
     };
 
     const handleCreatePolicy = async (policyData: any) => {
@@ -556,6 +599,16 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                                     <MessageCircle className="h-4 w-4" />
                                 </Button>
                             )}
+                            {hasAccount && client.email && (
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setIsSendCredentialsOpen(true)}
+                                    title="Enviar credenciales de acceso"
+                                >
+                                    <Send className="h-4 w-4" />
+                                </Button>
+                            )}
                             <Button variant="outline" size="icon" onClick={() => setIsEditModalOpen(true)}>
                                 <Edit className="h-4 w-4" />
                             </Button>
@@ -889,6 +942,49 @@ export function ClientDetailPageContent({ client, initialPolicies, companies }: 
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Send Credentials Dialog */}
+            <Dialog open={isSendCredentialsOpen} onOpenChange={setIsSendCredentialsOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Enviar Credenciales de Acceso</DialogTitle>
+                        <DialogDescription>
+                            Se generará una nueva contraseña temporal y se enviará al email indicado. El usuario deberá cambiarla en su próximo inicio de sesión.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div>
+                            <label className="text-sm font-medium">Email</label>
+                            <Input
+                                value={credentialsEmail}
+                                onChange={(e) => setCredentialsEmail(e.target.value)}
+                                placeholder="Email del cliente"
+                                type="email"
+                                className="mt-2"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setIsSendCredentialsOpen(false);
+                                setCredentialsEmail(client.email);
+                                setSentTempPassword(null);
+                            }}
+                            disabled={isSendingCredentials}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleSendCredentials}
+                            disabled={isSendingCredentials || !credentialsEmail}
+                        >
+                            {isSendingCredentials ? "Enviando..." : "Enviar"}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

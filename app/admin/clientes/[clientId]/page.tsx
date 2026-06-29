@@ -14,7 +14,7 @@ async function getClientData(clientId: string) {
 
   if (clientError) {
     console.error("Error fetching client:", clientError);
-    return { client: null, policies: [], companies: [] };
+    return { client: null, policies: [], companies: [], hasAccount: false };
   }
 
   const { data: policies, error: policiesError } = await fetchAllSupabaseRows((from, to) =>
@@ -38,16 +38,24 @@ async function getClientData(clientId: string) {
     console.error("Error fetching companies:", companiesError);
   }
 
+  // Check if client has an account
+  const { data: userProfile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("client_id", clientId)
+    .single();
+
   return {
     client,
     policies: policies || [],
     companies: companies || [],
+    hasAccount: !!userProfile,
   };
 }
 
 export default async function ClientDetailsPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
-  const { client, policies, companies } = await getClientData(clientId);
+  const { client, policies, companies, hasAccount } = await getClientData(clientId);
 
   if (!client) {
     return (
@@ -59,7 +67,7 @@ export default async function ClientDetailsPage({ params }: { params: Promise<{ 
 
   return (
     <AdminLayout>
-      <ClientDetailPageContent client={client} initialPolicies={policies} companies={companies} />
+      <ClientDetailPageContent client={client} initialPolicies={policies} companies={companies} hasAccount={hasAccount} />
     </AdminLayout>
   );
 }
