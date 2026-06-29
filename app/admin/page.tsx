@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { fetchAllSupabaseRows } from "@/lib/supabase/fetch-all"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, FileText, Calendar, TrendingUp } from "lucide-react"
 import { AdminLayout } from "@/components/admin-layout"
@@ -11,7 +12,10 @@ async function getData() {
   const thirtyDaysFromNow = new Date()
   thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
 
-  const { count: totalClients, data: clients } = await supabase.from("clients").select("id, created_at", { count: "exact" }).limit(100)
+  const { data: clients } = await fetchAllSupabaseRows<{ id: string; created_at: string }>((from, to) =>
+    supabase.from("clients").select("id, created_at").order("created_at", { ascending: true }).range(from, to),
+  )
+  const { count: totalClients } = await supabase.from("clients").select("*", { count: "exact", head: true })
   const { count: totalPolicies, data: policies } = await supabase.from("policies").select("id, company_id", { count: "exact" }).limit(100)
   const { count: activePolicies } = await supabase
     .from("policies")

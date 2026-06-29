@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { fetchAllSupabaseRows } from "@/lib/supabase/fetch-all"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AdminLayout } from "@/components/admin-layout"
 import { PrimaPorCompaniaChart } from "@/components/charts/prima-por-compania-chart"
@@ -41,7 +42,7 @@ function getDateRange(periodo: Periodo): { from: string | null; to: string | nul
 
 // Agrupa por etiqueta de período para el gráfico de evolución
 function groupByPeriodo(policies: any[], periodo: Periodo) {
-  const map: Record<string, { UYU: number; USD: number }> = {}
+  const map: Record<string, { UYU: number; USD: number; sort: number }> = {}
 
   for (const p of policies) {
     if (p.prima_monto == null) continue
@@ -49,23 +50,30 @@ function groupByPeriodo(policies: any[], periodo: Periodo) {
     if (isNaN(d.getTime())) continue
 
     let key: string
+    let sort: number
     if (periodo === "mensual") {
       // Agrupar por día dentro del mes
       key = `${d.getDate()}/${d.getMonth() + 1}`
+      sort = d.getDate()
     } else if (periodo === "trimestral") {
       // Agrupar por semana
       const week = Math.ceil(d.getDate() / 7)
       key = `S${week} ${d.toLocaleString("es-UY", { month: "short" })}`
+      sort = d.getFullYear() * 100 + d.getMonth() * 10 + week
     } else {
       // Agrupar por mes (anual o total)
       key = d.toLocaleString("es-UY", { month: "short", year: "2-digit" })
+      sort = d.getFullYear() * 12 + d.getMonth()
     }
 
-    if (!map[key]) map[key] = { UYU: 0, USD: 0 }
+    if (!map[key]) map[key] = { UYU: 0, USD: 0, sort }
     map[key][p.moneda === "USD" ? "USD" : "UYU"] += Number(p.prima_monto)
   }
 
-  return Object.entries(map).map(([periodo, totals]) => ({ periodo, ...totals }))
+  return Object.entries(map)
+    .map(([periodo, { sort, ...totals }]) => ({ periodo, ...totals, _sort: sort }))
+    .sort((a, b) => a._sort - b._sort)
+    .map(({ _sort, ...rest }) => rest)
 }
 
 function evolucionTitulo(periodo: Periodo) {
@@ -79,34 +87,26 @@ async function getAllPolicies(periodo: Periodo) {
   const supabase = await createClient()
   const { from, to } = getDateRange(periodo)
 
-  const pages: any[] = []
-  let offset = 0
-  while (true) {
+  const { data } = await fetchAllSupabaseRows<any>((rangeFrom, rangeTo) => {
     let q = supabase
       .from("policies")
       .select("prima_monto, moneda, tipo, vigencia_inicio, created_at, companies(name)")
-      .range(offset, offset + 999)
+      .range(rangeFrom, rangeTo)
 
     if (from) q = q.gte("vigencia_inicio", from)
     if (to)   q = q.lte("vigencia_inicio", to)
 
-    const { data, error } = await q
-    if (error || !data || data.length === 0) break
-    pages.push(...data)
-    if (data.length < 1000) break
-    offset += 1000
-  }
-  return pages
+    return q
+  })
+
+  return data
 }
 
 async function getData(periodo: Periodo, page: number) {
   const supabase = await createClient()
   const { from, to } = getDateRange(periodo)
 
-  const [allPolicies, totalCount] = await Promise.all([
-    getAllPolicies(periodo),
-    supabase.from("policies").select("*", { count: "exact", head: true }).then(r => r.count || 0),
-  ])
+  const allPolicies = await getAllPolicies(periodo)
 
   const withMonto = allPolicies.filter(p => p.prima_monto != null)
 
@@ -150,7 +150,7 @@ async function getData(periodo: Periodo, page: number) {
   let tableQuery = supabase
     .from("policies")
     .select("id, numero_poliza, nombre_asegurado, prima_monto, moneda, forma_pago, tipo, companies(name)")
-    .order("created_at", { ascending: false })
+    .order("vigencia_inicio", { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1)
 
   if (from) tableQuery = tableQuery.gte("vigencia_inicio", from)
@@ -164,11 +164,12 @@ async function getData(periodo: Periodo, page: number) {
   if (to)   countQuery = countQuery.lte("vigencia_inicio", to)
   const { count: filteredCount } = await countQuery
 
+  const filtered = filteredCount || 0
+
   return {
-    totalPolicies: totalCount,
-    filteredCount: filteredCount || 0,
+    filteredCount: filtered,
     withMontoCount: withMonto.length,
-    sinMontoCount: totalCount - withMonto.length,
+    sinMontoCount: Math.max(0, filtered - withMonto.length),
     totalUYU,
     totalUSD,
     byCompany,
@@ -191,8 +192,8 @@ export default async function FacturacionPage({
 
   const data = await getData(periodo, page)
 
-  const pctCoverage = data.totalPolicies > 0
-    ? Math.round((data.withMontoCount / data.totalPolicies) * 100)
+  const pctCoverage = data.filteredCount > 0
+    ? Math.round((data.withMontoCount / data.filteredCount) * 100)
     : 0
 
   const periodoLabel: Record<Periodo, string> = {
@@ -254,7 +255,7 @@ export default async function FacturacionPage({
             <CardContent>
               <div className="text-2xl font-bold">{data.withMontoCount}</div>
               <p className="text-xs text-muted-foreground">
-                {pctCoverage}% del portafolio total
+                {pctCoverage}% de las pólizas del período
               </p>
             </CardContent>
           </Card>
@@ -266,7 +267,7 @@ export default async function FacturacionPage({
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-muted-foreground">{data.sinMontoCount}</div>
-              <p className="text-xs text-muted-foreground">Pólizas sin monto cargado</p>
+              <p className="text-xs text-muted-foreground">Sin monto cargado en el período</p>
             </CardContent>
           </Card>
         </div>
@@ -277,15 +278,8 @@ export default async function FacturacionPage({
         {/* Gráficos por compañía y tipo */}
         <div className="grid gap-6 md:grid-cols-2">
           <PrimaPorCompaniaChart data={data.byCompany} />
-          <PrimaPorTipoChart data={data.byTipo} moneda="UYU" />
+          <PrimaPorTipoChart data={data.byTipo} />
         </div>
-
-        {data.totalUSD > 0 && (
-          <div className="grid gap-6 md:grid-cols-2">
-            <PrimaPorTipoChart data={data.byTipo} moneda="USD" />
-            <div />
-          </div>
-        )}
 
         {/* Tabla pólizas individuales */}
         <Card>
@@ -304,7 +298,7 @@ export default async function FacturacionPage({
                   <TableHead>Aseguradora</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Forma de pago</TableHead>
-                  <TableHead className="text-right">Total a pagar</TableHead>
+                  <TableHead className="text-right">Prima</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

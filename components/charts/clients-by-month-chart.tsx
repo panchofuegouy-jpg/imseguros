@@ -13,18 +13,25 @@ interface ClientsByMonthChartProps {
 }
 
 export function ClientsByMonthChart({ clients }: ClientsByMonthChartProps) {
-  const data = clients.reduce((acc, client) => {
-    const month = new Date(client.created_at).toLocaleString('default', { month: 'long', year: 'numeric' })
-    const existingMonth = acc.find(item => item.month === month)
+  const buckets = clients.reduce((acc, client) => {
+    const date = new Date(client.created_at)
+    if (Number.isNaN(date.getTime())) return acc
 
-    if (existingMonth) {
-      existingMonth.count++
+    // Clave ordenable AAAA-MM, etiqueta legible para el eje
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    const label = date.toLocaleString('es', { month: 'long', year: 'numeric' })
+
+    const existing = acc.get(key)
+    if (existing) {
+      existing.count++
     } else {
-      acc.push({ month, count: 1 })
+      acc.set(key, { key, month: label, count: 1 })
     }
 
     return acc
-  }, [] as { month: string; count: number }[]).reverse()
+  }, new Map<string, { key: string; month: string; count: number }>())
+
+  const data = Array.from(buckets.values()).sort((a, b) => a.key.localeCompare(b.key))
 
   return (
     <Card>
