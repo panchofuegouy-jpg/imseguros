@@ -700,18 +700,16 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
 
       const fileExt = file.name.split('.').pop();
       const filePath = `${policy.client_id}/ocr-renewal-${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('policy-documents').upload(filePath, file);
+      const { data: uploadData, error: uploadError } = await supabase.storage.from('policy-documents').upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      // Create a signed URL for n8n to access the file
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-        .from('policy-documents')
-        .createSignedUrl(filePath, 3600);
-      if (signedUrlError || !signedUrlData) throw signedUrlError || new Error('Failed to create signed URL');
+      // Ruta autoritativa devuelta por Storage. La URL firmada para n8n se
+      // genera en el servidor (service role) dentro de /api/ocr-webhook.
+      const storedPath = uploadData?.path ?? filePath;
 
       const fd = new FormData();
       fd.append('file', file);
-      fd.append('fileUrl', signedUrlData.signedUrl);
+      fd.append('filePath', storedPath);
       fd.append('clientId', policy.client_id);
       fd.append('fileName', file.name);
 
@@ -744,7 +742,7 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
 
       // Agregar el archivo a adjuntos
       setFileAttachments(prev => [...prev, {
-        id: `ocr-${Date.now()}`, url: publicUrl, name: file.name, isExisting: true,
+        id: `ocr-${Date.now()}`, url: storedPath, name: file.name, isExisting: true,
       }]);
 
       toast.success("Datos extraídos del documento");

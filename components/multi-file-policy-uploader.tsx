@@ -121,28 +121,25 @@ export function MultiFilePolicyUploader({
                 const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
                 const filePath = `${clientId}/${fileName}`;
 
-                const { error: uploadError } = await supabase.storage
+                const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('policy-documents')
                     .upload(filePath, fileStatus.file);
 
                 if (uploadError) throw uploadError;
 
-                // Create a signed URL (valid for 1 hour) for n8n to access the file
-                const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-                    .from('policy-documents')
-                    .createSignedUrl(filePath, 3600); // 1 hour expiration
+                // Ruta autoritativa devuelta por Storage (por si difiere de filePath)
+                const storedPath = uploadData?.path ?? filePath;
 
-                if (signedUrlError || !signedUrlData) throw signedUrlError || new Error('Failed to create signed URL');
-                const signedUrl = signedUrlData.signedUrl;
-
-                // 2. Send to API route (server-side intermediary) for OCR processing
+                // 2. Send to API route (server-side intermediary) for OCR processing.
+                // La URL firmada se genera en el servidor con el service role (evita
+                // el error "Object not found" al firmar desde el navegador).
                 setFiles(prev => prev.map((f, idx) =>
                     idx === i ? { ...f, status: 'processing', progress: 50 } : f
                 ));
 
                 const formData = new FormData();
                 formData.append('file', fileStatus.file);
-                formData.append('fileUrl', signedUrl);
+                formData.append('filePath', storedPath);
                 formData.append('clientId', clientId);
                 formData.append('fileName', fileStatus.file.name);
 
@@ -182,8 +179,8 @@ export function MultiFilePolicyUploader({
                     nombre_asegurado: extracted.nombre_asegurado ?? null,
                     documento_asegurado: extracted.documento_asegurado ?? null,
                     parentesco: extracted.parentesco ?? 'Titular',
-                    archivo_url: filePath,
-                    archivo_urls: [filePath],
+                    archivo_url: storedPath,
+                    archivo_urls: [storedPath],
                     notas: extracted.notas ?? `Cargado automáticamente desde ${fileStatus.file.name}`,
                     // Campos de facturación — total_a_pagar tiene prioridad sobre prima_monto
                     prima_monto: parsePrimaMonto(extracted.total_a_pagar ?? extracted.prima_monto ?? extracted.prima ?? extracted.monto ?? extracted.importe ?? extracted.premio),
