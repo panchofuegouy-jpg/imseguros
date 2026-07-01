@@ -714,7 +714,14 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
       fd.append('fileName', file.name);
 
       const res = await fetch('/api/ocr-webhook', { method: 'POST', body: fd });
-      if (!res.ok) throw new Error(`Error OCR: ${res.statusText}`);
+      if (!res.ok) {
+        let detail = res.statusText;
+        try {
+          const errBody = await res.json();
+          if (errBody?.error) detail = errBody.error;
+        } catch { /* respuesta sin JSON */ }
+        throw new Error(`Error del servidor OCR (${res.status}): ${detail}`);
+      }
 
       const raw = await res.json();
       const ext = parseOcrData(raw);

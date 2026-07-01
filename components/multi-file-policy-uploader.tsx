@@ -149,7 +149,12 @@ export function MultiFilePolicyUploader({
                 });
 
                 if (!webhookResponse.ok) {
-                    throw new Error(`Webhook error: ${webhookResponse.statusText}`);
+                    let detail = webhookResponse.statusText;
+                    try {
+                        const errBody = await webhookResponse.json();
+                        if (errBody?.error) detail = errBody.error;
+                    } catch { /* respuesta sin JSON */ }
+                    throw new Error(`Error del servidor OCR (${webhookResponse.status}): ${detail}`);
                 }
 
                 const webhookData = await webhookResponse.json();
