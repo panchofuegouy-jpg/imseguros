@@ -69,12 +69,25 @@ interface MultiFilePolicyUploaderProps {
     trigger?: React.ReactNode;
 }
 
+// Campos editables que el usuario revisa antes de guardar
+interface PolicyDraft {
+    numero_poliza: string;
+    tipo: string;
+    company_id: string;
+    vigencia_inicio: string;
+    vigencia_fin: string;
+    prima_monto: string;
+    moneda: string;
+}
+
 interface FileStatus {
     file: File;
-    status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error';
+    status: 'pending' | 'uploading' | 'processing' | 'ready' | 'saving' | 'completed' | 'error';
     progress: number;
     error?: string;
-    extractedData?: any;
+    storedPath?: string;
+    extracted?: any;      // datos crudos del OCR (para campos no editables)
+    draft?: PolicyDraft;  // campos editables para la revisión
     policyId?: string;
 }
 
@@ -87,6 +100,7 @@ export function MultiFilePolicyUploader({
     const [isOpen, setIsOpen] = useState(false);
     const [files, setFiles] = useState<FileStatus[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const supabase = createClient();
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,15 +118,46 @@ export function MultiFilePolicyUploader({
         setFiles(prev => prev.filter((_, i) => i !== index));
     };
 
-    const processFiles = async () => {
+    // Intenta hacer coincidir la aseguradora extraída con una de la lista
+    const matchCompanyId = (extracted: any): string => {
+        const raw = extracted?.company_id ?? extracted?.aseguradora ?? extracted?.compania ?? extracted?.company ?? extracted?.empresa;
+        if (!raw) return '';
+        const byId = companies.find(c => c.id === raw);
+        if (byId) return byId.id;
+        const byName = companies.find(c => c.name.toLowerCase() === String(raw).toLowerCase());
+        return byName ? byName.id : '';
+    };
+
+    const buildDraft = (extracted: any): PolicyDraft => {
+        const defaultStart = new Date().toISOString().split('T')[0];
+        const defaultEnd = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0];
+        const primaRaw = extracted.total_a_pagar ?? extracted.prima_monto ?? extracted.prima ?? extracted.monto ?? extracted.importe ?? extracted.premio;
+        return {
+            numero_poliza: extracted.numero_poliza != null ? String(extracted.numero_poliza) : '',
+            tipo: extracted.tipo != null ? String(extracted.tipo) : '',
+            company_id: matchCompanyId(extracted),
+            vigencia_inicio: normalizeOcrDate(extracted.vigencia_inicio, defaultStart),
+            vigencia_fin: normalizeOcrDate(extracted.vigencia_fin, defaultEnd),
+            prima_monto: primaRaw != null ? String(primaRaw) : '',
+            moneda: extracted.moneda ?? 'UYU',
+        };
+    };
+
+    const updateDraft = (index: number, field: keyof PolicyDraft, value: string) => {
+        setFiles(prev => prev.map((f, i) =>
+            i === index && f.draft ? { ...f, draft: { ...f.draft, [field]: value } } : f
+        ));
+    };
+
+    // Fase 1: sube cada archivo y corre el OCR. NO guarda nada todavía.
+    const analyzeFiles = async () => {
         setIsProcessing(true);
 
         for (let i = 0; i < files.length; i++) {
             const fileStatus = files[i];
-            if (fileStatus.status === 'completed') continue;
+            if (fileStatus.status !== 'pending') continue;
 
             try {
-                // 1. Upload File to Supabase Storage
                 setFiles(prev => prev.map((f, idx) =>
                     idx === i ? { ...f, status: 'uploading', progress: 20 } : f
                 ));
@@ -127,12 +172,8 @@ export function MultiFilePolicyUploader({
 
                 if (uploadError) throw uploadError;
 
-                // Ruta autoritativa devuelta por Storage (por si difiere de filePath)
                 const storedPath = uploadData?.path ?? filePath;
 
-                // 2. Send to API route (server-side intermediary) for OCR processing.
-                // La URL firmada se genera en el servidor con el service role (evita
-                // el error "Object not found" al firmar desde el navegador).
                 setFiles(prev => prev.map((f, idx) =>
                     idx === i ? { ...f, status: 'processing', progress: 50 } : f
                 ));
@@ -160,61 +201,14 @@ export function MultiFilePolicyUploader({
                 const webhookData = await webhookResponse.json();
                 const extracted = parseWebhookExtractedData(webhookData);
 
-                console.log('Respuesta del webhook:', webhookData);
-                console.log('Datos extraídos del webhook:', extracted);
-
-                setFiles(prev => prev.map((f, idx) =>
-                    idx === i ? { ...f, progress: 80 } : f
-                ));
-
-                // 3. Create Policy Record in Database
-                const parsePrimaMonto = (val: any): number | null => {
-                    if (val === null || val === undefined || val === '') return null;
-                    const num = parseFloat(String(val).replace(/[^\d.,-]/g, '').replace(',', '.'));
-                    return isNaN(num) ? null : num;
-                };
-
-                const policyData = {
-                    client_id: clientId,
-                    numero_poliza: extracted.numero_poliza ?? `PEND-${Date.now()}`,
-                    tipo: extracted.tipo ?? 'Desconocido',
-                    vigencia_inicio: normalizeOcrDate(extracted.vigencia_inicio, new Date().toISOString().split('T')[0]),
-                    vigencia_fin: normalizeOcrDate(extracted.vigencia_fin, new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]),
-                    company_id: extracted.company_id ?? null,
-                    nombre_asegurado: extracted.nombre_asegurado ?? null,
-                    documento_asegurado: extracted.documento_asegurado ?? null,
-                    parentesco: extracted.parentesco ?? 'Titular',
-                    archivo_url: storedPath,
-                    archivo_urls: [storedPath],
-                    notas: extracted.notas ?? `Cargado automáticamente desde ${fileStatus.file.name}`,
-                    // Campos de facturación — total_a_pagar tiene prioridad sobre prima_monto
-                    prima_monto: parsePrimaMonto(extracted.total_a_pagar ?? extracted.prima_monto ?? extracted.prima ?? extracted.monto ?? extracted.importe ?? extracted.premio),
-                    moneda: extracted.moneda ?? 'UYU',
-                    forma_pago: extracted.forma_pago ?? extracted.frecuencia_pago ?? null,
-                    numero_factura: extracted.numero_factura ?? extracted.factura ?? null,
-                };
-
-                console.log('Datos que se guardan en la póliza:', policyData);
-
-                const { data: newPolicy, error: dbError } = await supabase
-                    .from('policies')
-                    .insert([policyData])
-                    .select()
-                    .single();
-
-                if (dbError) throw dbError;
-
                 setFiles(prev => prev.map((f, idx) =>
                     idx === i ? {
                         ...f,
-                        status: 'completed',
+                        status: 'ready',
                         progress: 100,
-                        extractedData: {
-                            ...extracted,
-                            vigencia_inicio: policyData.vigencia_inicio,
-                            vigencia_fin: policyData.vigencia_fin,
-                        },
-                        policyId: newPolicy.id
+                        storedPath,
+                        extracted,
+                        draft: buildDraft(extracted),
                     } : f
                 ));
 
@@ -227,13 +221,94 @@ export function MultiFilePolicyUploader({
         }
 
         setIsProcessing(false);
-        toast.success("Proceso completado");
-        onUploadComplete();
+    };
+
+    // Fase 2: guarda en la base las pólizas ya revisadas.
+    const confirmAndSave = async () => {
+        setIsSaving(true);
+
+        const parsePrimaMonto = (val: any): number | null => {
+            if (val === null || val === undefined || val === '') return null;
+            const num = parseFloat(String(val).replace(/[^\d.,-]/g, '').replace(',', '.'));
+            return isNaN(num) ? null : num;
+        };
+
+        let savedCount = 0;
+        let errorCount = 0;
+
+        for (let i = 0; i < files.length; i++) {
+            const fileStatus = files[i];
+            if (fileStatus.status !== 'ready' || !fileStatus.draft) continue;
+
+            setFiles(prev => prev.map((f, idx) =>
+                idx === i ? { ...f, status: 'saving' } : f
+            ));
+
+            try {
+                const d = fileStatus.draft;
+                const extracted = fileStatus.extracted ?? {};
+                const defaultEnd = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0];
+
+                const policyData = {
+                    client_id: clientId,
+                    numero_poliza: d.numero_poliza.trim() || `PEND-${Date.now()}`,
+                    tipo: d.tipo.trim() || 'Desconocido',
+                    vigencia_inicio: d.vigencia_inicio || new Date().toISOString().split('T')[0],
+                    vigencia_fin: d.vigencia_fin || defaultEnd,
+                    company_id: d.company_id || null,
+                    nombre_asegurado: extracted.nombre_asegurado ?? null,
+                    documento_asegurado: extracted.documento_asegurado ?? null,
+                    parentesco: extracted.parentesco ?? 'Titular',
+                    archivo_url: fileStatus.storedPath,
+                    archivo_urls: [fileStatus.storedPath],
+                    notas: extracted.notas ?? `Cargado automáticamente desde ${fileStatus.file.name}`,
+                    prima_monto: parsePrimaMonto(d.prima_monto),
+                    moneda: d.moneda || 'UYU',
+                    forma_pago: extracted.forma_pago ?? extracted.frecuencia_pago ?? null,
+                    numero_factura: extracted.numero_factura ?? extracted.factura ?? null,
+                };
+
+                const { data: newPolicy, error: dbError } = await supabase
+                    .from('policies')
+                    .insert([policyData])
+                    .select()
+                    .single();
+
+                if (dbError) throw dbError;
+
+                savedCount++;
+                setFiles(prev => prev.map((f, idx) =>
+                    idx === i ? { ...f, status: 'completed', policyId: newPolicy.id } : f
+                ));
+
+            } catch (error: any) {
+                console.error("Error saving policy:", error);
+                errorCount++;
+                setFiles(prev => prev.map((f, idx) =>
+                    idx === i ? { ...f, status: 'error', error: error.message } : f
+                ));
+            }
+        }
+
+        setIsSaving(false);
+
+        if (savedCount > 0) {
+            toast.success(`${savedCount} póliza${savedCount > 1 ? 's' : ''} guardada${savedCount > 1 ? 's' : ''}`);
+            onUploadComplete();
+        }
+
+        if (errorCount === 0) {
+            setIsOpen(false);
+            setTimeout(() => reset(), 300);
+        } else {
+            toast.error(`${errorCount} archivo${errorCount > 1 ? 's' : ''} no se pudo guardar`);
+        }
     };
 
     const reset = () => {
         setFiles([]);
         setIsProcessing(false);
+        setIsSaving(false);
     };
 
     const getStatusIcon = (status: FileStatus['status']) => {
@@ -244,6 +319,8 @@ export function MultiFilePolicyUploader({
                 return <AlertCircle className="h-4 w-4 text-red-500" />;
             case 'processing':
                 return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
+            case 'saving':
+                return <Loader2 className="h-4 w-4 animate-spin text-green-600" />;
             case 'uploading':
                 return <Upload className="h-4 w-4 text-blue-500" />;
             default:
@@ -256,9 +333,13 @@ export function MultiFilePolicyUploader({
             case 'uploading':
                 return 'Subiendo archivo...';
             case 'processing':
-                return 'Procesando OCR con n8n...';
+                return 'Procesando OCR...';
+            case 'ready':
+                return 'Revisar';
+            case 'saving':
+                return 'Guardando...';
             case 'completed':
-                return 'Completado';
+                return 'Guardado';
             case 'error':
                 return 'Error';
             default:
@@ -266,8 +347,15 @@ export function MultiFilePolicyUploader({
         }
     };
 
+    const pendingCount = files.filter(f => f.status === 'pending').length;
+    const readyCount = files.filter(f => f.status === 'ready').length;
+    const completedCount = files.filter(f => f.status === 'completed').length;
+    const busy = isProcessing || isSaving;
+
+    const selectClass = "flex h-8 w-full rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50";
+
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={(open) => { if (!busy) setIsOpen(open); }}>
             <DialogTrigger asChild>
                 {trigger || <Button variant="outline">Cargar Pólizas</Button>}
             </DialogTrigger>
@@ -275,7 +363,7 @@ export function MultiFilePolicyUploader({
                 <DialogHeader>
                     <DialogTitle>Carga Masiva de Pólizas</DialogTitle>
                     <DialogDescription>
-                        Selecciona archivos PDF o imágenes de pólizas. El sistema procesará automáticamente los datos usando OCR.
+                        Selecciona archivos PDF o imágenes. El sistema extrae los datos con OCR y podés revisarlos antes de guardar.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -287,7 +375,7 @@ export function MultiFilePolicyUploader({
                             multiple
                             accept=".pdf,.png,.jpg,.jpeg"
                             onChange={handleFileSelect}
-                            disabled={isProcessing}
+                            disabled={busy}
                         />
                         <p className="text-xs text-muted-foreground">
                             Formatos soportados: PDF, PNG, JPG, JPEG
@@ -322,12 +410,12 @@ export function MultiFilePolicyUploader({
                                                     <Badge variant={
                                                         fileStatus.status === 'completed' ? 'default' :
                                                             fileStatus.status === 'error' ? 'destructive' :
-                                                                fileStatus.status === 'processing' || fileStatus.status === 'uploading' ? 'secondary' :
-                                                                    'outline'
+                                                                fileStatus.status === 'ready' ? 'outline' :
+                                                                    'secondary'
                                                     }>
                                                         {getStatusText(fileStatus.status)}
                                                     </Badge>
-                                                    {fileStatus.status === 'pending' && !isProcessing && (
+                                                    {fileStatus.status === 'pending' && !busy && (
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
@@ -340,7 +428,7 @@ export function MultiFilePolicyUploader({
                                                 </div>
                                             </div>
 
-                                            {fileStatus.status !== 'pending' && (
+                                            {(fileStatus.status === 'uploading' || fileStatus.status === 'processing') && (
                                                 <div className="space-y-1 mb-2">
                                                     <div className="flex justify-between text-xs text-muted-foreground">
                                                         <span>{getStatusText(fileStatus.status)}</span>
@@ -350,35 +438,84 @@ export function MultiFilePolicyUploader({
                                                 </div>
                                             )}
 
-                                            {fileStatus.extractedData && (
-                                                <div className="mt-3 text-xs bg-muted p-3 rounded space-y-1">
-                                                    <p className="font-semibold text-foreground mb-1">Datos extraídos:</p>
-                                                    <p><span className="text-muted-foreground">Póliza:</span> {fileStatus.extractedData.numero_poliza || 'N/A'}</p>
-                                                    <p><span className="text-muted-foreground">Tipo:</span> {fileStatus.extractedData.tipo || 'N/A'}</p>
-                                                    <p><span className="text-muted-foreground">Asegurado:</span> {fileStatus.extractedData.nombre_asegurado || 'N/A'}</p>
-                                                    {fileStatus.extractedData.vigencia_inicio && fileStatus.extractedData.vigencia_fin && (
-                                                        <p><span className="text-muted-foreground">Vigencia:</span> {fileStatus.extractedData.vigencia_inicio} a {fileStatus.extractedData.vigencia_fin}</p>
-                                                    )}
-                                                    {fileStatus.extractedData.total_a_pagar != null && (
-                                                        <p>
-                                                            <span className="text-muted-foreground">Total a pagar:</span>{' '}
-                                                            {fileStatus.extractedData.moneda || 'UYU'}{' '}
-                                                            {fileStatus.extractedData.total_a_pagar}
-                                                        </p>
-                                                    )}
-                                                    {fileStatus.extractedData.total_a_pagar == null && (fileStatus.extractedData.prima_monto ?? fileStatus.extractedData.prima ?? fileStatus.extractedData.monto ?? fileStatus.extractedData.importe ?? fileStatus.extractedData.premio) != null && (
-                                                        <p>
-                                                            <span className="text-muted-foreground">Prima:</span>{' '}
-                                                            {fileStatus.extractedData.moneda || 'UYU'}{' '}
-                                                            {fileStatus.extractedData.prima_monto ?? fileStatus.extractedData.prima ?? fileStatus.extractedData.monto ?? fileStatus.extractedData.importe ?? fileStatus.extractedData.premio}
-                                                        </p>
-                                                    )}
-                                                    {(fileStatus.extractedData.forma_pago ?? fileStatus.extractedData.frecuencia_pago) && (
-                                                        <p><span className="text-muted-foreground">Forma de pago:</span> {fileStatus.extractedData.forma_pago ?? fileStatus.extractedData.frecuencia_pago}</p>
-                                                    )}
-                                                    {(fileStatus.extractedData.numero_factura ?? fileStatus.extractedData.factura) && (
-                                                        <p><span className="text-muted-foreground">N° Factura:</span> {fileStatus.extractedData.numero_factura ?? fileStatus.extractedData.factura}</p>
-                                                    )}
+                                            {(fileStatus.status === 'ready' || fileStatus.status === 'saving') && fileStatus.draft && (
+                                                <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
+                                                    <div className="col-span-2 sm:col-span-1">
+                                                        <label className="text-[11px] text-muted-foreground">N° Póliza</label>
+                                                        <Input
+                                                            value={fileStatus.draft.numero_poliza}
+                                                            onChange={e => updateDraft(index, 'numero_poliza', e.target.value)}
+                                                            disabled={fileStatus.status === 'saving'}
+                                                            className="h-8 text-xs"
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-2 sm:col-span-1">
+                                                        <label className="text-[11px] text-muted-foreground">Tipo</label>
+                                                        <Input
+                                                            value={fileStatus.draft.tipo}
+                                                            onChange={e => updateDraft(index, 'tipo', e.target.value)}
+                                                            disabled={fileStatus.status === 'saving'}
+                                                            className="h-8 text-xs"
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-2">
+                                                        <label className="text-[11px] text-muted-foreground">Aseguradora</label>
+                                                        <select
+                                                            value={fileStatus.draft.company_id}
+                                                            onChange={e => updateDraft(index, 'company_id', e.target.value)}
+                                                            disabled={fileStatus.status === 'saving'}
+                                                            className={selectClass}
+                                                        >
+                                                            <option value="">— Sin asignar —</option>
+                                                            {companies.map(c => (
+                                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[11px] text-muted-foreground">Vigencia inicio</label>
+                                                        <Input
+                                                            type="date"
+                                                            value={fileStatus.draft.vigencia_inicio}
+                                                            onChange={e => updateDraft(index, 'vigencia_inicio', e.target.value)}
+                                                            disabled={fileStatus.status === 'saving'}
+                                                            className="h-8 text-xs"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[11px] text-muted-foreground">Vigencia fin</label>
+                                                        <Input
+                                                            type="date"
+                                                            value={fileStatus.draft.vigencia_fin}
+                                                            onChange={e => updateDraft(index, 'vigencia_fin', e.target.value)}
+                                                            disabled={fileStatus.status === 'saving'}
+                                                            className="h-8 text-xs"
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-2 flex gap-3">
+                                                        <div className="flex-1">
+                                                            <label className="text-[11px] text-muted-foreground">Prima / Total</label>
+                                                            <Input
+                                                                value={fileStatus.draft.prima_monto}
+                                                                onChange={e => updateDraft(index, 'prima_monto', e.target.value)}
+                                                                disabled={fileStatus.status === 'saving'}
+                                                                className="h-8 text-xs"
+                                                                placeholder="0"
+                                                            />
+                                                        </div>
+                                                        <div className="w-24">
+                                                            <label className="text-[11px] text-muted-foreground">Moneda</label>
+                                                            <select
+                                                                value={fileStatus.draft.moneda}
+                                                                onChange={e => updateDraft(index, 'moneda', e.target.value)}
+                                                                disabled={fileStatus.status === 'saving'}
+                                                                className={selectClass}
+                                                            >
+                                                                <option value="UYU">UYU</option>
+                                                                <option value="USD">USD</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
 
@@ -399,7 +536,9 @@ export function MultiFilePolicyUploader({
                         <div className="text-xs text-muted-foreground">
                             {files.length > 0 && (
                                 <span>
-                                    {files.filter(f => f.status === 'completed').length} de {files.length} completados
+                                    {readyCount > 0
+                                        ? `${readyCount} para revisar`
+                                        : `${completedCount} de ${files.length} guardadas`}
                                 </span>
                             )}
                         </div>
@@ -407,20 +546,32 @@ export function MultiFilePolicyUploader({
                             <Button
                                 variant="outline"
                                 onClick={reset}
-                                disabled={isProcessing}
+                                disabled={busy || files.length === 0}
                                 size="sm"
                             >
                                 <RefreshCw className="mr-2 h-4 w-4" />
                                 Limpiar
                             </Button>
-                            <Button
-                                onClick={processFiles}
-                                disabled={files.length === 0 || isProcessing}
-                                size="sm"
-                            >
-                                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {isProcessing ? 'Procesando...' : 'Iniciar Carga'}
-                            </Button>
+                            {pendingCount > 0 && (
+                                <Button
+                                    onClick={analyzeFiles}
+                                    disabled={busy}
+                                    size="sm"
+                                >
+                                    {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {isProcessing ? 'Procesando...' : `Procesar (${pendingCount})`}
+                                </Button>
+                            )}
+                            {readyCount > 0 && (
+                                <Button
+                                    onClick={confirmAndSave}
+                                    disabled={busy}
+                                    size="sm"
+                                >
+                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {isSaving ? 'Guardando...' : `Confirmar y guardar (${readyCount})`}
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>

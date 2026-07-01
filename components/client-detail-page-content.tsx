@@ -801,8 +801,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                         clientId={client.id}
                         companies={companies}
                         onUploadComplete={() => {
-                            toast.success("Pólizas cargadas. Actualizando...");
-                            setTimeout(() => window.location.reload(), 1500);
+                            fetchPolicies();
                         }}
                     />
                 </div>
