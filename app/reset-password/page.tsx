@@ -97,8 +97,8 @@ function ResetPasswordForm() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15">
+              <CheckCircle className="h-6 w-6 text-primary" />
             </div>
             <CardTitle className="text-2xl">Contraseña Actualizada</CardTitle>
             <CardDescription>

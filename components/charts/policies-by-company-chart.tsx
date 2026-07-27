@@ -3,7 +3,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#ffc658"]
+const COLORS = ["#0088FE", "#25595E", "#FFBB28", "#FF8042", "#8884d8", "#ffc658"]
 
 interface Policy {
   id: string

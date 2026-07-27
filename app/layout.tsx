@@ -32,7 +32,7 @@ export function generateViewport() {
     width: 'device-width',
     initialScale: 1,
     maximumScale: 1,
-    themeColor: '#1f2937',
+    themeColor: '#1b2324',
   }
 }
 

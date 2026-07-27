@@ -20,7 +20,7 @@ const TOP_N = 8
 const formatMonto = (value: number) =>
   value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toFixed(0)
 
-const COLORS: Record<Moneda, string> = { UYU: "#8884d8", USD: "#00C49F" }
+const COLORS: Record<Moneda, string> = { UYU: "#8884d8", USD: "#25595E" }
 
 export function PrimaPorTipoChart({ data }: PrimaPorTipoChartProps) {
   const [moneda, setMoneda] = useState<Moneda>("UYU")

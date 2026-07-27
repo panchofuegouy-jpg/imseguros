@@ -197,8 +197,11 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent
+        overlayClassName="bg-black/85 backdrop-blur-[2px] duration-300"
+        className="max-h-[calc(100vh-2rem)] overflow-y-auto border-white/10 bg-black text-white shadow-2xl shadow-black/60 duration-300 sm:max-w-3xl [&_[data-slot=input]]:border-white/10 [&_[data-slot=input]]:bg-white/[0.04] [&_[data-slot=select-trigger]]:border-white/10 [&_[data-slot=select-trigger]]:bg-white/[0.04] [&_[data-slot=textarea]]:border-white/10 [&_[data-slot=textarea]]:bg-white/[0.04]"
+      >
+        <DialogHeader className="pr-8">
           <DialogTitle>{isEditMode ? "Editar Cliente" : "Agregar Nuevo Cliente"}</DialogTitle>
           <DialogDescription>
             {isEditMode 
@@ -261,7 +264,8 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
             )}
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid gap-x-5 gap-y-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="nombre">Nombre completo *</Label>
               <Input
@@ -366,10 +370,9 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
                 </SelectContent>
               </Select>
             </div>
+            </div>
 
-         
-
-            <DialogFooter>
+            <DialogFooter className="sticky bottom-0 -mx-1 border-t border-white/10 bg-black/95 px-1 pt-4 backdrop-blur-sm">
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancelar
               </Button>

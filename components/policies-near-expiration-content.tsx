@@ -1,19 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import PolicyForm from "@/components/policy-form";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, MoreHorizontal, RefreshCw, Edit, CheckCircle, AlertCircle, Clock, XCircle, Phone, MessageCircle, Upload, FileText, X, User, Wand2 } from "lucide-react";
+import { Loader2, RefreshCw, Edit, CheckCircle, AlertCircle, Clock, XCircle, Phone, MessageCircle, Upload, FileText, X, User, Wand2, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { normalizeOcrDate } from "@/lib/ocr-date";
 
@@ -54,7 +54,7 @@ interface Company {
 
 const STATUS_OPTIONS = [
   { value: 'Pendiente', label: 'Pendiente', color: 'bg-gray-500', activeTab: 'pending' },
-  { value: 'Contactado', label: 'Contactado', color: 'bg-green-600', activeTab: 'pending' },
+  { value: 'Contactado', label: 'Contactado', color: 'bg-primary', activeTab: 'pending' },
   { value: 'En Proceso', label: 'En Proceso', color: 'bg-yellow-500', activeTab: 'pending' },
   { value: 'Renovada', label: 'Renovada', color: 'bg-green-500', activeTab: 'history' },
   { value: 'No Renovada', label: 'No Renovada', color: 'bg-red-500', activeTab: 'pending' },
@@ -79,6 +79,11 @@ export function PoliciesNearExpirationContent() {
   // Dialogo de renovación
   const [renewalDialogOpen, setRenewalDialogOpen] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
+  const [topbarActionsContainer, setTopbarActionsContainer] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setTopbarActionsContainer(document.getElementById("admin-topbar-actions"));
+  }, []);
 
   // Cargar compañías
   const fetchCompanies = async () => {
@@ -276,18 +281,6 @@ export function PoliciesNearExpirationContent() {
     return months;
   };
 
-  // Obtener badge de estado
-  const getStatusBadge = (status: string) => {
-    const statusConfig = STATUS_OPTIONS.find(s => s.value === status);
-    if (!statusConfig) return null;
-
-    return (
-      <Badge className={`text-white ${statusConfig.color}`}>
-        {statusConfig.label}
-      </Badge>
-    );
-  };
-
   // Formatear fecha
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-ES');
@@ -304,49 +297,43 @@ export function PoliciesNearExpirationContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold">Renovación de Pólizas</h1>
-          <p className="text-muted-foreground">
-            {activeTab === 'pending' 
-              ? 'Gestiona las renovaciones de pólizas próximas a vencer'
-              : 'Historial de pólizas renovadas'}
-          </p>
-        </div>
-        <Button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          variant="outline"
-          size="sm"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 border-b">
-        <button
-          onClick={() => handleTabChange('pending')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-            activeTab === 'pending'
-              ? 'border-green-600 text-green-700'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Pendientes de Renovación
-        </button>
-        <button
-          onClick={() => handleTabChange('history')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-            activeTab === 'history'
-              ? 'border-green-600 text-green-700'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Historial de Renovadas
-        </button>
-      </div>
+      {topbarActionsContainer && createPortal(
+        <div className="flex h-14 w-full min-w-0 items-center justify-between gap-3">
+          <div className="flex h-full min-w-0 items-stretch gap-1">
+            <button
+              onClick={() => handleTabChange('pending')}
+              className={`truncate border-b-2 px-3 text-xs font-medium uppercase transition-colors sm:px-4 sm:text-sm ${
+                activeTab === 'pending'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Pendientes de Renovación
+            </button>
+            <button
+              onClick={() => handleTabChange('history')}
+              className={`truncate border-b-2 px-3 text-xs font-medium uppercase transition-colors sm:px-4 sm:text-sm ${
+                activeTab === 'history'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Historial de Renovadas
+            </button>
+          </div>
+          <Button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            variant="outline"
+            size="sm"
+            className="shrink-0 uppercase"
+          >
+            <RefreshCw className={`h-4 w-4 sm:mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Actualizar</span>
+          </Button>
+        </div>,
+        topbarActionsContainer,
+      )}
 
       {/* Filtros */}
       <Card>
@@ -455,15 +442,15 @@ export function PoliciesNearExpirationContent() {
       </Card>
 
       {/* Tabla de pólizas */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
+      <Card className="gap-4 uppercase">
+        <CardHeader className="px-4">
+          <CardTitle className="text-sm">
             {activeTab === 'pending' 
               ? `Pólizas por Vencer (${filteredPolicies.length}${filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})` 
               : `Pólizas Renovadas (${filteredPolicies.length}${filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})`}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-4">
           {loading ? (
             <div className="text-center py-8">Cargando pólizas...</div>
           ) : filteredPolicies.length === 0 ? (
@@ -473,18 +460,18 @@ export function PoliciesNearExpirationContent() {
                 : "No se encontraron pólizas con ese cliente."}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="w-full overflow-hidden">
+              <Table className="table-fixed text-[10px] uppercase sm:text-xs [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-dotted [&_td:not(:last-child)]:border-border/70 [&_td]:overflow-hidden [&_td]:px-1.5 [&_td]:py-2 [&_td]:text-ellipsis [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-dotted [&_th:not(:last-child)]:border-border/80 [&_th]:h-9 [&_th]:px-1.5 [&_th]:text-[10px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Póliza</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Aseguradora</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Vence en</TableHead>
-                    <TableHead>Fecha Vencimiento</TableHead>
-                    <TableHead>Acciones</TableHead>
+                    <TableHead className="w-[8%] text-center">Vence en</TableHead>
+                    <TableHead className="w-[10%]">Póliza</TableHead>
+                    <TableHead className="w-[27%]">Cliente</TableHead>
+                    <TableHead className="w-[9%] text-center">Aseguradora</TableHead>
+                    <TableHead className="w-[10%] text-center">Tipo</TableHead>
+                    <TableHead className="w-[13%] text-center">Vencimiento</TableHead>
+                    <TableHead className="w-[8%] text-center">Acciones</TableHead>
+                    <TableHead className="w-[15%] text-center">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -492,53 +479,64 @@ export function PoliciesNearExpirationContent() {
                     const daysUntilExpiration = getDaysUntilExpiration(policy.vigencia_fin);
                     const isUrgent = daysUntilExpiration <= 7;
                     const isExpired = daysUntilExpiration <= 0;
+                    const currentStatus = STATUS_OPTIONS.find((status) => status.value === policy.status);
                     
                     return (
                       <TableRow key={policy.id} className={isExpired ? "bg-red-500/20" : isUrgent ? "bg-red-500/20" : ""}>
-                        <TableCell>
-                          {getStatusBadge(policy.status)}
+                        <TableCell className="text-center">
+                          <span className={`inline-flex max-w-full items-center justify-center truncate rounded-md border px-2 py-1 font-medium ${
+                            isUrgent
+                              ? 'border-red-500/40 bg-red-500/10 text-red-400'
+                              : daysUntilExpiration <= 15
+                                ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400'
+                                : 'border-primary/40 bg-primary/10 text-primary'
+                          }`}>
+                            {daysUntilExpiration > 0
+                              ? `${daysUntilExpiration} días`
+                              : `Vencida (${Math.abs(daysUntilExpiration)} días)`
+                            }
+                          </span>
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell className="truncate font-medium" title={policy.numero_poliza}>
                           {policy.numero_poliza}
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col">
+                          <div className="flex min-w-0 flex-col">
                             <Link
                               href={`/admin/clientes/${policy.client_id}`}
-                              className="text-blue-600 hover:underline font-medium"
+                              title={policy.clients.nombre}
+                              className="block truncate font-medium text-white hover:underline"
                             >
                               {policy.clients.nombre}
                             </Link>
-                            {policy.clients.telefono && (
-                              <span className="text-sm text-muted-foreground">
-                                {policy.clients.telefono}
-                              </span>
-                            )}
                           </div>
                         </TableCell>
-                        <TableCell>{policy.companies.name}</TableCell>
-                        <TableCell>{policy.tipo}</TableCell>
-                        <TableCell>
-                          <div className={`font-medium ${isUrgent ? 'text-red-600' : daysUntilExpiration <= 15 ? 'text-yellow-600' : 'text-green-600'}`}>
-                            {daysUntilExpiration > 0 
-                              ? `${daysUntilExpiration} días` 
-                              : `Vencida (${Math.abs(daysUntilExpiration)} días)`
-                            }
-                          </div>
+                        <TableCell className="text-center" title={policy.companies.name}>
+                          <span className="inline-flex max-w-full items-center justify-center truncate rounded-md border border-border/80 bg-muted/40 px-2 py-1 font-medium">
+                            {policy.companies.name}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center" title={policy.tipo}>
+                          <span className="inline-flex max-w-full items-center justify-center truncate rounded-md border border-border/80 bg-muted/40 px-2 py-1 font-medium">
+                            {policy.tipo}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="inline-flex max-w-full items-center justify-center truncate rounded-md border border-border/80 bg-muted/40 px-2 py-1 font-medium">
+                            {formatDate(policy.vigencia_fin)}
+                          </span>
                         </TableCell>
                         <TableCell>
-                          {formatDate(policy.vigencia_fin)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center justify-center gap-0.5">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleRenewal(policy)}
-                              className="h-8 px-2 text-xs"
+                              aria-label="Renovar póliza"
+                              title="Renovar póliza"
+                              className="h-6 w-6 p-0"
                             >
-                              <Edit className="h-3 w-3 mr-1" />
-                              Renovar
+                              <Edit className="h-3.5 w-3.5" />
                             </Button>
 
                             {policy.clients.telefono && (() => {
@@ -548,48 +546,59 @@ export function PoliciesNearExpirationContent() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => window.open(waLink, '_blank')}
-                                  className="h-8 px-2 text-xs text-green-700 border-green-300 hover:bg-green-50"
+                                  aria-label="Abrir WhatsApp"
+                                  title="Abrir WhatsApp"
+                                  className="h-6 w-6 border-primary/50 p-0 text-primary hover:bg-primary/10"
                                 >
-                                  <MessageCircle className="h-3 w-3 mr-1" />
-                                  WA
+                                  <MessageCircle className="h-3.5 w-3.5" />
                                 </Button>
                               ) : null;
                             })()}
 
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                {policy.clients.telefono && (
-                                  <DropdownMenuItem
-                                    onClick={() => window.open(`tel:${policy.clients.telefono}`, '_self')}
-                                    className="cursor-pointer"
-                                  >
-                                    <Phone className="h-4 w-4 mr-2" />
-                                    Llamar Cliente
-                                  </DropdownMenuItem>
-                                )}
-                                <div className="border-t my-1" />
-                                <div className="px-2 py-1 text-sm font-medium text-muted-foreground">
-                                  Cambiar Estado:
-                                </div>
-                                {STATUS_OPTIONS.map((status) => (
-                                  <DropdownMenuItem
-                                    key={status.value}
-                                    onClick={() => updatePolicyStatus(policy.id, status.value)}
-                                    className="cursor-pointer"
-                                    disabled={policy.status === status.value}
-                                  >
-                                    <div className={`h-2 w-2 rounded-full mr-2 ${status.color}`} />
-                                    {status.label}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            {policy.clients.telefono && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(`tel:${policy.clients.telefono}`, '_self')}
+                                aria-label="Llamar cliente"
+                                title="Llamar cliente"
+                                className="h-6 w-6 p-0"
+                              >
+                                <Phone className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 w-full min-w-0 justify-between gap-1 px-2 text-[10px] uppercase"
+                                aria-label={`Cambiar estado actual: ${policy.status}`}
+                              >
+                                <span className="flex min-w-0 items-center gap-1.5">
+                                  <span className={`h-2 w-2 shrink-0 rounded-full ${currentStatus?.color || "bg-gray-500"}`} />
+                                  <span className="truncate">{policy.status}</span>
+                                </span>
+                                <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44 uppercase">
+                              {STATUS_OPTIONS.map((status) => (
+                                <DropdownMenuItem
+                                  key={status.value}
+                                  onClick={() => updatePolicyStatus(policy.id, status.value)}
+                                  className="cursor-pointer"
+                                  disabled={policy.status === status.value}
+                                >
+                                  <span className={`mr-2 h-2 w-2 rounded-full ${status.color}`} />
+                                  {status.label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     );

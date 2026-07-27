@@ -593,7 +593,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                     variant="outline"
                                     size="icon"
                                     onClick={() => window.open(getWhatsAppLink(client.telefono)!, '_blank')}
-                                    className="text-green-700 border-green-300 hover:bg-green-50"
+                                    className="border-primary/50 text-primary hover:bg-primary/10"
                                     title="Abrir WhatsApp"
                                 >
                                     <MessageCircle className="h-4 w-4" />
@@ -652,7 +652,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                     href={getWhatsAppLink(client.telefono)!}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium"
+                                    className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
                                 >
                                     <MessageCircle className="h-3 w-3" />
                                     WhatsApp

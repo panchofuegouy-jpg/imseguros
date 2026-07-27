@@ -13,9 +13,11 @@ import { cn } from "@/lib/utils"
 
 interface AdminLayoutProps {
   children: React.ReactNode
+  headerTitle?: string
+  headerDescription?: string
 }
 
-export function AdminLayout({ children }: AdminLayoutProps) {
+export function AdminLayout({ children, headerTitle, headerDescription }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
@@ -42,7 +44,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { name: "Clientes", href: "/admin/clientes", icon: Users },
     { name: "Pólizas", href: "/admin/polizas", icon: FileText },
-    { name: "Pólizas por Vencer", href: "/admin/polizas/por-vencer", icon: FileText },
+    { name: "Renovaciones", href: "/admin/polizas/por-vencer", icon: FileText },
     { name: "Facturación", href: "/admin/facturacion", icon: DollarSign },
   ]
 
@@ -60,8 +62,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <div className={cn("fixed inset-0 z-50 lg:hidden", sidebarOpen ? "block" : "hidden")}>
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-sidebar shadow-lg border-r border-sidebar-border">
-          <div className="flex h-16 items-center justify-center border-b border-sidebar-border">
-            <img src="/IM_IDEINTIDAD-LOGO.png" alt="IM Seguros Logo" className="h-8 w-auto" />
+          <div className="flex h-16 items-center justify-start border-b border-sidebar-border px-5">
+            <img src="/nuevo-logo-isgleas-seguros.webp" alt="Isgleas Seguros" className="h-10 w-auto" />
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
@@ -96,8 +98,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-col flex-grow bg-sidebar border-r border-sidebar-border">
-          <div className="flex h-16 items-center justify-center border-b border-sidebar-border">
-            <img src="/IM_IDEINTIDAD-LOGO.png" alt="IM Seguros Logo" className="h-8 w-auto" />
+          <div className="flex h-16 items-center justify-start border-b border-sidebar-border px-5">
+            <img src="/nuevo-logo-isgleas-seguros.webp" alt="Isgleas Seguros" className="h-10 w-auto" />
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
@@ -131,10 +133,21 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main content */}
       <div className="lg:pl-64">
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-sidebar px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
           <button type="button" className="-m-2.5 p-2.5 text-foreground lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6" />
           </button>
+          {headerTitle && (
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-semibold leading-tight">{headerTitle}</h1>
+              {headerDescription && (
+                <p className="mt-0.5 hidden truncate text-xs text-muted-foreground sm:block">
+                  {headerDescription}
+                </p>
+              )}
+            </div>
+          )}
+          <div id="admin-topbar-actions" className="min-w-0 flex-1" />
         </div>
 
         <main className="py-6">

@@ -314,13 +314,13 @@ export function MultiFilePolicyUploader({
     const getStatusIcon = (status: FileStatus['status']) => {
         switch (status) {
             case 'completed':
-                return <CheckCircle className="h-4 w-4 text-green-500" />;
+                return <CheckCircle className="h-4 w-4 text-primary" />;
             case 'error':
                 return <AlertCircle className="h-4 w-4 text-red-500" />;
             case 'processing':
                 return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
             case 'saving':
-                return <Loader2 className="h-4 w-4 animate-spin text-green-600" />;
+                return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
             case 'uploading':
                 return <Upload className="h-4 w-4 text-blue-500" />;
             default:

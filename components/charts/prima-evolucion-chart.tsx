@@ -21,7 +21,7 @@ interface PrimaEvolucionChartProps {
 
 const fmt = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)
 
-const COLORS: Record<Moneda, string> = { UYU: "#0088FE", USD: "#00C49F" }
+const COLORS: Record<Moneda, string> = { UYU: "#0088FE", USD: "#25595E" }
 
 export function PrimaEvolucionChart({ data, titulo }: PrimaEvolucionChartProps) {
   const [moneda, setMoneda] = useState<Moneda>("UYU")

@@ -177,7 +177,7 @@ export default function LoginPage() {
                   </Alert>
                 )}
                 {successMessage && (
-                  <Alert className="bg-green-50 text-green-900 border-green-200">
+                  <Alert className="border-primary/40 bg-primary/15 text-foreground">
                     <AlertDescription>{successMessage}</AlertDescription>
                   </Alert>
                 )}
