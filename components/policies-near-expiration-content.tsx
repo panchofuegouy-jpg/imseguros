@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, RefreshCw, Edit, CheckCircle, AlertCircle, Clock, XCircle, Phone, MessageCircle, Upload, FileText, X, User, Wand2, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { normalizeOcrDate } from "@/lib/ocr-date";
+import { parseOcrData } from "@/lib/parse-ocr-data";
 
 interface Policy {
   id: string;
@@ -1065,30 +1066,4 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
       </form>
     </div>
   );
-}
-
-// Parser de datos OCR (mismo formato que multi-file-policy-uploader)
-function parseOcrData(payload: any): any {
-  const normalize = (value: any): any => {
-    if (!value) return undefined;
-    if (typeof value === 'string') {
-      try { return normalize(JSON.parse(value)); } catch { return undefined; }
-    }
-    if (Array.isArray(value)) return fromArray(value);
-    if (typeof value === 'object') return value;
-    return undefined;
-  };
-  const fromArray = (value: any): any => {
-    if (!Array.isArray(value) || value.length === 0) return undefined;
-    const first = value[0];
-    return normalize(first?.extractedData || first?.data || first?.json || first?.output?.[0]?.content?.[0]?.text || first?.output?.[0]?.json || first);
-  };
-  const candidates = [
-    normalize(payload?.extractedData),
-    normalize(payload?.data),
-    normalize(payload?.output?.[0]?.content?.[0]?.text || payload?.output?.[0]?.json),
-    fromArray(payload),
-    normalize(payload),
-  ].filter(Boolean);
-  return candidates[0] || {};
 }

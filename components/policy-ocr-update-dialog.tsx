@@ -5,6 +5,7 @@ import { FileUp, Loader2, RefreshCw, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { normalizeOcrDate } from "@/lib/ocr-date"
+import { parseOcrData } from "@/lib/parse-ocr-data"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -56,42 +57,6 @@ interface UpdateDraft {
   documento_asegurado: string
   parentesco: string
   notas: string
-}
-
-const parseOcrData = (payload: any): any => {
-  const normalize = (value: any): any => {
-    if (!value) return undefined
-    if (typeof value === "string") {
-      try {
-        return normalize(JSON.parse(value))
-      } catch {
-        return undefined
-      }
-    }
-    if (Array.isArray(value)) return fromArray(value)
-    return typeof value === "object" ? value : undefined
-  }
-
-  const fromArray = (value: any): any => {
-    if (!Array.isArray(value) || value.length === 0) return undefined
-    const first = value[0]
-    return normalize(
-      first?.extractedData ||
-      first?.data ||
-      first?.json ||
-      first?.output?.[0]?.content?.[0]?.text ||
-      first?.output?.[0]?.json ||
-      first,
-    )
-  }
-
-  return [
-    normalize(payload?.extractedData),
-    normalize(payload?.data),
-    normalize(payload?.output?.[0]?.content?.[0]?.text || payload?.output?.[0]?.json),
-    fromArray(payload),
-    normalize(payload),
-  ].filter(Boolean)[0] || {}
 }
 
 const parseAmount = (value: unknown): number => {
@@ -205,7 +170,13 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
         throw new Error(body?.error || "No se pudo analizar el documento")
       }
 
-      const extracted = parseOcrData(await response.json())
+      const responseData = await response.json()
+      const extracted = parseOcrData(responseData)
+
+      if (!extracted || typeof extracted !== "object" || !Object.keys(extracted).length) {
+        throw new Error("No se pudieron extraer datos del documento. Verificá que sea una póliza válida.")
+      }
+
       const premiumValue =
         extracted.diferencia ??
         extracted.diferencia_a_pagar ??
@@ -217,9 +188,9 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
         extracted.premio
 
       setDraft({
-        numero_poliza: String(extracted.numero_poliza || policy.numero_poliza),
+        numero_poliza: String(extracted.numero_poliza || policy.numero_poliza || ""),
         company_id: matchCompany(extracted),
-        tipo: String(extracted.tipo || policy.tipo),
+        tipo: String(extracted.tipo || policy.tipo || ""),
         vigencia_inicio: normalizeOcrDate(extracted.vigencia_inicio, policy.vigencia_inicio),
         vigencia_fin: normalizeOcrDate(extracted.vigencia_fin, policy.vigencia_fin),
         nueva_prima: premiumValue != null ? String(premiumValue) : "",

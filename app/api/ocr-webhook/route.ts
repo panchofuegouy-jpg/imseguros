@@ -7,8 +7,9 @@ export async function POST(req: NextRequest) {
 
     const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;
     if (!n8nWebhookUrl) {
+      console.error('N8N webhook URL not configured');
       return NextResponse.json(
-        { error: 'N8N webhook URL not configured' },
+        { error: 'Servicio OCR no configurado' },
         { status: 500 }
       );
     }
@@ -24,8 +25,9 @@ export async function POST(req: NextRequest) {
         .createSignedUrl(filePath, 3600); // 1 hour expiration
 
       if (signedUrlError || !signedUrlData) {
+        console.error('Failed to create signed URL:', signedUrlError);
         return NextResponse.json(
-          { error: `No se pudo generar la URL firmada: ${signedUrlError?.message ?? 'desconocido'}` },
+          { error: 'No se pudo generar acceso al documento' },
           { status: 500 }
         );
       }
@@ -43,19 +45,40 @@ export async function POST(req: NextRequest) {
     });
 
     if (!n8nResponse.ok) {
+      const errorBody = await n8nResponse.text().catch(() => n8nResponse.statusText);
+      console.error('N8N webhook failed:', {
+        status: n8nResponse.status,
+        statusText: n8nResponse.statusText,
+        body: errorBody,
+      });
       return NextResponse.json(
-        { error: `N8N error: ${n8nResponse.statusText}` },
+        { error: 'Error al procesar el documento con OCR' },
         { status: n8nResponse.status }
       );
     }
 
-    const data = await n8nResponse.json();
+    let data: any;
+    try {
+      data = await n8nResponse.json();
+    } catch (parseError) {
+      console.error('Failed to parse N8N response as JSON:', parseError);
+      return NextResponse.json(
+        { error: 'Respuesta inválida del servicio OCR' },
+        { status: 500 }
+      );
+    }
+
+    console.log('N8N response received:', {
+      hasOutput: !!data?.output,
+      outputLength: Array.isArray(data?.output) ? data.output.length : 0,
+      dataKeys: Object.keys(data).slice(0, 5),
+    });
+
     return NextResponse.json(data);
   } catch (error) {
     console.error('OCR webhook error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
-      { error: message },
+      { error: 'Error interno del servidor OCR' },
       { status: 500 }
     );
   }
