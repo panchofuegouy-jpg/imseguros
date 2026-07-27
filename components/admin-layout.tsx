@@ -48,6 +48,14 @@ export function AdminLayout({ children, headerTitle, headerDescription }: AdminL
     { name: "Facturación", href: "/admin/facturacion", icon: DollarSign },
   ]
 
+  const displayName =
+    user?.profile?.nombre ||
+    user?.profile?.name ||
+    user?.user?.user_metadata?.full_name ||
+    user?.user?.user_metadata?.name ||
+    user?.user?.email?.split("@")[0] ||
+    "Usuario"
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -73,15 +81,17 @@ export function AdminLayout({ children, headerTitle, headerDescription }: AdminL
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    "group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-xs font-medium transition-colors",
                     isActive 
                       ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs" 
                       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center">
+                    <item.icon className="h-4 w-4 stroke-[1.8]" />
+                  </span>
+                  <span className="truncate leading-none">{item.name}</span>
                 </Link>
               )
             })}
@@ -96,7 +106,7 @@ export function AdminLayout({ children, headerTitle, headerDescription }: AdminL
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-40 lg:flex-col">
         <div className="flex flex-col flex-grow bg-sidebar border-r border-sidebar-border">
           <div className="flex h-16 items-center justify-start border-b border-sidebar-border px-5">
             <img src="/nuevo-logo-isgleas-seguros.webp" alt="Isgleas Seguros" className="h-10 w-auto" />
@@ -109,20 +119,24 @@ export function AdminLayout({ children, headerTitle, headerDescription }: AdminL
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    "group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-xs font-medium transition-colors",
                     isActive 
                       ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs" 
                       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                 >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center">
+                    <item.icon className="h-4 w-4 stroke-[1.8]" />
+                  </span>
+                  <span className="truncate leading-none">{item.name}</span>
                 </Link>
               )
             })}
           </nav>
           <div className="border-t border-sidebar-border p-4">
-            <div className="text-sm text-muted-foreground mb-2">Conectado como: {user.user.email}</div>
+            <div className="mb-2 truncate text-sm capitalize text-muted-foreground" title={displayName}>
+              {displayName}
+            </div>
             <Button variant="outline" onClick={handleSignOut} className="w-full">
               <LogOut className="mr-2 h-4 w-4" />
               Cerrar Sesión
@@ -132,7 +146,7 @@ export function AdminLayout({ children, headerTitle, headerDescription }: AdminL
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-40">
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-sidebar px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
           <button type="button" className="-m-2.5 p-2.5 text-foreground lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6" />

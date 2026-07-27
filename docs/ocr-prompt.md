@@ -8,6 +8,7 @@ Prompt para el nodo de análisis de imágenes en n8n (modelo Claude / GPT-4o Vis
 Te adjunto una póliza. Debes analizarla y devolver ÚNICAMENTE un JSON válido que cumpla EXACTAMENTE con el siguiente JSON Schema (sin texto adicional):
 
 {
+  "tipo_movimiento": "poliza" | "cambio_vehiculo",
   "numero_poliza": "string",
   "tipo": "string",
   "vigencia_inicio": "YYYY-MM-DD",
@@ -17,6 +18,9 @@ Te adjunto una póliza. Debes analizarla y devolver ÚNICAMENTE un JSON válido 
   "documento_asegurado": "string",
   "parentesco": "string",
   "notas": "string",
+  "diferencia": number | null,
+  "vehiculo_anterior": "string | null",
+  "vehiculo_nuevo": "string | null",
   "total_a_pagar": number | null,
   "prima_monto": number | null,
   "moneda": "UYU" | "USD",
@@ -25,6 +29,17 @@ Te adjunto una póliza. Debes analizarla y devolver ÚNICAMENTE un JSON válido 
 }
 
 Reglas IMPORTANTES:
+
+0. Primero clasifica el documento:
+   - Usa `"tipo_movimiento": "cambio_vehiculo"` si es un endoso, suplemento,
+     sustitución o cambio de vehículo asociado a una póliza.
+   - En ese caso extrae en `"diferencia"` solamente el importe adicional o saldo
+     que debe pagar/devolver el cliente por el cambio; no lo confundas con la prima
+     anual total.
+   - Resume matrícula, marca, modelo y año del bien sustituido en
+     `"vehiculo_anterior"` y los del nuevo bien en `"vehiculo_nuevo"`.
+   - Usa `"tipo_movimiento": "poliza"` para una emisión común y devuelve
+     `"diferencia": null`.
 
 1. Usa el formato de fecha ISO: "YYYY-MM-DD" (ejemplo: 2025-09-30).
    - Las fechas del documento están en formato uruguayo/latino: DD/MM/AAAA (día/mes/año), nunca MM/DD/AAAA.

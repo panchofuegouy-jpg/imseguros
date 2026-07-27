@@ -13,7 +13,7 @@ import PolicyForm from "@/components/policy-form";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, RefreshCw, Edit, CheckCircle, AlertCircle, Clock, XCircle, Phone, MessageCircle, Upload, FileText, X, User, Wand2, ChevronDown } from "lucide-react";
+import { Loader2, RefreshCw, Edit, CheckCircle, AlertCircle, Clock, XCircle, Phone, MessageCircle, Upload, FileText, X, User, Wand2, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { normalizeOcrDate } from "@/lib/ocr-date";
 
@@ -75,6 +75,7 @@ export function PoliciesNearExpirationContent() {
   const [selectedType, setSelectedType] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [clientSearchTerm, setClientSearchTerm] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   
   // Dialogo de renovación
   const [renewalDialogOpen, setRenewalDialogOpen] = useState(false);
@@ -286,6 +287,13 @@ export function PoliciesNearExpirationContent() {
     return new Date(dateString).toLocaleDateString('es-ES');
   };
 
+  const formatShortDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'numeric',
+    });
+  };
+
   // Calcular días hasta vencimiento
   const getDaysUntilExpiration = (expirationDate: string) => {
     const today = new Date();
@@ -336,34 +344,52 @@ export function PoliciesNearExpirationContent() {
       )}
 
       {/* Filtros */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            Filtros de Búsqueda
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearFilters}
-            >
-              Limpiar Filtros
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Campo de búsqueda por cliente */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Buscar Cliente</label>
+      <Card className="gap-0 py-4">
+        <CardContent className="px-4">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Buscar por cliente, aseguradora, póliza, teléfono o email..."
+                placeholder="BUSCAR POR CLIENTE, ASEGURADORA, PÓLIZA, TELÉFONO O EMAIL..."
                 value={clientSearchTerm}
-                onChange={(e) => setClientSearchTerm(e.target.value)}
-                className="w-full"
+                onChange={(e) => setClientSearchTerm(e.target.value.toUpperCase())}
+                className="h-14 w-full rounded-xl pl-12 pr-4 text-lg font-semibold uppercase tracking-wide placeholder:text-sm placeholder:font-medium placeholder:tracking-normal sm:placeholder:text-base"
               />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label={filtersOpen ? "Ocultar filtros" : "Mostrar filtros"}
+                aria-expanded={filtersOpen}
+                title={filtersOpen ? "Ocultar filtros" : "Mostrar filtros"}
+                onClick={() => setFiltersOpen((open) => !open)}
+                className={`h-14 w-14 shrink-0 rounded-xl transition-colors ${
+                  filtersOpen ? "border-primary bg-primary/15 text-primary" : ""
+                }`}
+              >
+                <SlidersHorizontal className="h-5 w-5" />
+              </Button>
             </div>
             
             {/* Otros filtros */}
+            {filtersOpen && (
+            <div className="animate-in fade-in-0 slide-in-from-top-2 border-t border-border/70 pt-3 uppercase duration-200">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Filtros avanzados
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="h-8 uppercase"
+                >
+                  Limpiar filtros
+                </Button>
+              </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {activeTab === 'pending' && (
                 <div>
@@ -437,6 +463,8 @@ export function PoliciesNearExpirationContent() {
                 </div>
               )}
             </div>
+            </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -466,11 +494,11 @@ export function PoliciesNearExpirationContent() {
                   <TableRow>
                     <TableHead className="w-[8%] text-center">Vence en</TableHead>
                     <TableHead className="w-[10%]">Póliza</TableHead>
-                    <TableHead className="w-[27%]">Cliente</TableHead>
-                    <TableHead className="w-[9%] text-center">Aseguradora</TableHead>
-                    <TableHead className="w-[10%] text-center">Tipo</TableHead>
-                    <TableHead className="w-[13%] text-center">Vencimiento</TableHead>
-                    <TableHead className="w-[8%] text-center">Acciones</TableHead>
+                    <TableHead className="w-[31%]">Cliente</TableHead>
+                    <TableHead className="w-[8%] text-center">Aseguradora</TableHead>
+                    <TableHead className="w-[9%] text-center">Tipo</TableHead>
+                    <TableHead className="w-[7%] text-center">Vence</TableHead>
+                    <TableHead className="w-[12%] text-center">Acciones</TableHead>
                     <TableHead className="w-[15%] text-center">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -512,18 +540,18 @@ export function PoliciesNearExpirationContent() {
                           </div>
                         </TableCell>
                         <TableCell className="text-center" title={policy.companies.name}>
-                          <span className="inline-flex max-w-full items-center justify-center truncate rounded-md border border-border/80 bg-muted/40 px-2 py-1 font-medium">
+                          <span className="inline-flex max-w-full items-center justify-center truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-0.5 font-medium">
                             {policy.companies.name}
                           </span>
                         </TableCell>
                         <TableCell className="text-center" title={policy.tipo}>
-                          <span className="inline-flex max-w-full items-center justify-center truncate rounded-md border border-border/80 bg-muted/40 px-2 py-1 font-medium">
+                          <span className="inline-flex max-w-full items-center justify-center truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-0.5 font-medium">
                             {policy.tipo}
                           </span>
                         </TableCell>
                         <TableCell className="text-center">
-                          <span className="inline-flex max-w-full items-center justify-center truncate rounded-md border border-border/80 bg-muted/40 px-2 py-1 font-medium">
-                            {formatDate(policy.vigencia_fin)}
+                          <span className="inline-flex max-w-full items-center justify-center truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-0.5 font-medium">
+                            {formatShortDate(policy.vigencia_fin)}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -534,9 +562,10 @@ export function PoliciesNearExpirationContent() {
                               onClick={() => handleRenewal(policy)}
                               aria-label="Renovar póliza"
                               title="Renovar póliza"
-                              className="h-6 w-6 p-0"
+                              className="h-7 px-2 text-[10px] uppercase"
                             >
                               <Edit className="h-3.5 w-3.5" />
+                              Renovar
                             </Button>
 
                             {policy.clients.telefono && (() => {
@@ -612,8 +641,17 @@ export function PoliciesNearExpirationContent() {
 
       {/* Dialog de renovación */}
       <Dialog open={renewalDialogOpen} onOpenChange={setRenewalDialogOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
+        <DialogContent
+          overlayClassName="bg-black/85 backdrop-blur-[2px]"
+          className="h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-white/10 bg-[#121A1B] p-0! shadow-2xl shadow-black/60"
+          style={{
+            maxWidth: "min(72rem, calc(100vw - 3rem))",
+            overflow: "hidden",
+            padding: 0,
+            backgroundColor: "#121A1B",
+          }}
+        >
+          <DialogHeader className="border-b border-white/10 px-6 py-5 pr-14">
             <DialogTitle>
               Renovar Póliza: {selectedPolicy?.numero_poliza}
             </DialogTitle>
@@ -828,15 +866,15 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
   const POLICY_TYPES = ["Auto", "Vida", "Hogar", "Salud", "Empresarial", "Camiones", "Taxi", "Agricola", "Motos", "Lancha", "Otro"];
 
   return (
-    <div className="max-h-[80vh] overflow-y-auto pr-1">
-      <form onSubmit={handleSubmit} className="space-y-8">
+    <div className="min-h-0 overflow-y-auto px-5 pb-4 lg:overflow-hidden">
+      <form onSubmit={handleSubmit} className="grid gap-3 pt-3 lg:h-full lg:grid-cols-12 lg:grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)_auto]">
 
         {/* OCR Banner */}
-        <div className="flex items-center gap-4 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <Wand2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
+        <div className="flex items-center gap-3 rounded-xl border border-primary/40 bg-black/25 p-3 lg:col-span-12">
+          <Wand2 className="h-4 w-4 flex-shrink-0 text-primary" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Cargar documento de renovación y extraer datos automáticamente</p>
-            <p className="text-xs text-blue-700 dark:text-blue-300">El OCR leerá el documento y pre-llenará los campos del formulario</p>
+            <p className="text-sm font-medium text-foreground">Cargar documento de renovación y extraer datos automáticamente</p>
+            <p className="text-xs text-muted-foreground">El OCR leerá el documento y pre-llenará los campos del formulario</p>
           </div>
           <label className="cursor-pointer">
             <Button type="button" variant="outline" size="sm" disabled={ocrLoading} asChild>
@@ -850,12 +888,12 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         </div>
 
         {/* Información General */}
-        <div className="space-y-4">
+        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:col-span-4">
           <div className="flex items-center gap-3 pb-3 border-b">
             <div className="w-1.5 h-6 bg-primary rounded-full" />
             <h3 className="text-base font-semibold">Información General</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Número de Póliza <span className="text-destructive">*</span></Label>
               <Input value={formData.numero_poliza} onChange={e => setFormData({ ...formData, numero_poliza: e.target.value })} placeholder="Ej: POL-2025-001" required />
@@ -882,12 +920,12 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         </div>
 
         {/* Vigencia */}
-        <div className="space-y-4">
+        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:col-span-4">
           <div className="flex items-center gap-3 pb-3 border-b">
             <div className="w-1.5 h-6 bg-primary rounded-full" />
             <h3 className="text-base font-semibold">Nueva Vigencia</h3>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Fecha de Inicio <span className="text-destructive">*</span></Label>
               <Input type="date" value={formData.vigencia_inicio} onChange={e => setFormData({ ...formData, vigencia_inicio: e.target.value })} required />
@@ -900,19 +938,19 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         </div>
 
         {/* Asegurado */}
-        <div className="space-y-4">
+        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:col-span-4">
           <div className="flex items-center gap-3 pb-3 border-b">
             <div className="w-1.5 h-6 bg-primary rounded-full" />
             <User className="h-4 w-4 text-primary" />
             <h3 className="text-base font-semibold">Información del Asegurado</h3>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-2.5">
             <input type="checkbox" id="sameClient" checked={useClientAsInsured} onChange={e => setUseClientAsInsured(e.target.checked)} className="h-4 w-4" />
             <Label htmlFor="sameClient" className="font-normal cursor-pointer">El asegurado es el mismo cliente ({policy.clients.nombre})</Label>
           </div>
           {!useClientAsInsured && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg border">
-              <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/30 p-3">
+              <div className="col-span-2 space-y-2">
                 <Label>Nombre del Asegurado</Label>
                 <Input value={formData.nombre_asegurado} onChange={e => setFormData({ ...formData, nombre_asegurado: e.target.value })} placeholder="Nombre completo" />
               </div>
@@ -936,12 +974,12 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         </div>
 
         {/* Facturación */}
-        <div className="space-y-4">
+        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:col-span-4">
           <div className="flex items-center gap-3 pb-3 border-b">
             <div className="w-1.5 h-6 bg-primary rounded-full" />
             <h3 className="text-base font-semibold">Facturación</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-2">
             <div className="space-y-2">
               <Label>Prima / Monto</Label>
               <div className="flex gap-2">
@@ -975,13 +1013,13 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         </div>
 
         {/* Documentos */}
-        <div className="space-y-4">
+        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:col-span-4">
           <div className="flex items-center gap-3 pb-3 border-b">
             <div className="w-1.5 h-6 bg-primary rounded-full" />
             <h3 className="text-base font-semibold">Documentos</h3>
           </div>
-          <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors bg-muted/20">
-            <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+          <div className="rounded-lg border-2 border-dashed border-border bg-muted/20 p-3 text-center transition-colors hover:border-primary/50">
+            <Upload className="mx-auto mb-1 h-5 w-5 text-muted-foreground" />
             <label htmlFor="renewal-file-upload" className="cursor-pointer text-sm font-medium hover:text-primary transition-colors">
               Cargar archivos adjuntos
               <input id="renewal-file-upload" type="file" multiple className="sr-only" accept=".pdf,.doc,.docx" onChange={handleFileChange} />
@@ -989,9 +1027,9 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
             <p className="text-xs text-muted-foreground mt-1">PDF, DOC, DOCX hasta 10MB</p>
           </div>
           {fileAttachments.length > 0 && (
-            <div className="space-y-2">
+            <div className="max-h-16 space-y-1 overflow-y-auto">
               {fileAttachments.map(att => (
-                <div key={att.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                <div key={att.id} className="flex items-center justify-between rounded-lg border bg-muted/30 p-2">
                   <div className="flex items-center gap-3 min-w-0">
                     <FileText className="h-4 w-4 text-primary flex-shrink-0" />
                     <div className="min-w-0">
@@ -1012,13 +1050,13 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         </div>
 
         {/* Notas */}
-        <div className="space-y-2">
+        <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3 lg:col-span-4">
           <Label>Notas de Renovación</Label>
           <Textarea value={formData.notas} onChange={e => setFormData({ ...formData, notas: e.target.value })} placeholder="Observaciones sobre la renovación..." rows={3} className="resize-none" />
         </div>
 
         {/* Botones */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
+        <div className="flex justify-end gap-3 border-t border-white/10 pt-3 lg:col-span-12">
           <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>Cancelar</Button>
           <Button type="submit" disabled={loading}>
             {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Renovando...</> : "Confirmar Renovación"}

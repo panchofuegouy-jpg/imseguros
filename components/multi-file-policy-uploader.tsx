@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Loader2, Upload, X, FileText, CheckCircle, AlertCircle, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { Progress } from "@/components/ui/progress"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { normalizeOcrDate } from "@/lib/ocr-date"
@@ -71,6 +70,7 @@ interface MultiFilePolicyUploaderProps {
 
 // Campos editables que el usuario revisa antes de guardar
 interface PolicyDraft {
+    tipo_movimiento: 'poliza' | 'cambio_vehiculo';
     numero_poliza: string;
     tipo: string;
     company_id: string;
@@ -78,6 +78,8 @@ interface PolicyDraft {
     vigencia_fin: string;
     prima_monto: string;
     moneda: string;
+    vehiculo_anterior: string;
+    vehiculo_nuevo: string;
 }
 
 interface FileStatus {
@@ -131,8 +133,30 @@ export function MultiFilePolicyUploader({
     const buildDraft = (extracted: any): PolicyDraft => {
         const defaultStart = new Date().toISOString().split('T')[0];
         const defaultEnd = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0];
-        const primaRaw = extracted.total_a_pagar ?? extracted.prima_monto ?? extracted.prima ?? extracted.monto ?? extracted.importe ?? extracted.premio;
+        const movementText = String(
+            extracted.tipo_movimiento ??
+            extracted.tipo_documento ??
+            extracted.movimiento ??
+            extracted.motivo ??
+            extracted.notas ??
+            extracted.tipo ??
+            ''
+        ).toLowerCase();
+        const diferenciaRaw =
+            extracted.diferencia ??
+            extracted.diferencia_a_pagar ??
+            extracted.importe_diferencia ??
+            extracted.ajuste ??
+            extracted.saldo;
+        const isVehicleChange =
+            extracted.cambio_vehiculo === true ||
+            diferenciaRaw != null ||
+            /cambio.+veh[ií]culo|sustituci[oó]n.+veh[ií]culo|endoso/.test(movementText);
+        const primaRaw = isVehicleChange
+            ? diferenciaRaw ?? extracted.total_a_pagar ?? extracted.importe
+            : extracted.total_a_pagar ?? extracted.prima_monto ?? extracted.prima ?? extracted.monto ?? extracted.importe ?? extracted.premio;
         return {
+            tipo_movimiento: isVehicleChange ? 'cambio_vehiculo' : 'poliza',
             numero_poliza: extracted.numero_poliza != null ? String(extracted.numero_poliza) : '',
             tipo: extracted.tipo != null ? String(extracted.tipo) : '',
             company_id: matchCompanyId(extracted),
@@ -140,6 +164,19 @@ export function MultiFilePolicyUploader({
             vigencia_fin: normalizeOcrDate(extracted.vigencia_fin, defaultEnd),
             prima_monto: primaRaw != null ? String(primaRaw) : '',
             moneda: extracted.moneda ?? 'UYU',
+            vehiculo_anterior: String(
+                extracted.vehiculo_anterior ??
+                extracted.matricula_anterior ??
+                extracted.bien_anterior ??
+                ''
+            ),
+            vehiculo_nuevo: String(
+                extracted.vehiculo_nuevo ??
+                extracted.matricula_nueva ??
+                extracted.bien_nuevo ??
+                extracted.descripcion_vehiculo ??
+                ''
+            ),
         };
     };
 
@@ -183,6 +220,19 @@ export function MultiFilePolicyUploader({
                 formData.append('filePath', storedPath);
                 formData.append('clientId', clientId);
                 formData.append('fileName', fileStatus.file.name);
+                formData.append('analysisContext', 'poliza_o_cambio_de_vehiculo');
+                formData.append('expectedFields', JSON.stringify([
+                    'tipo_movimiento',
+                    'numero_poliza',
+                    'aseguradora',
+                    'tipo',
+                    'vigencia_inicio',
+                    'vigencia_fin',
+                    'diferencia',
+                    'moneda',
+                    'vehiculo_anterior',
+                    'vehiculo_nuevo',
+                ]));
 
                 const webhookResponse = await fetch('/api/ocr-webhook', {
                     method: 'POST',
@@ -229,7 +279,14 @@ export function MultiFilePolicyUploader({
 
         const parsePrimaMonto = (val: any): number | null => {
             if (val === null || val === undefined || val === '') return null;
-            const num = parseFloat(String(val).replace(/[^\d.,-]/g, '').replace(',', '.'));
+            const cleaned = String(val).replace(/[^\d.,-]/g, '');
+            const lastComma = cleaned.lastIndexOf(',');
+            const lastDot = cleaned.lastIndexOf('.');
+            const decimalSeparator = lastComma > lastDot ? ',' : '.';
+            const normalized = decimalSeparator === ','
+                ? cleaned.replace(/\./g, '').replace(',', '.')
+                : cleaned.replace(/,/g, '');
+            const num = parseFloat(normalized);
             return isNaN(num) ? null : num;
         };
 
@@ -248,6 +305,18 @@ export function MultiFilePolicyUploader({
                 const d = fileStatus.draft;
                 const extracted = fileStatus.extracted ?? {};
                 const defaultEnd = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0];
+                const parsedAmount = parsePrimaMonto(d.prima_monto);
+                const movementNote = d.tipo_movimiento === 'cambio_vehiculo'
+                    ? [
+                        'CAMBIO DE VEHÍCULO.',
+                        d.vehiculo_anterior ? `Vehículo anterior: ${d.vehiculo_anterior}.` : '',
+                        d.vehiculo_nuevo ? `Vehículo nuevo: ${d.vehiculo_nuevo}.` : '',
+                        parsedAmount != null
+                            ? `Diferencia: ${d.moneda || 'UYU'} ${parsedAmount}.`
+                            : 'Diferencia no informada.',
+                    ].filter(Boolean).join(' ')
+                    : '';
+                const extractedNotes = extracted.notas ?? `Cargado automáticamente desde ${fileStatus.file.name}`;
 
                 const policyData = {
                     client_id: clientId,
@@ -261,8 +330,8 @@ export function MultiFilePolicyUploader({
                     parentesco: extracted.parentesco ?? 'Titular',
                     archivo_url: fileStatus.storedPath,
                     archivo_urls: [fileStatus.storedPath],
-                    notas: extracted.notas ?? `Cargado automáticamente desde ${fileStatus.file.name}`,
-                    prima_monto: parsePrimaMonto(d.prima_monto),
+                    notas: [movementNote, extractedNotes].filter(Boolean).join(' '),
+                    prima_monto: parsedAmount,
                     moneda: d.moneda || 'UYU',
                     forma_pago: extracted.forma_pago ?? extracted.frecuencia_pago ?? null,
                     numero_factura: extracted.numero_factura ?? extracted.factura ?? null,
@@ -352,22 +421,22 @@ export function MultiFilePolicyUploader({
     const completedCount = files.filter(f => f.status === 'completed').length;
     const busy = isProcessing || isSaving;
 
-    const selectClass = "flex h-8 w-full rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50";
+    const selectClass = "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50";
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => { if (!busy) setIsOpen(open); }}>
             <DialogTrigger asChild>
                 {trigger || <Button variant="outline">Cargar Pólizas</Button>}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[700px] max-h-[90vh]">
+            <DialogContent className="h-[min(96vh,900px)] w-[calc(100vw-1rem)] max-h-[96vh] grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden p-4 sm:max-w-[1100px] sm:p-5">
                 <DialogHeader>
-                    <DialogTitle>Carga Masiva de Pólizas</DialogTitle>
+                    <DialogTitle className="text-xl">Carga Masiva de Pólizas</DialogTitle>
                     <DialogDescription>
                         Selecciona archivos PDF o imágenes. El sistema extrae los datos con OCR y podés revisarlos antes de guardar.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4">
+                <div className="flex min-h-0 flex-col gap-3">
                     <div className="grid w-full items-center gap-1.5">
                         <Input
                             id="policy-files"
@@ -382,8 +451,12 @@ export function MultiFilePolicyUploader({
                         </p>
                     </div>
 
-                    <ScrollArea className="h-[400px] w-full rounded-md border p-4">
-                        <div className="space-y-3">
+                    <div
+                        className={`min-h-0 w-full flex-1 rounded-md border bg-black/10 p-3 ${
+                            files.length <= 1 ? 'overflow-visible' : 'overflow-y-auto'
+                        }`}
+                    >
+                        <div className="space-y-4 pr-2">
                             {files.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
                                     <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -392,7 +465,7 @@ export function MultiFilePolicyUploader({
                                 </div>
                             ) : (
                                 files.map((fileStatus, index) => (
-                                    <Card key={index}>
+                                    <Card key={index} className="gap-0 border-border/80 bg-card/70 py-0">
                                         <CardContent className="p-4">
                                             <div className="flex items-start justify-between mb-2">
                                                 <div className="flex items-center gap-2 overflow-hidden flex-1">
@@ -439,14 +512,31 @@ export function MultiFilePolicyUploader({
                                             )}
 
                                             {(fileStatus.status === 'ready' || fileStatus.status === 'saving') && fileStatus.draft && (
-                                                <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
+                                                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 lg:grid-cols-4">
+                                                    <div className="col-span-2 lg:col-span-4">
+                                                        <label className="text-[11px] font-medium text-muted-foreground">Tipo de movimiento</label>
+                                                        <select
+                                                            value={fileStatus.draft.tipo_movimiento}
+                                                            onChange={e => updateDraft(index, 'tipo_movimiento', e.target.value)}
+                                                            disabled={fileStatus.status === 'saving'}
+                                                            className={selectClass}
+                                                        >
+                                                            <option value="poliza">Póliza nueva</option>
+                                                            <option value="cambio_vehiculo">Cambio de vehículo / diferencia</option>
+                                                        </select>
+                                                        {fileStatus.draft.tipo_movimiento === 'cambio_vehiculo' && (
+                                                            <p className="mt-1 text-[11px] text-primary">
+                                                                El monto se guardará como diferencia del cambio, no como prima total.
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                     <div className="col-span-2 sm:col-span-1">
                                                         <label className="text-[11px] text-muted-foreground">N° Póliza</label>
                                                         <Input
                                                             value={fileStatus.draft.numero_poliza}
                                                             onChange={e => updateDraft(index, 'numero_poliza', e.target.value)}
                                                             disabled={fileStatus.status === 'saving'}
-                                                            className="h-8 text-xs"
+                                                            className="h-9 text-sm"
                                                         />
                                                     </div>
                                                     <div className="col-span-2 sm:col-span-1">
@@ -455,7 +545,7 @@ export function MultiFilePolicyUploader({
                                                             value={fileStatus.draft.tipo}
                                                             onChange={e => updateDraft(index, 'tipo', e.target.value)}
                                                             disabled={fileStatus.status === 'saving'}
-                                                            className="h-8 text-xs"
+                                                            className="h-9 text-sm"
                                                         />
                                                     </div>
                                                     <div className="col-span-2">
@@ -479,7 +569,7 @@ export function MultiFilePolicyUploader({
                                                             value={fileStatus.draft.vigencia_inicio}
                                                             onChange={e => updateDraft(index, 'vigencia_inicio', e.target.value)}
                                                             disabled={fileStatus.status === 'saving'}
-                                                            className="h-8 text-xs"
+                                                            className="h-9 text-sm"
                                                         />
                                                     </div>
                                                     <div>
@@ -489,17 +579,19 @@ export function MultiFilePolicyUploader({
                                                             value={fileStatus.draft.vigencia_fin}
                                                             onChange={e => updateDraft(index, 'vigencia_fin', e.target.value)}
                                                             disabled={fileStatus.status === 'saving'}
-                                                            className="h-8 text-xs"
+                                                            className="h-9 text-sm"
                                                         />
                                                     </div>
                                                     <div className="col-span-2 flex gap-3">
                                                         <div className="flex-1">
-                                                            <label className="text-[11px] text-muted-foreground">Prima / Total</label>
+                                                            <label className="text-[11px] text-muted-foreground">
+                                                                {fileStatus.draft.tipo_movimiento === 'cambio_vehiculo' ? 'Diferencia' : 'Prima / Total'}
+                                                            </label>
                                                             <Input
                                                                 value={fileStatus.draft.prima_monto}
                                                                 onChange={e => updateDraft(index, 'prima_monto', e.target.value)}
                                                                 disabled={fileStatus.status === 'saving'}
-                                                                className="h-8 text-xs"
+                                                                className="h-9 text-sm"
                                                                 placeholder="0"
                                                             />
                                                         </div>
@@ -516,6 +608,30 @@ export function MultiFilePolicyUploader({
                                                             </select>
                                                         </div>
                                                     </div>
+                                                    {fileStatus.draft.tipo_movimiento === 'cambio_vehiculo' && (
+                                                        <>
+                                                            <div className="col-span-1 lg:col-span-2">
+                                                                <label className="text-[11px] text-muted-foreground">Vehículo anterior</label>
+                                                                <Input
+                                                                    value={fileStatus.draft.vehiculo_anterior}
+                                                                    onChange={e => updateDraft(index, 'vehiculo_anterior', e.target.value)}
+                                                                    disabled={fileStatus.status === 'saving'}
+                                                                    className="h-9 text-sm"
+                                                                    placeholder="Matrícula, marca y modelo"
+                                                                />
+                                                            </div>
+                                                            <div className="col-span-1 lg:col-span-2">
+                                                                <label className="text-[11px] text-muted-foreground">Vehículo nuevo</label>
+                                                                <Input
+                                                                    value={fileStatus.draft.vehiculo_nuevo}
+                                                                    onChange={e => updateDraft(index, 'vehiculo_nuevo', e.target.value)}
+                                                                    disabled={fileStatus.status === 'saving'}
+                                                                    className="h-9 text-sm"
+                                                                    placeholder="Matrícula, marca y modelo"
+                                                                />
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             )}
 
@@ -530,7 +646,7 @@ export function MultiFilePolicyUploader({
                                 ))
                             )}
                         </div>
-                    </ScrollArea>
+                    </div>
 
                     <div className="flex justify-between items-center gap-2 pt-2 border-t">
                         <div className="text-xs text-muted-foreground">

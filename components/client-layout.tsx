@@ -71,15 +71,17 @@ export function ClientLayout({ children }: ClientLayoutProps) {
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    "group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-xs font-medium transition-colors",
                     isActive 
                       ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs" 
                       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center">
+                    <item.icon className="h-4 w-4 stroke-[1.8]" />
+                  </span>
+                  <span className="truncate leading-none">{item.name}</span>
                 </Link>
               )
             })}
@@ -94,7 +96,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-40 lg:flex-col">
         <div className="flex flex-col flex-grow bg-sidebar border-r border-sidebar-border">
           <div className="flex h-16 items-center justify-center border-b border-sidebar-border">
             <img src="/IM_IDEINTIDAD-LOGO.png" alt="IM Seguros Logo" className="h-8 w-auto" />
@@ -107,14 +109,16 @@ export function ClientLayout({ children }: ClientLayoutProps) {
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    "group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-xs font-medium transition-colors",
                     isActive 
                       ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs" 
                       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                 >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center">
+                    <item.icon className="h-4 w-4 stroke-[1.8]" />
+                  </span>
+                  <span className="truncate leading-none">{item.name}</span>
                 </Link>
               )
             })}
@@ -130,7 +134,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-40">
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-sidebar px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
           <button type="button" className="-m-2.5 p-2.5 text-foreground lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6" />

@@ -11,12 +11,13 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, Dr
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import PolicyForm from "@/components/policy-form";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Mail, Phone, FileText, User, CalendarDays, Edit, Trash2, ExternalLink, Search, MessageCircle, Send } from 'lucide-react';
+import { Mail, Phone, User, Edit, Trash2, ExternalLink, Search, MessageCircle, Send, MapPin, IdCard, Building2, Hash, Sparkles } from 'lucide-react';
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
 import { CreateClientDialog } from "./create-client-dialog";
 import { MultiFilePolicyUploader } from "./multi-file-policy-uploader";
+import { PolicyOcrUpdateDialog } from "./policy-ocr-update-dialog";
 
 interface Client {
     id: string;
@@ -553,47 +554,83 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
             : files;
 
         if (!toShow || toShow.length === 0) {
-            return <span className="text-muted-foreground">Sin archivos</span>;
+            return <span className="text-[10px] text-muted-foreground">N/A</span>;
         }
 
         // Deduplicate URLs
         const unique = Array.from(new Set(toShow));
 
         return (
-            <div className="space-y-1">
+            <div className="flex flex-wrap items-center justify-center gap-1">
                 {unique.map((url, index) => (
                     <a
-                        key={index}
+                        key={url}
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center text-primary hover:underline text-sm"
+                        className="inline-flex h-6 min-w-6 items-center justify-center gap-0.5 rounded-md border border-primary/50 bg-primary/15 px-1 text-[9px] font-semibold text-foreground hover:bg-primary/25"
+                        title={`Abrir documento ${index + 1}`}
                     >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Archivo {index + 1}
+                        <ExternalLink className="h-2.5 w-2.5" />
+                        {unique.length > 1 && index + 1}
                     </a>
                 ))}
             </div>
         );
     };
 
+    const formatPolicyDate = (dateString: string) => {
+        const [year, month, day] = dateString.split('T')[0].split('-');
+        return year && month && day ? `${day}/${month}/${year}` : dateString;
+    };
+
+    const clientInitials = client.nombre
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join('')
+        .toUpperCase();
+
+    const policiesWithAmount = policies.filter((policy) => policy.prima_monto != null);
+    const totalPremiumUYU = policiesWithAmount
+        .filter((policy) => (policy.moneda || 'UYU') === 'UYU')
+        .reduce((total, policy) => total + Number(policy.prima_monto), 0);
+    const totalPremiumUSD = policiesWithAmount
+        .filter((policy) => policy.moneda === 'USD')
+        .reduce((total, policy) => total + Number(policy.prima_monto), 0);
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {/* Client Details Card */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-2xl flex items-center justify-between">
-                        <div className="flex items-center">
-                            <User className="h-6 w-6 mr-2" />
-                            {client.nombre}
+            <Card className="relative overflow-hidden border-border/80 bg-card/80 shadow-sm">
+                <div className="absolute inset-x-0 top-0 h-1 bg-primary" />
+                <CardHeader className="border-b border-border/70 bg-muted/10 px-4 py-3.5">
+                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary/15 text-sm font-bold text-foreground">
+                                {clientInitials || <User className="h-6 w-6" />}
+                            </div>
+                            <div className="min-w-0">
+                                <CardDescription className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
+                                    Perfil del cliente
+                                </CardDescription>
+                                <CardTitle className="truncate text-lg font-bold uppercase tracking-tight sm:text-xl" title={client.nombre}>
+                                    {client.nombre}
+                                </CardTitle>
+                                <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-border/80 bg-background/60 px-2 py-0.5 text-[9px] font-semibold uppercase text-muted-foreground">
+                                    <Hash className="h-3 w-3 text-primary" />
+                                    Cliente {client.numero_cliente || 'N/A'}
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
                             {client.telefono && getWhatsAppLink(client.telefono) && (
                                 <Button
                                     variant="outline"
                                     size="icon"
                                     onClick={() => window.open(getWhatsAppLink(client.telefono)!, '_blank')}
-                                    className="border-primary/50 text-primary hover:bg-primary/10"
+                                    className="h-9 w-9 border-primary/50 text-primary hover:bg-primary/10"
                                     title="Abrir WhatsApp"
                                 >
                                     <MessageCircle className="h-4 w-4" />
@@ -604,17 +641,18 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                     variant="outline"
                                     size="icon"
                                     onClick={() => setIsSendCredentialsOpen(true)}
+                                    className="h-9 w-9"
                                     title="Enviar credenciales de acceso"
                                 >
                                     <Send className="h-4 w-4" />
                                 </Button>
                             )}
-                            <Button variant="outline" size="icon" onClick={() => setIsEditModalOpen(true)}>
+                            <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setIsEditModalOpen(true)} title="Editar cliente">
                                 <Edit className="h-4 w-4" />
                             </Button>
                             <AlertDialog open={isDeleteClientDialogOpen} onOpenChange={setIsDeleteClientDialogOpen}>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" size="icon">
+                                    <Button variant="destructive" size="icon" className="h-9 w-9" title="Eliminar cliente">
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </AlertDialogTrigger>
@@ -635,49 +673,83 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                 </AlertDialogContent>
                             </AlertDialog>
                         </div>
-                    </CardTitle>
-                    <CardDescription>Detalles del Cliente</CardDescription>
+                    </div>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                    <div className="flex items-center">
-                        <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span>{client.email}</span>
+                <CardContent className="grid gap-2.5 p-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1.6fr_1fr]">
+                    <div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border/70 bg-background/35 p-2.5">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
+                            <Mail className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Email</p>
+                            <p className="truncate text-sm font-semibold normal-case" title={client.email}>{client.email || 'SIN EMAIL'}</p>
+                        </div>
                     </div>
                     {client.telefono && (
-                        <div className="flex items-center gap-3">
-                            <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <span>{client.telefono}</span>
-                            {getWhatsAppLink(client.telefono) && (
+                        <div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border/70 bg-background/35 p-2.5">
+                            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
+                                <Phone className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Teléfono</p>
                                 <a
-                                    href={getWhatsAppLink(client.telefono)!}
+                                    href={getWhatsAppLink(client.telefono) || undefined}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
+                                    className="truncate text-sm font-semibold hover:text-primary"
                                 >
-                                    <MessageCircle className="h-3 w-3" />
-                                    WhatsApp
+                                    {client.telefono}
                                 </a>
-                            )}
+                            </div>
                         </div>
                     )}
-                    <div className="flex items-center">
-                        <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span>Documento: {client.documento}</span>
+                    <div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border/70 bg-background/35 p-2.5">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
+                            <IdCard className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Documento</p>
+                            <p className="truncate text-sm font-semibold">{client.documento || 'N/A'}</p>
+                        </div>
                     </div>
                     {client.direccion && (
-                        <div className="flex items-center">
-                            <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
-                            <span>Dirección: {client.direccion}</span>
+                        <div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border/70 bg-background/35 p-2.5">
+                            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
+                                <MapPin className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Dirección</p>
+                                <p className="truncate text-sm font-semibold uppercase" title={client.direccion}>{client.direccion}</p>
+                            </div>
                         </div>
                     )}
-                    <div className="flex items-center">
-                        <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span>Número de Cliente: <strong className="text-primary">#{client.numero_cliente || 'N/A'}</strong></span>
-                    </div>
                     {client.departamento && (
-                        <div className="flex items-center">
-                            <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
-                            <span>Departamento: {client.departamento}</span>
+                        <div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border/70 bg-background/35 p-2.5">
+                            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
+                                <Building2 className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Departamento</p>
+                                <p className="truncate text-sm font-semibold uppercase">{client.departamento}</p>
+                            </div>
+                        </div>
+                    )}
+                    {policiesWithAmount.length > 0 && (
+                        <div className="col-span-full grid gap-2 border-t border-border/70 pt-2.5 sm:grid-cols-3">
+                            <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+                                <span className="text-[10px] font-semibold uppercase text-muted-foreground">Prima total UYU</span>
+                                <strong className="text-sm">{totalPremiumUYU.toLocaleString('es-UY', { minimumFractionDigits: 2 })}</strong>
+                            </div>
+                            {totalPremiumUSD > 0 && (
+                                <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+                                    <span className="text-[10px] font-semibold uppercase text-muted-foreground">Prima total USD</span>
+                                    <strong className="text-sm">{totalPremiumUSD.toLocaleString('es-UY', { minimumFractionDigits: 2 })}</strong>
+                                </div>
+                            )}
+                            <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+                                <span className="text-[10px] font-semibold uppercase text-muted-foreground">Pólizas con monto</span>
+                                <strong className="text-sm">{policiesWithAmount.length} / {policies.length}</strong>
+                            </div>
                         </div>
                     )}
                 </CardContent>
@@ -690,70 +762,9 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                 onClientUpdated={handleClientUpdated}
             />
 
-            {/* Resumen de facturación del cliente */}
-            {(() => {
-                const withMonto = policies.filter(p => p.prima_monto != null)
-                const totalUYU = withMonto
-                    .filter(p => (p.moneda || 'UYU') === 'UYU')
-                    .reduce((acc, p) => acc + Number(p.prima_monto), 0)
-                const totalUSD = withMonto
-                    .filter(p => p.moneda === 'USD')
-                    .reduce((acc, p) => acc + Number(p.prima_monto), 0)
-
-                if (withMonto.length === 0) return null
-
-                return (
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Prima Total UYU</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">
-                                    {totalUYU.toLocaleString('es-UY', { minimumFractionDigits: 2 })}
-                                </div>
-                                <p className="text-xs text-muted-foreground">Pesos uruguayos</p>
-                            </CardContent>
-                        </Card>
-                        {totalUSD > 0 && (
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">Prima Total USD</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">
-                                        {totalUSD.toLocaleString('es-UY', { minimumFractionDigits: 2 })}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">Dólares</p>
-                                </CardContent>
-                            </Card>
-                        )}
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Pólizas con Monto</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{withMonto.length}</div>
-                                <p className="text-xs text-muted-foreground">
-                                    de {policies.length} pólizas totales
-                                </p>
-                            </CardContent>
-                        </Card>
-                    </div>
-                )
-            })()}
-
-            {/* Policies Section */}
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-2xl font-bold">Pólizas Asociadas</h2>
-                    <p className="text-muted-foreground">Gestiona las pólizas de {client.nombre}</p>
-                </div>
-            </div>
-
             {/* Search Filter */}
-            <div className="flex items-center space-x-2">
-                <div className="relative flex-1 max-w-md">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Buscar por número de póliza, aseguradora, tipo, teléfono, notas..."
@@ -762,18 +773,29 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                         className="pl-8"
                     />
                 </div>
-            </div>
-
-            <div className="flex justify-end">
+                <div className="flex flex-shrink-0 justify-end gap-2">
+                <MultiFilePolicyUploader
+                    clientId={client.id}
+                    companies={companies}
+                    onUploadComplete={() => {
+                        fetchPolicies();
+                    }}
+                    trigger={
+                        <Button className="gap-2 font-semibold shadow-sm">
+                            <Sparkles className="h-4 w-4" />
+                            Cargar Pólizas con IA
+                        </Button>
+                    }
+                />
                 <div>
                     {isMobile ? (
                         <Drawer open={isFormOpen} onOpenChange={setIsFormOpen}>
                             <DrawerTrigger asChild>
-                                <Button>Crear Nueva Póliza</Button>
+                                <Button variant="outline">Cargar Póliza Manual</Button>
                             </DrawerTrigger>
                             <DrawerContent className="h-[95vh]">
                                 <DrawerHeader className="text-left">
-                                    <DrawerTitle>Crear Nueva Póliza</DrawerTitle>
+                                    <DrawerTitle>Cargar Póliza Manual</DrawerTitle>
                                     <DrawerDescription>Ingresa los detalles de la nueva póliza para {client.nombre}.</DrawerDescription>
                                 </DrawerHeader>
                                 <div className="px-4 pb-4 overflow-y-auto flex-1">
@@ -784,11 +806,11 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                     ) : (
                         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
                             <DialogTrigger asChild>
-                                <Button>Crear Nueva Póliza</Button>
+                                <Button variant="outline">Cargar Póliza Manual</Button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-6xl max-h-[95vh] overflow-y-auto">
+                            <DialogContent className="w-[calc(100vw-1rem)] max-h-[96vh] gap-3 overflow-hidden p-4 sm:max-w-[1280px]">
                                 <DialogHeader>
-                                    <DialogTitle>Crear Nueva Póliza</DialogTitle>
+                                    <DialogTitle>Cargar Póliza Manual</DialogTitle>
                                     <DialogDescription>Ingresa los detalles de la nueva póliza para {client.nombre}.</DialogDescription>
                                 </DialogHeader>
                                 <PolicyForm clients={[{ id: client.id, nombre: client.nombre }]} companies={companies} onSubmit={handleCreatePolicy} />
@@ -796,86 +818,92 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                         </Dialog>
                     )}
                 </div>
-                <div className="ml-2">
-                    <MultiFilePolicyUploader
-                        clientId={client.id}
-                        companies={companies}
-                        onUploadComplete={() => {
-                            fetchPolicies();
-                        }}
-                    />
-                </div>
+            </div>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>
-                        Listado de Pólizas ({filteredPolicies.length}{filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})
+            <Card className="gap-4 py-4 uppercase">
+                <CardHeader className="px-4">
+                    <CardTitle className="text-sm">
+                        Pólizas ({filteredPolicies.length}{filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})
                     </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-3 sm:px-4">
                     {filteredPolicies.length === 0 ? (
                         <p>{policies.length === 0 ? "No hay pólizas registradas para este cliente." : "No se encontraron pólizas que coincidan con la búsqueda."}</p>
                     ) : (
-                        <Table>
+                        <div className="overflow-hidden rounded-md border border-border/70">
+                        <Table className="table-fixed text-xs">
                             <TableHeader>
-                                <TableRow>
-                                    <TableHead>Número de Póliza</TableHead>
-                                    <TableHead>Asegurado</TableHead>
-                                    <TableHead>Aseguradora</TableHead>
-                                    <TableHead>Tipo</TableHead>
-                                    <TableHead>Prima</TableHead>
-                                    <TableHead>Inicio Vigencia</TableHead>
-                                    <TableHead>Fin Vigencia</TableHead>
-                                    <TableHead>Documentos</TableHead>
-                                    <TableHead>Notas</TableHead>
-                                    <TableHead>Acciones</TableHead>
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="w-[9%] px-2 text-center text-[10px]">Póliza</TableHead>
+                                    <TableHead className="w-[23%] border-l border-dashed border-border px-2 text-[10px]">Notas</TableHead>
+                                    <TableHead className="w-[8%] border-l border-dashed border-border px-1 text-center text-[10px]">Aseguradora</TableHead>
+                                    <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-[10px]">Tipo</TableHead>
+                                    <TableHead className="w-[12%] border-l border-dashed border-border px-1 text-center text-[10px]">Prima</TableHead>
+                                    <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-[10px]">Inicio</TableHead>
+                                    <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-[10px]">Fin</TableHead>
+                                    <TableHead className="w-[8%] border-l border-dashed border-border px-1 text-center text-[10px]">Documentos</TableHead>
+                                    <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-[10px]">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredPolicies.map((policy) => (
                                     <TableRow key={policy.id}>
-                                        <TableCell>{policy.numero_poliza}</TableCell>
-                                        <TableCell>
-                                            <div>
-                                                <p className="font-medium">
-                                                    {policy.nombre_asegurado || client.nombre}
-                                                </p>
-                                                {policy.nombre_asegurado && (
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {policy.parentesco} de {client.nombre}
-                                                    </p>
-                                                )}
-                                            </div>
+                                        <TableCell className="truncate px-2 text-center font-bold">{policy.numero_poliza}</TableCell>
+                                        <TableCell className="border-l border-dashed border-border px-2 text-left">
+                                            <span className="block truncate text-[10px] font-medium text-foreground/80" title={policy.notas || "SIN NOTAS"}>
+                                                {policy.notas || "N/A"}
+                                            </span>
                                         </TableCell>
-                                        <TableCell>{policy.companies?.name || "N/A"}</TableCell>
-                                        <TableCell>{policy.tipo}</TableCell>
-                                        <TableCell>
+                                        <TableCell className="border-l border-dashed border-border px-1 text-center">
+                                            <span className="inline-flex max-w-full truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-1 font-semibold">
+                                                {policy.companies?.name || "N/A"}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="border-l border-dashed border-border px-1 text-center">
+                                            <span className="inline-flex max-w-full truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-1 font-semibold" title={policy.tipo}>
+                                                {policy.tipo}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="border-l border-dashed border-border px-1 text-center">
                                             {policy.prima_monto != null ? (
-                                                <span className="font-medium text-sm">
+                                                <span className="inline-flex max-w-full flex-col rounded-md border border-border/80 bg-muted/40 px-1.5 py-1 font-semibold leading-tight">
                                                     {policy.moneda || 'UYU'} {Number(policy.prima_monto).toLocaleString('es-UY', { minimumFractionDigits: 2 })}
-                                                    {policy.forma_pago && <span className="text-xs text-muted-foreground block">{policy.forma_pago}</span>}
                                                 </span>
                                             ) : <span className="text-muted-foreground">—</span>}
                                         </TableCell>
-                                        <TableCell>{policy.vigencia_inicio}</TableCell>
-                                        <TableCell>{policy.vigencia_fin}</TableCell>
-                                        <TableCell>
+                                        <TableCell className="border-l border-dashed border-border px-1 text-center">
+                                            <span className="inline-flex rounded-md border border-border/80 bg-muted/40 px-1 py-1 text-[10px] font-semibold">
+                                                {formatPolicyDate(policy.vigencia_inicio)}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="border-l border-dashed border-border px-1 text-center">
+                                            <span className="inline-flex rounded-md border border-border/80 bg-muted/40 px-1 py-1 text-[10px] font-semibold">
+                                                {formatPolicyDate(policy.vigencia_fin)}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="border-l border-dashed border-border px-1 text-center">
                                             {renderPolicyFiles(policy)}
                                         </TableCell>
-                                        <TableCell>{policy.notas || "N/A"}</TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                <Button variant="outline" size="icon" onClick={() => openEditForm(policy)}>
-                                                    <Edit className="h-4 w-4" />
+                                        <TableCell className="border-l border-dashed border-border px-1">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <PolicyOcrUpdateDialog
+                                                    policy={policy}
+                                                    companies={companies}
+                                                    onSuccess={fetchPolicies}
+                                                />
+                                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openEditForm(policy)} title="Editar">
+                                                    <Edit className="h-3.5 w-3.5" />
                                                 </Button>
                                                 <Button
                                                     variant="destructive"
                                                     size="icon"
+                                                    className="h-7 w-7"
                                                     onClick={() => openDeleteDialog(policy)}
                                                     disabled={isDeleting}
+                                                    title="Eliminar"
                                                 >
-                                                    <Trash2 className="h-4 w-4" />
+                                                    <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
                                             </div>
                                         </TableCell>
@@ -883,6 +911,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                 ))}
                             </TableBody>
                         </Table>
+                        </div>
                     )}
                 </CardContent>
             </Card>
@@ -907,7 +936,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                 </Drawer>
             ) : (
                 <Dialog open={isEditPolicyFormOpen} onOpenChange={setIsEditPolicyFormOpen}>
-                    <DialogContent className="sm:max-w-6xl max-h-[95vh] overflow-y-auto">
+                    <DialogContent className="w-[calc(100vw-1rem)] max-h-[96vh] gap-3 overflow-hidden p-4 sm:max-w-[1280px]">
                         <DialogHeader>
                             <DialogTitle>Editar Póliza</DialogTitle>
                             <DialogDescription>Actualiza los detalles de la póliza.</DialogDescription>

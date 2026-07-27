@@ -3,12 +3,12 @@
 import React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Upload, FileText, X, User, Plus } from 'lucide-react'
+import { Upload, FileText, X, User } from 'lucide-react'
 import { createClient } from "@/lib/supabase/client"
 
 interface PolicyFormProps {
@@ -207,18 +207,18 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
 
   return (
     <div className="w-full">
-      <Card className="shadow-lg border bg-card w-full">
-        <CardContent className="p-4 sm:p-6">
-          <form onSubmit={handleSubmit} className="space-y-10">
+      <Card className="w-full border bg-card py-0 shadow-none">
+        <CardContent className="p-3">
+          <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-3">
             {/* Información del Cliente y Aseguradora */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-border">
-                <div className="w-2 h-8 bg-primary rounded-full"></div>
-                <h2 className="text-xl font-semibold text-foreground">Información General</h2>
+            <div className="col-span-12 space-y-2 rounded-xl border border-border bg-background/20 p-3 lg:col-span-4">
+              <div className="flex items-center gap-2 border-b border-border pb-2">
+                <div className="h-5 w-1.5 rounded-full bg-primary"></div>
+                <h2 className="text-sm font-semibold text-foreground">Información General</h2>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
                   <Label htmlFor="client_id" className="text-sm font-medium text-foreground">
                     Cliente Gestor <span className="text-destructive">*</span>
                   </Label>
@@ -227,7 +227,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                     onValueChange={(value) => setFormData({ ...formData, client_id: value })}
                     required
                   >
-                    <SelectTrigger className="h-12 bg-background border-input">
+                    <SelectTrigger className="h-9 bg-background border-input">
                       <SelectValue placeholder="Selecciona un cliente" />
                     </SelectTrigger>
                     <SelectContent>
@@ -238,18 +238,15 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Cliente que gestiona esta póliza
-                  </p>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-1">
                   <Label htmlFor="company_id" className="text-sm font-medium text-foreground">Aseguradora</Label>
                   <Select
                     value={formData.company_id}
                     onValueChange={(value) => setFormData({ ...formData, company_id: value })}
                   >
-                    <SelectTrigger className="h-12 bg-background border-input">
+                    <SelectTrigger className="h-9 bg-background border-input">
                       <SelectValue placeholder="Selecciona una aseguradora" />
                     </SelectTrigger>
                     <SelectContent>
@@ -265,14 +262,14 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
             </div>
 
             {/* Información del Asegurado */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-border">
-                <div className="w-2 h-8 bg-primary rounded-full"></div>
-                <User className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold text-foreground">Información del Asegurado</h2>
+            <div className="col-span-12 space-y-2 rounded-xl border border-border bg-background/20 p-3 lg:col-span-8">
+              <div className="flex items-center gap-2 border-b border-border pb-2">
+                <div className="h-5 w-1.5 rounded-full bg-primary"></div>
+                <User className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-semibold text-foreground">Información del Asegurado</h2>
               </div>
 
-              <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg border border-border">
+              <div className="flex items-center space-x-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
                 <input
                   type="checkbox"
                   id="useClientAsInsured"
@@ -286,14 +283,14 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
               </div>
 
               {!useClientAsInsured && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-muted/30 rounded-lg border border-border">
-                  <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2 rounded-lg border border-border bg-muted/30 p-2">
+                  <div className="space-y-1">
                     <Label htmlFor="nombre_asegurado" className="text-sm font-medium text-foreground">
                       Nombre del Asegurado <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       id="nombre_asegurado"
-                      className="h-12 bg-background border-input"
+                      className="h-9 bg-background border-input"
                       value={formData.nombre_asegurado}
                       onChange={(e) => setFormData({ ...formData, nombre_asegurado: e.target.value })}
                       placeholder="Nombre completo"
@@ -301,18 +298,18 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                     />
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-1">
                     <Label htmlFor="documento_asegurado" className="text-sm font-medium text-foreground">Documento</Label>
                     <Input
                       id="documento_asegurado"
-                      className="h-12 bg-background border-input"
+                      className="h-9 bg-background border-input"
                       value={formData.documento_asegurado}
                       onChange={(e) => setFormData({ ...formData, documento_asegurado: e.target.value })}
                       placeholder="CI del asegurado"
                     />
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-1">
                     <Label htmlFor="parentesco" className="text-sm font-medium text-foreground">
                       Parentesco <span className="text-destructive">*</span>
                     </Label>
@@ -321,7 +318,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                       onValueChange={(value) => setFormData({ ...formData, parentesco: value })}
                       required={!useClientAsInsured}
                     >
-                      <SelectTrigger className="h-12 bg-background border-input">
+                      <SelectTrigger className="h-9 bg-background border-input">
                         <SelectValue placeholder="Relación" />
                       </SelectTrigger>
                       <SelectContent>
@@ -340,7 +337,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
               )}
 
               {useClientAsInsured && selectedClient && (
-                <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                <div className="rounded-lg border border-primary/20 bg-primary/10 px-3 py-2">
                   <p className="text-sm text-primary font-medium">
                     <strong>Asegurado:</strong> {selectedClient.nombre} (Titular)
                   </p>
@@ -349,20 +346,20 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
             </div>
 
             {/* Detalles de la Póliza */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-border">
-                <div className="w-2 h-8 bg-primary rounded-full"></div>
-                <h2 className="text-xl font-semibold text-foreground">Detalles de la Póliza</h2>
+            <div className="col-span-12 space-y-2 rounded-xl border border-border bg-background/20 p-3 lg:col-span-6">
+              <div className="flex items-center gap-2 border-b border-border pb-2">
+                <div className="h-5 w-1.5 rounded-full bg-primary"></div>
+                <h2 className="text-sm font-semibold text-foreground">Detalles de la Póliza</h2>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
                   <Label htmlFor="numero_poliza" className="text-sm font-medium text-foreground">
                     Número de Póliza <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="numero_poliza"
-                    className="h-12 bg-background border-input"
+                    className="h-9 bg-background border-input"
                     value={formData.numero_poliza}
                     onChange={(e) => setFormData({ ...formData, numero_poliza: e.target.value })}
                     placeholder="Ej: POL-2024-001"
@@ -370,7 +367,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                   />
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-1">
                   <Label htmlFor="tipo" className="text-sm font-medium text-foreground">
                     Tipo de Póliza <span className="text-destructive">*</span>
                   </Label>
@@ -379,7 +376,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                     onValueChange={(value) => setFormData({ ...formData, tipo: value })}
                     required
                   >
-                    <SelectTrigger className="h-12 bg-background border-input">
+                    <SelectTrigger className="h-9 bg-background border-input">
                       <SelectValue placeholder="Selecciona el tipo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -403,29 +400,29 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
                   <Label htmlFor="vigencia_inicio" className="text-sm font-medium text-foreground">
                     Fecha de Inicio <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="vigencia_inicio"
                     type="date"
-                    className="h-12 bg-background border-input"
+                    className="h-9 bg-background border-input"
                     value={formData.vigencia_inicio}
                     onChange={(e) => setFormData({ ...formData, vigencia_inicio: e.target.value })}
                     required
                   />
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-1">
                   <Label htmlFor="vigencia_fin" className="text-sm font-medium text-foreground">
                     Fecha de Fin <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="vigencia_fin"
                     type="date"
-                    className="h-12 bg-background border-input"
+                    className="h-9 bg-background border-input"
                     value={formData.vigencia_fin}
                     onChange={(e) => setFormData({ ...formData, vigencia_fin: e.target.value })}
                     required
@@ -435,14 +432,14 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
             </div>
 
             {/* Facturación */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-border">
-                <div className="w-2 h-8 bg-primary rounded-full"></div>
-                <h2 className="text-xl font-semibold text-foreground">Facturación</h2>
+            <div className="col-span-12 space-y-2 rounded-xl border border-border bg-background/20 p-3 lg:col-span-6">
+              <div className="flex items-center gap-2 border-b border-border pb-2">
+                <div className="h-5 w-1.5 rounded-full bg-primary"></div>
+                <h2 className="text-sm font-semibold text-foreground">Facturación</h2>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
                   <Label htmlFor="prima_monto" className="text-sm font-medium text-foreground">
                     Prima / Monto Facturado
                   </Label>
@@ -451,7 +448,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                       value={formData.moneda}
                       onValueChange={(value) => setFormData({ ...formData, moneda: value })}
                     >
-                      <SelectTrigger className="h-12 w-28 bg-background border-input">
+                      <SelectTrigger className="h-9 w-24 bg-background border-input">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -466,14 +463,14 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                       min="0"
                       step="0.01"
                       placeholder="0.00"
-                      className="h-12 bg-background border-input flex-1"
+                      className="h-9 bg-background border-input flex-1"
                       value={formData.prima_monto}
                       onChange={(e) => setFormData({ ...formData, prima_monto: e.target.value })}
                     />
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-1">
                   <Label htmlFor="forma_pago" className="text-sm font-medium text-foreground">
                     Forma de Pago
                   </Label>
@@ -481,7 +478,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                     value={formData.forma_pago}
                     onValueChange={(value) => setFormData({ ...formData, forma_pago: value })}
                   >
-                    <SelectTrigger className="h-12 bg-background border-input">
+                    <SelectTrigger className="h-9 bg-background border-input">
                       <SelectValue placeholder="Seleccionar frecuencia" />
                     </SelectTrigger>
                     <SelectContent>
@@ -496,8 +493,8 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="col-span-2 space-y-1">
                   <Label htmlFor="numero_factura" className="text-sm font-medium text-foreground">
                     N° de Factura / Recibo
                   </Label>
@@ -505,7 +502,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                     id="numero_factura"
                     type="text"
                     placeholder="Ej: F-001234"
-                    className="h-12 bg-background border-input"
+                    className="h-9 bg-background border-input"
                     value={formData.numero_factura}
                     onChange={(e) => setFormData({ ...formData, numero_factura: e.target.value })}
                   />
@@ -514,16 +511,16 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
             </div>
 
             {/* Documentos */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-border">
-                <div className="w-2 h-8 bg-primary rounded-full"></div>
-                <h2 className="text-xl font-semibold text-foreground">Documentos de la Póliza</h2>
+            <div className="col-span-12 space-y-2 rounded-xl border border-border bg-background/20 p-3 lg:col-span-6">
+              <div className="flex items-center gap-2 border-b border-border pb-2">
+                <div className="h-5 w-1.5 rounded-full bg-primary"></div>
+                <h2 className="text-sm font-semibold text-foreground">Documentos de la Póliza</h2>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-2">
                 {/* Área de carga de archivos */}
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors bg-muted/20">
-                  <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <div className="rounded-lg border-2 border-dashed border-border bg-muted/20 p-2 text-center transition-colors hover:border-primary/50">
+                  <Upload className="mx-auto mb-1 h-5 w-5 text-muted-foreground" />
                   <div>
                     <label htmlFor="file-upload" className="cursor-pointer">
                       <span className="text-sm font-medium text-foreground hover:text-primary transition-colors">
@@ -539,7 +536,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                         onChange={handleFileChange}
                       />
                     </label>
-                    <p className="mt-2 text-xs text-muted-foreground">
+                    <p className="mt-1 text-[10px] text-muted-foreground">
                       PDF, DOC, DOCX hasta 10MB cada uno. Puedes seleccionar múltiples archivos.
                     </p>
                   </div>
@@ -547,7 +544,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
 
                 {/* Lista de archivos */}
                 {fileAttachments.length > 0 && (
-                  <div className="space-y-4">
+                  <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-medium text-foreground">
                         Archivos adjuntos
@@ -556,19 +553,19 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                         {fileAttachments.length} archivo{fileAttachments.length !== 1 ? 's' : ''}
                       </span>
                     </div>
-                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                    <div className="flex max-h-16 flex-wrap gap-1 overflow-y-auto">
                       {fileAttachments.map((attachment) => (
                         <div
                           key={attachment.id}
-                          className="flex items-center justify-between p-4 bg-card rounded-lg border border-border hover:shadow-sm transition-shadow"
+                          className="flex min-w-40 flex-1 items-center justify-between rounded-lg border border-border bg-card p-1.5 transition-shadow hover:shadow-sm"
                         >
                           <div className="flex items-center min-w-0 flex-1">
-                            <FileText className="h-6 w-6 text-primary flex-shrink-0" />
-                            <div className="ml-3 min-w-0 flex-1">
-                              <p className="text-sm font-medium text-foreground truncate">
+                            <FileText className="h-4 w-4 flex-shrink-0 text-primary" />
+                            <div className="ml-2 min-w-0 flex-1">
+                              <p className="truncate text-xs font-medium text-foreground">
                                 {attachment.name}
                               </p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-[9px] text-muted-foreground">
                                 {attachment.size ? formatFileSize(attachment.size) : "Archivo existente"}
                               </p>
                             </div>
@@ -591,31 +588,31 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
             </div>
 
             {/* Notas */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-border">
-                <div className="w-2 h-8 bg-primary rounded-full"></div>
-                <h2 className="text-xl font-semibold text-foreground">Información Adicional</h2>
+            <div className="col-span-12 space-y-2 rounded-xl border border-border bg-background/20 p-3 lg:col-span-6">
+              <div className="flex items-center gap-2 border-b border-border pb-2">
+                <div className="h-5 w-1.5 rounded-full bg-primary"></div>
+                <h2 className="text-sm font-semibold text-foreground">Información Adicional</h2>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-1">
                 <Label htmlFor="notas" className="text-sm font-medium text-foreground">Notas</Label>
                 <Textarea
                   id="notas"
                   value={formData.notas}
                   onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
                   placeholder="Notas adicionales sobre la póliza..."
-                  rows={4}
-                  className="resize-none bg-background border-input"
+                  rows={3}
+                  className="h-20 resize-none bg-background border-input"
                 />
               </div>
             </div>
 
             {/* Botones de acción */}
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-8 border-t border-border">
-              <Button type="button" variant="outline" className="w-full sm:w-auto h-12">
+            <div className="col-span-12 flex flex-col-reverse justify-end gap-2 border-t border-border pt-2 sm:flex-row">
+              <Button type="button" variant="outline" className="h-9 w-full sm:w-auto">
                 Cancelar
               </Button>
-              <Button type="submit" disabled={uploading} className="w-full sm:w-auto h-12">
+              <Button type="submit" disabled={uploading} className="h-9 w-full sm:w-auto">
                 {uploading ? "Procesando..." : initialData ? "Actualizar Póliza" : "Crear Póliza"}
               </Button>
             </div>
