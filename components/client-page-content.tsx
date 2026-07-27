@@ -320,7 +320,14 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                                 <TableCell className="font-semibold text-primary">
                                     #{client.numero_cliente || 'N/A'}
                                 </TableCell>
-                                <TableCell className="font-medium">{client.nombre}</TableCell>
+                                <TableCell className="font-medium">
+                                    <Link
+                                        href={`/admin/clientes/${client.id}`}
+                                        className="inline-block font-semibold text-foreground transition-colors hover:text-primary hover:underline"
+                                    >
+                                        {client.nombre}
+                                    </Link>
+                                </TableCell>
                                 <TableCell>
                                     {client.email ? (
                                         <HoverCard openDelay={150} closeDelay={100}>
@@ -361,7 +368,18 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                                                 </Button>
                                             </HoverCardContent>
                                         </HoverCard>
-                                    ) : "Sin email"}
+                                    ) : (
+                                        <span
+                                            className="relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-muted/30 text-muted-foreground"
+                                            aria-label="Cliente sin email"
+                                            title="Sin email"
+                                        >
+                                            <Mail className="h-4 w-4 opacity-60" />
+                                            <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-destructive text-destructive-foreground">
+                                                <X className="h-2.5 w-2.5 stroke-[3]" />
+                                            </span>
+                                        </span>
+                                    )}
                                 </TableCell>
                                 <TableCell>
                                     <HoverCard openDelay={150} closeDelay={100}>

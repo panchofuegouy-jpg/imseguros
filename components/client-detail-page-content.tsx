@@ -873,12 +873,12 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                             ) : <span className="text-muted-foreground">—</span>}
                                         </TableCell>
                                         <TableCell className="border-l border-dashed border-border px-1 text-center">
-                                            <span className="inline-flex rounded-md border border-border/80 bg-muted/40 px-1 py-1 text-[10px] font-semibold">
+                                            <span className="inline-flex rounded-md border border-green-500/45 bg-green-500/15 px-1.5 py-1 text-[10px] font-semibold text-green-400">
                                                 {formatPolicyDate(policy.vigencia_inicio)}
                                             </span>
                                         </TableCell>
                                         <TableCell className="border-l border-dashed border-border px-1 text-center">
-                                            <span className="inline-flex rounded-md border border-border/80 bg-muted/40 px-1 py-1 text-[10px] font-semibold">
+                                            <span className="inline-flex rounded-md border border-red-500/45 bg-red-500/15 px-1.5 py-1 text-[10px] font-semibold text-red-400">
                                                 {formatPolicyDate(policy.vigencia_fin)}
                                             </span>
                                         </TableCell>
