@@ -16,6 +16,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, RefreshCw, Edit, CheckCircle, AlertCircle, Clock, XCircle, Phone, MessageCircle, Upload, FileText, X, User, Wand2, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { normalizeOcrDate } from "@/lib/ocr-date";
+import {
+  POLICY_TYPE_OPTIONS,
+  PAYMENT_FREQUENCY_OPTIONS,
+  isSameName,
+  matchCompanyId,
+  matchCurrency,
+  matchPaymentFrequency,
+  matchPolicyType,
+  pickOcrAmount,
+} from "@/lib/ocr-normalize";
 
 interface Policy {
   id: string;
@@ -60,7 +70,9 @@ const STATUS_OPTIONS = [
   { value: 'No Renovada', label: 'No Renovada', color: 'bg-red-500', activeTab: 'pending' },
 ];
 
-const POLICY_TYPES = ["Auto", "Vida", "Hogar", "Comercial", "Salud"];
+// El filtro tiene que ofrecer los mismos tipos con los que se guardan las
+// pólizas: filtrar por un valor que nadie guarda nunca devuelve una lista vacía.
+const POLICY_TYPES = POLICY_TYPE_OPTIONS;
 
 export function PoliciesNearExpirationContent() {
   const [policies, setPolicies] = useState<Policy[]>([]);
@@ -779,33 +791,63 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         extracted: ext,
       });
 
-      const parsePrima = (v: any) => {
-        if (!v) return "";
-        const n = parseFloat(String(v).replace(/[^\d.,-]/g, '').replace(',', '.'));
-        return isNaN(n) ? "" : String(n);
+      // El documento nuevo manda: cada dato que el OCR logra leer pisa al de la
+      // póliza anterior. Sólo se conserva el valor previo cuando el documento no
+      // informa nada de ese campo.
+      const text = (value: any, fallback: string) => {
+        const trimmed = value === null || value === undefined ? "" : String(value).trim();
+        return trimmed || fallback;
       };
+
+      const prima = pickOcrAmount(ext, [
+        "total_a_pagar", "prima_monto", "prima", "monto", "importe", "premio",
+      ]);
+      const tipo = matchPolicyType(ext.tipo, formData.tipo);
+      const companyId = matchCompanyId(ext, companies, formData.company_id);
+      const nombreAsegurado = text(ext.nombre_asegurado, formData.nombre_asegurado);
 
       setFormData(prev => ({
         ...prev,
-        numero_poliza: ext.numero_poliza || prev.numero_poliza,
-        tipo: ext.tipo || prev.tipo,
+        numero_poliza: text(ext.numero_poliza, prev.numero_poliza),
+        company_id: companyId,
+        tipo,
         vigencia_inicio: normalizeOcrDate(ext.vigencia_inicio, prev.vigencia_inicio),
         vigencia_fin: normalizeOcrDate(ext.vigencia_fin, prev.vigencia_fin),
-        nombre_asegurado: ext.nombre_asegurado || prev.nombre_asegurado,
-        documento_asegurado: ext.documento_asegurado || prev.documento_asegurado,
-        parentesco: ext.parentesco || prev.parentesco,
-        prima_monto: parsePrima(ext.total_a_pagar ?? ext.prima_monto ?? ext.prima ?? ext.monto ?? ext.importe ?? ext.premio) || prev.prima_monto,
-        moneda: ext.moneda || prev.moneda,
-        forma_pago: ext.forma_pago ?? ext.frecuencia_pago ?? prev.forma_pago,
-        numero_factura: ext.numero_factura ?? ext.factura ?? prev.numero_factura,
+        nombre_asegurado: nombreAsegurado,
+        documento_asegurado: text(ext.documento_asegurado, prev.documento_asegurado),
+        parentesco: text(ext.parentesco, prev.parentesco || "Titular"),
+        prima_monto: prima !== null ? String(prima) : prev.prima_monto,
+        moneda: matchCurrency(ext.moneda, prev.moneda || "UYU"),
+        forma_pago: matchPaymentFrequency(ext.forma_pago ?? ext.frecuencia_pago, prev.forma_pago),
+        numero_factura: text(ext.numero_factura ?? ext.factura, prev.numero_factura),
+        notas: text(ext.notas, prev.notas),
       }));
+
+      // Si el documento nombra un asegurado distinto del cliente hay que mostrar
+      // esos campos: con el check puesto el submit los manda vacíos y se perdía
+      // lo que acababa de leer el OCR.
+      if (nombreAsegurado && !isSameName(nombreAsegurado, policy.clients.nombre)) {
+        setUseClientAsInsured(false);
+      }
 
       // Agregar el archivo a adjuntos
       setFileAttachments(prev => [...prev, {
         id: `ocr-${Date.now()}`, url: storedPath, name: file.name, isExisting: true,
       }]);
 
-      toast.success("Datos extraídos del documento");
+      // Avisar de lo que el documento no informó, para que no parezca que el OCR
+      // "no actualizó" cuando en realidad el dato no estaba.
+      const missing = [
+        !ext.vigencia_fin && "vigencia",
+        prima === null && "prima",
+        !tipo && "tipo",
+      ].filter(Boolean);
+
+      if (missing.length) {
+        toast.warning(`Datos extraídos. Revisá a mano: ${missing.join(", ")}.`);
+      } else {
+        toast.success("Datos extraídos del documento");
+      }
     } catch (err: any) {
       toast.error("No se pudo analizar el documento: " + err.message);
     } finally {
@@ -845,6 +887,8 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         ...formData,
         archivo_urls,
         status: 'Renovada',
+        // Postgres rechaza "" como uuid: sin aseguradora hay que mandar null.
+        company_id: formData.company_id || null,
         nombre_asegurado: useClientAsInsured ? "" : formData.nombre_asegurado,
         documento_asegurado: useClientAsInsured ? "" : formData.documento_asegurado,
         parentesco: useClientAsInsured ? "Titular" : formData.parentesco,
@@ -852,6 +896,7 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         moneda: formData.moneda || "UYU",
         forma_pago: formData.forma_pago || null,
         numero_factura: formData.numero_factura || null,
+        notas: formData.notas || null,
       };
 
       const res = await fetch(`/api/policies/${policy.id}`, {
@@ -860,16 +905,18 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         body: JSON.stringify(payload),
       });
 
-      if (res.ok) onSuccess();
-      else throw new Error('Error al renovar');
-    } catch {
-      toast.error("Error al renovar la póliza.");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || `Error al renovar (${res.status})`);
+      }
+
+      onSuccess();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al renovar la póliza.");
     } finally {
       setLoading(false);
     }
   };
-
-  const POLICY_TYPES = ["Auto", "Vida", "Hogar", "Salud", "Empresarial", "Camiones", "Taxi", "Agricola", "Motos", "Lancha", "Otro"];
 
   return (
     <div className="min-h-0 overflow-y-auto px-5 pb-4 lg:overflow-hidden">
@@ -1005,7 +1052,7 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
               <Select value={formData.forma_pago} onValueChange={v => setFormData({ ...formData, forma_pago: v })}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar frecuencia" /></SelectTrigger>
                 <SelectContent>
-                  {["Mensual","Bimestral","Trimestral","Semestral","Anual","Contado"].map(f =>
+                  {PAYMENT_FREQUENCY_OPTIONS.map(f =>
                     <SelectItem key={f} value={f}>{f}</SelectItem>
                   )}
                 </SelectContent>

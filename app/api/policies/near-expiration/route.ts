@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllSupabaseRows } from "@/lib/supabase/fetch-all";
 import { NextRequest, NextResponse } from "next/server";
 
+// Días de anticipación con los que una póliza ya renovada vuelve a la lista de
+// pendientes, y período de gracia posterior a la renovación.
+const REACTIVATION_DAYS = 15;
+
 // Función auxiliar para actualizar pólizas renovadas a pendiente
 // Cuando una póliza renovada está próxima a vencer nuevamente (15 días antes)
 async function updateRenewedPoliciesToPending(supabase: any) {
@@ -9,8 +13,17 @@ async function updateRenewedPoliciesToPending(supabase: any) {
     // Calcular fecha: 15 días después de hoy (pólizas que vencen en 15 días)
     const today = new Date();
     const fifteenDaysFromNow = new Date();
-    fifteenDaysFromNow.setDate(today.getDate() + 15);
-    
+    fifteenDaysFromNow.setDate(today.getDate() + REACTIVATION_DAYS);
+
+    // Una póliza recién renovada es, por definición, una que estaba por vencer:
+    // si el corredor no movió la vigencia (o el documento traía las mismas
+    // fechas) entra en esta ventana y la reactivación la devolvía a "Pendiente"
+    // apenas se guardaba, así que la renovación parecía no aplicarse nunca.
+    // Por eso se saltean las tocadas hace menos de REACTIVATION_DAYS días.
+    const recentlyUpdated = new Date();
+    recentlyUpdated.setDate(today.getDate() - REACTIVATION_DAYS);
+    const graceCutoff = recentlyUpdated.toISOString();
+
     // Buscar pólizas renovadas que vencen en los próximos 15 días
     const { data: policiesToUpdate, error: fetchError } = await fetchAllSupabaseRows((from, to) =>
       supabase
@@ -19,9 +32,11 @@ async function updateRenewedPoliciesToPending(supabase: any) {
         .eq("status", "Renovada")
         .gte("vigencia_fin", today.toISOString().split('T')[0])
         .lte("vigencia_fin", fifteenDaysFromNow.toISOString().split('T')[0])
+        // Las filas sin updated_at (anteriores al trigger) siguen reactivándose.
+        .or(`updated_at.is.null,updated_at.lt.${graceCutoff}`)
         .range(from, to)
     );
-    
+
     if (fetchError) {
       console.error("Error fetching renewed policies:", fetchError);
       return;
@@ -56,8 +71,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     
     if (status !== "Renovada") {
-      // Solo ejecutar actualización cuando NO estamos mostrando el historial
-      updateRenewedPoliciesToPending(supabase).catch(console.error);
+      // Solo ejecutar actualización cuando NO estamos mostrando el historial.
+      // Se espera a que termine: si corre en paralelo al SELECT la lista sale
+      // con los estados de antes o de después según quién gane la carrera.
+      await updateRenewedPoliciesToPending(supabase);
     }
     
     // Parámetros de filtrado
