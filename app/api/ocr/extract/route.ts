@@ -300,11 +300,11 @@ export async function POST(req: NextRequest) {
     let extractedData;
     let usedProvider: string = '';
 
-    // Strategy: Try available providers in order
-    // For PDFs: Mistral (if configured) → OpenAI → Claude
-    // For images: OpenAI (cheaper) → Mistral → Claude
+    // Strategy: Use providers that actually support the format
+    // PDFs: Claude (native support) - Mistral doesn't really support PDF base64
+    // Images: OpenAI (cheaper) → Mistral → Claude fallback
     const providers = mediaType === 'application/pdf'
-      ? ['mistral', 'claude', 'openai'] // Mistral first, fallback to Claude (supports PDFs), then OpenAI
+      ? ['claude'] // Only Claude supports PDFs natively
       : ['openai', 'mistral', 'claude'];
 
     const errors: Array<{ provider: string; error: string }> = [];
