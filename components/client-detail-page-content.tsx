@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { fetchAllSupabaseRows } from "@/lib/supabase/fetch-all";
 import { createClient } from "@/lib/supabase/client";
+import { resolvePolicyFileUrl } from "@/lib/policy-file-url";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -266,6 +267,13 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                 const parts = cleanUrl.split('/');
                 const idx = parts.findIndex(p => p === 'policy-documents');
                 if (idx !== -1) filePath = parts.slice(idx + 1).join('/');
+            }
+
+            // Valor guardado por la carga masiva: ya es la ruta dentro del
+            // bucket, sin el prefijo /policy-documents/ que buscan los patrones
+            // de arriba. Sin esto la validación siempre daba "no existe".
+            if (!filePath && !/^https?:\/\//i.test(cleanUrl)) {
+                filePath = decodeURIComponent(cleanUrl.replace(/^\/+/, ''));
             }
 
             if (!filePath) return false;
@@ -565,7 +573,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                 {unique.map((url, index) => (
                     <a
                         key={url}
-                        href={url}
+                        href={resolvePolicyFileUrl(url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex h-6 min-w-6 items-center justify-center gap-0.5 rounded-md border border-primary/50 bg-primary/15 px-1 text-[9px] font-semibold text-foreground hover:bg-primary/25"

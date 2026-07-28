@@ -87,7 +87,8 @@ interface FileStatus {
     status: 'pending' | 'uploading' | 'processing' | 'ready' | 'saving' | 'completed' | 'error';
     progress: number;
     error?: string;
-    storedPath?: string;
+    storedPath?: string;  // ruta dentro del bucket
+    storedUrl?: string;   // URL pública, la que se guarda en la póliza
     extracted?: any;      // datos crudos del OCR (para campos no editables)
     draft?: PolicyDraft;  // campos editables para la revisión
     policyId?: string;
@@ -211,6 +212,14 @@ export function MultiFilePolicyUploader({
 
                 const storedPath = uploadData?.path ?? filePath;
 
+                // Guardamos la URL pública, igual que la carga manual. Si se
+                // guarda sólo la ruta, el href queda relativo a la página del
+                // cliente y el documento abre un 404.
+                const { data: publicUrlData } = supabase.storage
+                    .from('policy-documents')
+                    .getPublicUrl(storedPath);
+                const storedUrl = publicUrlData.publicUrl;
+
                 setFiles(prev => prev.map((f, idx) =>
                     idx === i ? { ...f, status: 'processing', progress: 50 } : f
                 ));
@@ -257,6 +266,7 @@ export function MultiFilePolicyUploader({
                         status: 'ready',
                         progress: 100,
                         storedPath,
+                        storedUrl,
                         extracted,
                         draft: buildDraft(extracted),
                     } : f
@@ -328,8 +338,8 @@ export function MultiFilePolicyUploader({
                     nombre_asegurado: extracted.nombre_asegurado ?? null,
                     documento_asegurado: extracted.documento_asegurado ?? null,
                     parentesco: extracted.parentesco ?? 'Titular',
-                    archivo_url: fileStatus.storedPath,
-                    archivo_urls: [fileStatus.storedPath],
+                    archivo_url: fileStatus.storedUrl ?? fileStatus.storedPath,
+                    archivo_urls: [fileStatus.storedUrl ?? fileStatus.storedPath],
                     notas: [movementNote, extractedNotes].filter(Boolean).join(' '),
                     prima_monto: parsedAmount,
                     moneda: d.moneda || 'UYU',

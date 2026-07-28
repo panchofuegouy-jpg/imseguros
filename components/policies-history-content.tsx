@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { resolvePolicyFileUrl } from "@/lib/policy-file-url";
 
 interface Policy {
   id: string;
@@ -208,7 +209,7 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
                       <TableCell className="border-l border-dashed border-border px-1 text-center">
                         {policy.archivo_urls?.length ? (
                           <a
-                            href={policy.archivo_urls[0]}
+                            href={resolvePolicyFileUrl(policy.archivo_urls[0])}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 rounded-md border border-primary/50 bg-primary/15 px-2 py-1 font-semibold text-foreground hover:bg-primary/25"

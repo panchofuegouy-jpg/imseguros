@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { resolvePolicyFileUrl } from "@/lib/policy-file-url";
 
 interface ClientPoliciesContentProps {
   initialPolicies: any[];
@@ -135,7 +136,7 @@ export function ClientPoliciesContent({ initialPolicies }: ClientPoliciesContent
                             {policy.archivo_urls.map((url: string, index: number) => (
                               <a
                                 key={index}
-                                href={url}
+                                href={resolvePolicyFileUrl(url)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-primary hover:underline"
