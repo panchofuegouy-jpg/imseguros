@@ -234,7 +234,7 @@ export function MultiFilePolicyUploader({
                     'vehiculo_nuevo',
                 ]));
 
-                const webhookResponse = await fetch('/api/ocr-webhook', {
+                const webhookResponse = await fetch('/api/ocr/extract', {
                     method: 'POST',
                     body: formData,
                 });
