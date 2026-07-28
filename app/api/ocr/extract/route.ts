@@ -126,12 +126,14 @@ async function extractWithClaude(base64Data: string, mediaType: string, fileName
   return parseJsonResponse(responseText);
 }
 
-// Extract with OpenAI (images only, faster & cheaper)
+// Extract with OpenAI (supports both PDFs and images)
 async function extractWithOpenAI(base64Data: string, mediaType: string, fileName: string) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
 
-  console.log('Attempting OCR with OpenAI GPT-4o mini', { fileName });
+  // Use gpt-4o for PDFs (better quality), gpt-4o-mini for images (cheaper)
+  const model = mediaType === 'application/pdf' ? 'gpt-4o' : 'gpt-4o-mini';
+  console.log('Attempting OCR with OpenAI', { fileName, model });
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -140,7 +142,7 @@ async function extractWithOpenAI(base64Data: string, mediaType: string, fileName
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model,
       max_tokens: 2048,
       messages: [
         {
@@ -183,7 +185,7 @@ async function extractWithOpenAI(base64Data: string, mediaType: string, fileName
   }
 
   console.log('OpenAI response received', {
-    model: 'gpt-4o-mini',
+    model,
     inputTokens: data.usage?.prompt_tokens,
     outputTokens: data.usage?.completion_tokens,
   });
@@ -300,12 +302,12 @@ export async function POST(req: NextRequest) {
     let extractedData;
     let usedProvider: string = '';
 
-    // Strategy: Use providers that actually support the format
-    // PDFs: Claude (native support) - Mistral doesn't really support PDF base64
-    // Images: OpenAI (cheaper) → Mistral → Claude fallback
+    // Strategy: Use available APIs that support the format
+    // PDFs: OpenAI GPT-4o (supports PDFs) → Mistral (if works with URLs)
+    // Images: OpenAI GPT-4o mini (cheaper) → Mistral
     const providers = mediaType === 'application/pdf'
-      ? ['claude'] // Only Claude supports PDFs natively
-      : ['openai', 'mistral', 'claude'];
+      ? ['openai'] // OpenAI GPT-4o supports PDFs natively
+      : ['openai', 'mistral'];
 
     const errors: Array<{ provider: string; error: string }> = [];
 
