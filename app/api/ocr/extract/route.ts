@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const COMPANIES = [
-  { id: "75d6c24c-85ad-4a6a-b33e-80c871a65bb3", name: "SURA" },
-  { id: "94752145-4454-4365-888c-7bd9194798e8", name: "Porto" },
-  { id: "954f4352-6993-4ece-946b-d114cbe238e0", name: "BSE" },
-  { id: "b440634a-0ec9-4467-aa62-71932536fc56", name: "Sancor" },
-  { id: "da3a4d2e-539d-4d1a-95d8-d26c10020cfd", name: "Mapfre" },
-];
-
-// Extract with Mistral (OCR via image)
-async function extractWithMistral(base64Data: string, mediaType: string, fileName: string) {
+// Mistral OCR with correct model and format
+async function extractWithMistralOCR(base64Data: string, mediaType: string, fileName: string) {
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) throw new Error('MISTRAL_API_KEY not configured');
 
@@ -22,7 +14,7 @@ async function extractWithMistral(base64Data: string, mediaType: string, fileNam
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'mistral-large-latest',
+      model: 'pixtral-12b-2409',
       max_tokens: 2048,
       messages: [
         {
@@ -34,7 +26,9 @@ async function extractWithMistral(base64Data: string, mediaType: string, fileNam
             },
             {
               type: 'image_url',
-              image_url: `data:${mediaType};base64,${base64Data}`,
+              image_url: {
+                url: `data:${mediaType};base64,${base64Data}`,
+              },
             },
           ],
         },
@@ -51,12 +45,12 @@ async function extractWithMistral(base64Data: string, mediaType: string, fileNam
     } catch (parseErr) {
       errorMsg = `HTTP ${response.status}: ${response.statusText}`;
     }
-    console.error('Mistral API error details:', {
+    console.error('Mistral API error:', {
       status: response.status,
       errorMsg,
       fullResponse: errorDetails
     });
-    throw new Error(`Mistral API error: ${errorMsg}`);
+    throw new Error(`Mistral OCR error: ${errorMsg}`);
   }
 
   const data = await response.json();
@@ -66,8 +60,8 @@ async function extractWithMistral(base64Data: string, mediaType: string, fileNam
     throw new Error('No response text from Mistral');
   }
 
-  console.log('Mistral response received', {
-    model: 'mistral-large-latest',
+  console.log('Mistral OCR response received', {
+    model: 'pixtral-12b-2409',
     inputTokens: data.usage?.prompt_tokens,
     outputTokens: data.usage?.completion_tokens,
   });
@@ -75,7 +69,15 @@ async function extractWithMistral(base64Data: string, mediaType: string, fileNam
   return parseJsonResponse(responseText);
 }
 
-// Extract with Claude (native PDF support)
+const COMPANIES = [
+  { id: "75d6c24c-85ad-4a6a-b33e-80c871a65bb3", name: "SURA" },
+  { id: "94752145-4454-4365-888c-7bd9194798e8", name: "Porto" },
+  { id: "954f4352-6993-4ece-946b-d114cbe238e0", name: "BSE" },
+  { id: "b440634a-0ec9-4467-aa62-71932536fc56", name: "Sancor" },
+  { id: "da3a4d2e-539d-4d1a-95d8-d26c10020cfd", name: "Mapfre" },
+];
+
+// Extract with Claude (fallback)
 async function extractWithClaude(base64Data: string, mediaType: string, fileName: string) {
   const { Anthropic } = await import('@anthropic-ai/sdk');
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -202,36 +204,6 @@ function parseJsonResponse(responseText: string): any {
   return JSON.parse(jsonText);
 }
 
-// Convert PDF to image (PNG base64)
-async function pdfToImageBase64(pdfBase64: string): Promise<string> {
-  // Import canvas-related modules only when needed (runtime, not build time)
-  const pdfjsLib = await import('pdfjs-dist');
-  const { createCanvas } = await import('canvas');
-
-  const pdfData = Buffer.from(pdfBase64, 'base64');
-
-  // Set worker source for pdf.js
-  pdfjsLib.default.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
-
-  const pdf = await pdfjsLib.default.getDocument({ data: pdfData }).promise;
-  const firstPage = await pdf.getPage(1);
-
-  const scale = 2;
-  const viewport = firstPage.getViewport({ scale });
-
-  const canvas = createCanvas(viewport.width, viewport.height);
-  const context = canvas.getContext('2d');
-
-  const renderContext = {
-    canvasContext: context,
-    viewport: viewport,
-  };
-
-  await firstPage.render(renderContext).promise;
-
-  return canvas.toBuffer('image/png').toString('base64');
-}
-
 const OCR_PROMPT = `Te adjunto una póliza. Debes analizarla y devolver ÚNICAMENTE un JSON válido que cumpla EXACTAMENTE con el siguiente JSON Schema (sin texto adicional):
 
 {
@@ -327,42 +299,29 @@ export async function POST(req: NextRequest) {
 
     let extractedData;
     let usedProvider: string = '';
-    let ocrMediaType = mediaType;
-    let ocrBase64 = base64Data;
 
-    // Convert PDF to image for Mistral (Mistral doesn't support PDF base64)
-    if (mediaType === 'application/pdf') {
-      console.log('Converting PDF to image for Mistral OCR...');
-      try {
-        ocrBase64 = await pdfToImageBase64(base64Data);
-        ocrMediaType = 'image/png';
-        console.log('PDF converted to PNG successfully');
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error('PDF to image conversion failed:', errorMessage);
-        throw new Error(`Error converting PDF to image: ${errorMessage}`);
-      }
-    }
+    // Strategy: Mistral for PDFs (native support), OpenAI for images (cheaper)
+    // Mistral's pixtral model supports both PDFs and images natively
+    const providers = mediaType === 'application/pdf'
+      ? ['mistral'] // Only Mistral for PDFs
+      : ['openai', 'mistral', 'claude']; // Try cheaper option first for images
 
-    // Strategy: Try Mistral first (cheaper for images), fallback to OpenAI, then Claude
-    const providers = ['mistral', 'openai', 'claude'];
     const errors: Array<{ provider: string; error: string }> = [];
 
     for (const providerName of providers) {
       try {
         if (providerName === 'mistral') {
-          // Use extractWithMistral but with image data now (not PDF)
-          extractedData = await extractWithMistral(ocrBase64, ocrMediaType, file.name);
+          extractedData = await extractWithMistralOCR(base64Data, mediaType, file.name);
         } else if (providerName === 'openai') {
-          extractedData = await extractWithOpenAI(ocrBase64, ocrMediaType, file.name);
+          extractedData = await extractWithOpenAI(base64Data, mediaType, file.name);
         } else if (providerName === 'claude') {
-          extractedData = await extractWithClaude(ocrBase64, ocrMediaType, file.name);
+          extractedData = await extractWithClaude(base64Data, mediaType, file.name);
         }
 
         usedProvider = providerName;
         console.log('OCR extraction successful', {
           provider: usedProvider,
-          originalType: mediaType,
+          mediaType,
           hasNumeroPoliza: !!extractedData.numero_poliza,
           hasTipo: !!extractedData.tipo,
           hasVigencia: !!extractedData.vigencia_inicio && !!extractedData.vigencia_fin,
