@@ -349,6 +349,63 @@ async function extractWithOpenAIVision(base64Data: string, mediaType: string, fi
   return parseJsonResponse(responseText);
 }
 
+// Fallback para PDFs cuando Mistral no está disponible.
+// OpenAI acepta PDFs como parte de contenido "file" (distinto de "image_url",
+// que sólo admite imágenes y es el que devolvía "Invalid MIME type").
+async function extractPdfWithOpenAI(base64Data: string, mediaType: string, fileName: string) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
+
+  console.log('Attempting PDF OCR with OpenAI file input', { fileName, model: 'gpt-4o' });
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      max_tokens: 2048,
+      temperature: 0,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'file',
+              file: {
+                filename: fileName,
+                file_data: `data:${mediaType};base64,${base64Data}`,
+              },
+            },
+            { type: 'text', text: OCR_PROMPT },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await readApiError(response);
+    console.error('OpenAI PDF API error:', { status: response.status, errorMsg });
+    throw new Error(`OpenAI PDF error: ${errorMsg}`);
+  }
+
+  const data = await response.json();
+  const responseText = data.choices?.[0]?.message?.content || '';
+  if (!responseText) throw new Error('No response text from OpenAI');
+
+  console.log('OpenAI PDF response received', {
+    model: 'gpt-4o',
+    inputTokens: data.usage?.prompt_tokens,
+    outputTokens: data.usage?.completion_tokens,
+  });
+
+  return parseJsonResponse(responseText);
+}
+
 // Flujo alternativo para imágenes: modelo de visión de Mistral.
 async function extractWithMistralVision(base64Data: string, mediaType: string, fileName: string) {
   const apiKey = process.env.MISTRAL_API_KEY;
@@ -450,6 +507,7 @@ export async function POST(req: NextRequest) {
       mediaType === 'application/pdf'
         ? [
             { name: 'mistral-ocr', run: () => extractFromPdf(base64Data, mediaType, file.name) },
+            { name: 'openai-pdf', run: () => extractPdfWithOpenAI(base64Data, mediaType, file.name) },
           ]
         : [
             { name: 'openai', run: () => extractWithOpenAIVision(base64Data, mediaType, file.name) },
