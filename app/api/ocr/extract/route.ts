@@ -8,6 +8,73 @@ const COMPANIES = [
   { id: "da3a4d2e-539d-4d1a-95d8-d26c10020cfd", name: "Mapfre" },
 ];
 
+// Extract with Mistral (OCR via image)
+async function extractWithMistral(base64Data: string, mediaType: string, fileName: string) {
+  const apiKey = process.env.MISTRAL_API_KEY;
+  if (!apiKey) throw new Error('MISTRAL_API_KEY not configured');
+
+  console.log('Attempting OCR with Mistral', { fileName, mediaType });
+
+  const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'mistral-large-latest',
+      max_tokens: 2048,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: OCR_PROMPT,
+            },
+            {
+              type: 'image_url',
+              image_url: `data:${mediaType};base64,${base64Data}`,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    let errorMsg = 'Unknown error';
+    let errorDetails: any = {};
+    try {
+      errorDetails = await response.json();
+      errorMsg = errorDetails.error?.message || errorDetails.message || JSON.stringify(errorDetails);
+    } catch (parseErr) {
+      errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+    }
+    console.error('Mistral API error details:', {
+      status: response.status,
+      errorMsg,
+      fullResponse: errorDetails
+    });
+    throw new Error(`Mistral API error: ${errorMsg}`);
+  }
+
+  const data = await response.json();
+  const responseText = data.choices?.[0]?.message?.content || '';
+
+  if (!responseText) {
+    throw new Error('No response text from Mistral');
+  }
+
+  console.log('Mistral response received', {
+    model: 'mistral-large-latest',
+    inputTokens: data.usage?.prompt_tokens,
+    outputTokens: data.usage?.completion_tokens,
+  });
+
+  return parseJsonResponse(responseText);
+}
+
 // Extract with Claude (native PDF support)
 async function extractWithClaude(base64Data: string, mediaType: string, fileName: string) {
   const { Anthropic } = await import('@anthropic-ai/sdk');
@@ -135,6 +202,36 @@ function parseJsonResponse(responseText: string): any {
   return JSON.parse(jsonText);
 }
 
+// Convert PDF to image (PNG base64)
+async function pdfToImageBase64(pdfBase64: string): Promise<string> {
+  // Import canvas-related modules only when needed (runtime, not build time)
+  const pdfjsLib = await import('pdfjs-dist');
+  const { createCanvas } = await import('canvas');
+
+  const pdfData = Buffer.from(pdfBase64, 'base64');
+
+  // Set worker source for pdf.js
+  pdfjsLib.default.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+
+  const pdf = await pdfjsLib.default.getDocument({ data: pdfData }).promise;
+  const firstPage = await pdf.getPage(1);
+
+  const scale = 2;
+  const viewport = firstPage.getViewport({ scale });
+
+  const canvas = createCanvas(viewport.width, viewport.height);
+  const context = canvas.getContext('2d');
+
+  const renderContext = {
+    canvasContext: context,
+    viewport: viewport,
+  };
+
+  await firstPage.render(renderContext).promise;
+
+  return canvas.toBuffer('image/png').toString('base64');
+}
+
 const OCR_PROMPT = `Te adjunto una póliza. Debes analizarla y devolver ÚNICAMENTE un JSON válido que cumpla EXACTAMENTE con el siguiente JSON Schema (sin texto adicional):
 
 {
@@ -230,59 +327,57 @@ export async function POST(req: NextRequest) {
 
     let extractedData;
     let usedProvider: string = '';
+    let ocrMediaType = mediaType;
+    let ocrBase64 = base64Data;
 
-    // Strategy: Use Mistral for PDFs (native support), OpenAI for images (cheaper)
-    // For PDFs: only try Mistral (OpenAI doesn't support PDFs)
-    // For images: try OpenAI first (cheaper), then Mistral as fallback
-
+    // Convert PDF to image for Mistral (Mistral doesn't support PDF base64)
     if (mediaType === 'application/pdf') {
-      // PDF: use Claude (native support), no fallback
+      console.log('Converting PDF to image for Mistral OCR...');
       try {
-        extractedData = await extractWithClaude(base64Data, mediaType, file.name);
-        usedProvider = 'claude';
+        ocrBase64 = await pdfToImageBase64(base64Data);
+        ocrMediaType = 'image/png';
+        console.log('PDF converted to PNG successfully');
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('PDF to image conversion failed:', errorMessage);
+        throw new Error(`Error converting PDF to image: ${errorMessage}`);
+      }
+    }
+
+    // Strategy: Try Mistral first (cheaper for images), fallback to OpenAI, then Claude
+    const providers = ['mistral', 'openai', 'claude'];
+    const errors: Array<{ provider: string; error: string }> = [];
+
+    for (const providerName of providers) {
+      try {
+        if (providerName === 'mistral') {
+          // Use extractWithMistral but with image data now (not PDF)
+          extractedData = await extractWithMistral(ocrBase64, ocrMediaType, file.name);
+        } else if (providerName === 'openai') {
+          extractedData = await extractWithOpenAI(ocrBase64, ocrMediaType, file.name);
+        } else if (providerName === 'claude') {
+          extractedData = await extractWithClaude(ocrBase64, ocrMediaType, file.name);
+        }
+
+        usedProvider = providerName;
         console.log('OCR extraction successful', {
           provider: usedProvider,
+          originalType: mediaType,
           hasNumeroPoliza: !!extractedData.numero_poliza,
           hasTipo: !!extractedData.tipo,
           hasVigencia: !!extractedData.vigencia_inicio && !!extractedData.vigencia_fin,
         });
+        break;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error('Claude OCR failed for PDF:', errorMessage);
-        throw new Error(`Error procesando PDF con OCR: ${errorMessage}`);
+        console.warn(`Provider ${providerName} failed:`, errorMessage);
+        errors.push({ provider: providerName, error: errorMessage });
       }
-    } else {
-      // Image: try OpenAI first (cheaper), fallback to Claude
-      const imageProviders = ['openai', 'claude'];
-      const errors: Array<{ provider: string; error: string }> = [];
+    }
 
-      for (const providerName of imageProviders) {
-        try {
-          if (providerName === 'openai') {
-            extractedData = await extractWithOpenAI(base64Data, mediaType, file.name);
-          } else if (providerName === 'claude') {
-            extractedData = await extractWithClaude(base64Data, mediaType, file.name);
-          }
-
-          usedProvider = providerName;
-          console.log('OCR extraction successful', {
-            provider: usedProvider,
-            hasNumeroPoliza: !!extractedData.numero_poliza,
-            hasTipo: !!extractedData.tipo,
-            hasVigencia: !!extractedData.vigencia_inicio && !!extractedData.vigencia_fin,
-          });
-          break;
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.warn(`Provider ${providerName} failed:`, errorMessage);
-          errors.push({ provider: providerName, error: errorMessage });
-        }
-      }
-
-      if (!extractedData) {
-        const errorSummary = errors.map(e => `${e.provider}: ${e.error}`).join('; ');
-        throw new Error(`All image OCR providers failed. Errors: ${errorSummary}`);
-      }
+    if (!extractedData) {
+      const errorSummary = errors.map(e => `${e.provider}: ${e.error}`).join('; ');
+      throw new Error(`All OCR providers failed. Errors: ${errorSummary}`);
     }
 
     return NextResponse.json({
