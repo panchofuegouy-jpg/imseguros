@@ -86,11 +86,27 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
   const updatedPremium = previousPremium + newPremium
 
   const matchCompany = (extracted: any) => {
-    const raw = extracted.company_id ?? extracted.aseguradora ?? extracted.compania ?? extracted.company
+    const raw = extracted.company_id ?? extracted.aseguradora ?? extracted.compania ?? extracted.company ?? extracted.name
     if (!raw) return policy.company_id || ""
-    return companies.find((company) =>
-      company.id === raw || company.name.toLowerCase() === String(raw).toLowerCase()
-    )?.id || policy.company_id || ""
+    const rawStr = String(raw).trim().toLowerCase()
+
+    // First try exact ID match
+    if (companies.find(c => c.id === raw)) return raw
+
+    // Then try name match (case-insensitive)
+    const matched = companies.find((company) =>
+      company.name.toLowerCase() === rawStr
+    )
+    if (matched) return matched.id
+
+    // Try partial match as fallback
+    const partial = companies.find((company) =>
+      rawStr.includes(company.name.toLowerCase()) || company.name.toLowerCase().includes(rawStr)
+    )
+    if (partial) return partial.id
+
+    // Default to existing company
+    return policy.company_id || ""
   }
 
   const cleanupPendingUpload = async () => {
@@ -172,6 +188,15 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
 
       const responseData = await response.json()
       const extracted = parseOcrData(responseData)
+
+      console.log('OCR Update Dialog - extraction result:', {
+        responseKeys: Object.keys(responseData).slice(0, 5),
+        extractedKeys: Object.keys(extracted),
+        hasNumeroPoliza: !!extracted.numero_poliza,
+        hasTipo: !!extracted.tipo,
+        hasVigencia: !!extracted.vigencia_inicio && !!extracted.vigencia_fin,
+        extracted,
+      })
 
       if (!extracted || typeof extracted !== "object" || !Object.keys(extracted).length) {
         throw new Error("No se pudieron extraer datos del documento. Verificá que sea una póliza válida.")

@@ -72,7 +72,15 @@ export async function POST(req: NextRequest) {
       hasOutput: !!data?.output,
       outputLength: Array.isArray(data?.output) ? data.output.length : 0,
       dataKeys: Object.keys(data).slice(0, 5),
+      hasExtractedData: !!data?.extractedData,
+      hasData: !!data?.data,
     });
+
+    // Log the actual structure for debugging
+    if (data?.output?.[0]?.content?.[0]?.text) {
+      const text = data.output[0].content[0].text;
+      console.log('Claude API response text (first 500 chars):', text.substring(0, 500));
+    }
 
     return NextResponse.json(data);
   } catch (error) {

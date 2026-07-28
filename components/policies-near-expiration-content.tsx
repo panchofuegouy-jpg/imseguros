@@ -774,6 +774,14 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
       const raw = await res.json();
       const ext = parseOcrData(raw);
 
+      console.log('OCR extraction result:', {
+        extractedKeys: Object.keys(ext),
+        hasNumeroPoliza: !!ext.numero_poliza,
+        hasTipo: !!ext.tipo,
+        hasVigencia: !!ext.vigencia_inicio && !!ext.vigencia_fin,
+        extracted: ext,
+      });
+
       const parsePrima = (v: any) => {
         if (!v) return "";
         const n = parseFloat(String(v).replace(/[^\d.,-]/g, '').replace(',', '.'));
