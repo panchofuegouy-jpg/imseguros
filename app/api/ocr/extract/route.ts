@@ -8,9 +8,14 @@ const COMPANIES = [
   { id: "da3a4d2e-539d-4d1a-95d8-d26c10020cfd", name: "Mapfre" },
 ];
 
-const SCHEMA_RULES = `Devuelve ÚNICAMENTE un JSON válido que cumpla EXACTAMENTE con el siguiente JSON Schema (sin texto adicional):
+const SCHEMA_RULES = `Eres el asistente de un corredor de seguros uruguayo que opera con varias
+aseguradoras (SURA, Porto, BSE, Sancor, Mapfre). Cada una emite sus documentos con un
+diseño distinto, así que guíate por el SIGNIFICADO de cada dato y no por su posición.
+
+Devuelve ÚNICAMENTE un JSON válido que cumpla EXACTAMENTE con el siguiente JSON Schema (sin texto adicional):
 
 {
+  "tipo_movimiento": "poliza_nueva" | "renovacion" | "endoso" | "cotizacion",
   "numero_poliza": "string",
   "tipo": "string",
   "vigencia_inicio": "YYYY-MM-DD",
@@ -22,12 +27,25 @@ const SCHEMA_RULES = `Devuelve ÚNICAMENTE un JSON válido que cumpla EXACTAMENT
   "notas": "string",
   "total_a_pagar": number | null,
   "prima_monto": number | null,
+  "diferencia": number | null,
+  "vehiculo_anterior": "string | null",
+  "vehiculo_nuevo": "string | null",
   "moneda": "UYU" | "USD",
   "forma_pago": "string | null",
   "numero_factura": "string | null"
 }
 
 Reglas IMPORTANTES:
+
+0. "tipo_movimiento" clasifica el documento:
+   - "poliza_nueva": alta de una póliza que antes no existía.
+   - "renovacion": continúa una póliza vigente por un nuevo período. Suele decir
+     "RENOVACIÓN" o referirse a una póliza anterior.
+   - "endoso": modificación de una póliza en curso (cambio de vehículo, de
+     cobertura, de datos). Suele decir "ENDOSO", "MODIFICACIÓN" o "SUSTITUCIÓN".
+   - "cotizacion": presupuesto sin emitir. Suele decir "COTIZACIÓN" o "PROPUESTA".
+   Si el documento es una FACTURA o RECIBO de una póliza, clasifícalo según la
+   operación que factura (normalmente "poliza_nueva" o "renovacion").
 
 1. Usa el formato de fecha ISO: "YYYY-MM-DD" (ejemplo: 2025-09-30).
    - Las fechas del documento están en formato uruguayo/latino: DD/MM/AAAA.
@@ -42,24 +60,45 @@ ${JSON.stringify(COMPANIES, null, 2)}
 
 5. En "documento_asegurado" PRIORIZA: matrícula → documento → "DESCONOCIDO".
 
-6. CAMPOS DE FACTURACIÓN — extrae valores numéricos (sin símbolo de moneda).
-   Los importes vienen en formato uruguayo (1.234,56 = mil doscientos treinta y
-   cuatro con 56). Devuélvelos como número con punto decimal: 1234.56
+6. CAMPOS DE FACTURACIÓN — este es el punto donde más se falla, léelo con atención.
 
-   - "total_a_pagar": monto TOTAL a abonar. Búscalo bajo etiquetas como
-     "TOTAL A PAGAR", "PREMIO TOTAL", "IMPORTE TOTAL", "TOTAL", "COSTO TOTAL",
-     "MONTO A PAGAR" o en la última fila de la tabla de importes.
-   - "prima_monto": prima pura, sin impuestos ni recargos. Etiquetas habituales:
-     "PRIMA", "PRIMA PURA", "PREMIO", "PRIMA COMERCIAL".
-   - "moneda": "USD" o "UYU". Si ves "$" o "$U" es UYU; "U$S" o "USD" es USD.
-   - "forma_pago": "Contado", "Mensual", etc.
-   - "numero_factura": si aparece, sino null
+   Los importes vienen en formato uruguayo: 53.790,00 significa cincuenta y tres mil
+   setecientos noventa. El punto separa miles y la coma decimales. Devuélvelos SIEMPRE
+   como número con punto decimal y sin símbolo de moneda: 53790.00
 
-   IMPORTANTE: no confundas la SUMA ASEGURADA (el valor del bien cubierto) con
-   el importe a pagar. La suma asegurada NO va en estos campos, va en "notas".
-   Si el documento realmente no informa ningún importe a pagar, devuelve null.
+   - "total_a_pagar": el monto TOTAL que el cliente debe abonar, impuestos incluidos.
+     Etiquetas habituales: "TOTAL A PAGAR", "PREMIO TOTAL", "PREMIO", "IMPORTE TOTAL",
+     "TOTAL", "COSTO TOTAL", "MONTO A PAGAR", "TOTAL FACTURA".
+     Si hay una tabla de importes, este valor suele estar en la ÚLTIMA fila.
+   - "prima_monto": la prima pura, antes de impuestos y recargos. Etiquetas:
+     "PRIMA", "PRIMA PURA", "PRIMA COMERCIAL".
+     Si el documento informa un único importe sin distinguir prima de total,
+     ponlo en "total_a_pagar" y deja "prima_monto" en null.
+   - "diferencia": SOLO para "endoso". Es el ajuste a cobrar o devolver por la
+     modificación. POSITIVO si el cliente debe pagar más, NEGATIVO si le corresponde
+     una devolución o crédito ("A DEVOLVER", "SALDO A FAVOR", importe entre paréntesis
+     o con signo menos). En los demás tipos de movimiento va null.
+   - "moneda": "USD" o "UYU". "$" o "$U" es UYU; "U$S" o "USD" es USD.
+   - "forma_pago": "Contado", "Mensual", "Trimestral", "Semestral", "Anual", etc.
+   - "numero_factura": número de factura o recibo si aparece, sino null.
 
-7. El campo "notas" SIEMPRE debe incluir:
+   DOS ERRORES QUE DEBES EVITAR:
+
+   a) No confundas la SUMA ASEGURADA (el valor del vehículo o bien cubierto, suele ser
+      un número grande y redondo) con el importe a pagar. La suma asegurada NO va en
+      estos campos: va en "notas".
+
+   b) Si el documento es una FACTURA o RECIBO, SIEMPRE informa un importe. No devuelvas
+      null: busca en las tablas y en el pie del documento hasta encontrarlo.
+
+   Devuelve null únicamente si el documento realmente no informa ningún importe
+   (por ejemplo, algunos certificados de cobertura).
+
+7. Para "endoso" por cambio de vehículo, completa "vehiculo_anterior" y
+   "vehiculo_nuevo" con la matrícula y descripción de cada uno. En los demás
+   tipos de movimiento van null.
+
+8. El campo "notas" SIEMPRE debe incluir:
    - "Matrícula: <valor o 'DESCONOCIDO'>."
    - Breve detalle: tipo vehículo/bien, año, suma asegurada, cobertura
 
@@ -166,8 +205,11 @@ async function structureTextToJson(text: string) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'mistral-small-latest',
+          // Modelo grande a propósito: este paso lee tablas de importes y es
+          // donde se perdían las primas con mistral-small.
+          model: 'mistral-large-latest',
           max_tokens: 2048,
+          temperature: 0,
           response_format: { type: 'json_object' },
           messages: [{ role: 'user', content: prompt }],
         }),
@@ -179,7 +221,7 @@ async function structureTextToJson(text: string) {
       const content = data.choices?.[0]?.message?.content;
       if (!content) throw new Error('Respuesta vacía de Mistral');
 
-      console.log('Structured with Mistral', { model: 'mistral-small-latest' });
+      console.log('Structured with Mistral', { model: 'mistral-large-latest' });
       return parseJsonResponse(content);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
@@ -200,6 +242,7 @@ async function structureTextToJson(text: string) {
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           max_tokens: 2048,
+          temperature: 0,
           response_format: { type: 'json_object' },
           messages: [{ role: 'user', content: prompt }],
         }),
