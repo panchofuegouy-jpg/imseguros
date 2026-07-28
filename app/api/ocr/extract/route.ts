@@ -1,73 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Mistral OCR with vision model (pixtral) for images
-async function extractWithMistral(base64Data: string, mediaType: string, fileName: string) {
-  const apiKey = process.env.MISTRAL_API_KEY;
-  if (!apiKey) throw new Error('MISTRAL_API_KEY not configured');
-
-  console.log('Attempting OCR with Mistral pixtral', { fileName, mediaType });
-
-  const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'pixtral-12b-2409',
-      max_tokens: 2048,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: OCR_PROMPT,
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:${mediaType};base64,${base64Data}`,
-              },
-            },
-          ],
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    let errorMsg = 'Unknown error';
-    let errorDetails: any = {};
-    try {
-      errorDetails = await response.json();
-      errorMsg = errorDetails.error?.message || errorDetails.message || JSON.stringify(errorDetails);
-    } catch (parseErr) {
-      errorMsg = `HTTP ${response.status}: ${response.statusText}`;
-    }
-    console.error('Mistral API error:', {
-      status: response.status,
-      errorMsg,
-    });
-    throw new Error(`Mistral API error: ${errorMsg}`);
-  }
-
-  const data = await response.json();
-  const responseText = data.choices?.[0]?.message?.content || '';
-
-  if (!responseText) {
-    throw new Error('No response text from Mistral');
-  }
-
-  console.log('Mistral response received', {
-    model: 'pixtral-12b-2409',
-    inputTokens: data.usage?.prompt_tokens,
-    outputTokens: data.usage?.completion_tokens,
-  });
-
-  return parseJsonResponse(responseText);
-}
-
 const COMPANIES = [
   { id: "75d6c24c-85ad-4a6a-b33e-80c871a65bb3", name: "SURA" },
   { id: "94752145-4454-4365-888c-7bd9194798e8", name: "Porto" },
@@ -76,136 +8,7 @@ const COMPANIES = [
   { id: "da3a4d2e-539d-4d1a-95d8-d26c10020cfd", name: "Mapfre" },
 ];
 
-// Extract with Claude (fallback)
-async function extractWithClaude(base64Data: string, mediaType: string, fileName: string) {
-  const { Anthropic } = await import('@anthropic-ai/sdk');
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
-
-  console.log('Attempting OCR with Claude', { fileName, mediaType });
-
-  const client = new Anthropic({ apiKey });
-
-  const response = await client.messages.create({
-    model: 'claude-3-5-sonnet-20241022',
-    max_tokens: 2048,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: mediaType as any,
-              data: base64Data,
-            },
-          },
-          {
-            type: 'text',
-            text: OCR_PROMPT,
-          },
-        ],
-      },
-    ],
-  });
-
-  const responseText = response.content[0].type === 'text' ? response.content[0].text : '';
-
-  if (!responseText) {
-    throw new Error('No response text from Claude');
-  }
-
-  console.log('Claude response received', {
-    model: 'claude-3-5-sonnet-20241022',
-    inputTokens: response.usage.input_tokens,
-    outputTokens: response.usage.output_tokens,
-  });
-
-  return parseJsonResponse(responseText);
-}
-
-// Extract with OpenAI (supports both PDFs and images)
-async function extractWithOpenAI(base64Data: string, mediaType: string, fileName: string) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
-
-  // Use gpt-4o for PDFs (better quality), gpt-4o-mini for images (cheaper)
-  const model = mediaType === 'application/pdf' ? 'gpt-4o' : 'gpt-4o-mini';
-  console.log('Attempting OCR with OpenAI', { fileName, model });
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 2048,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:${mediaType};base64,${base64Data}`,
-                detail: 'auto',
-              },
-            },
-            {
-              type: 'text',
-              text: OCR_PROMPT,
-            },
-          ],
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    let errorMsg = 'Unknown error';
-    try {
-      const error = await response.json();
-      errorMsg = error.error?.message || error.message || JSON.stringify(error);
-    } catch (parseErr) {
-      errorMsg = `HTTP ${response.status}: ${response.statusText}`;
-    }
-    console.error('OpenAI API error details:', { status: response.status, errorMsg });
-    throw new Error(`OpenAI API error: ${errorMsg}`);
-  }
-
-  const data = await response.json();
-  const responseText = data.choices?.[0]?.message?.content || '';
-
-  if (!responseText) {
-    throw new Error('No response text from OpenAI');
-  }
-
-  console.log('OpenAI response received', {
-    model,
-    inputTokens: data.usage?.prompt_tokens,
-    outputTokens: data.usage?.completion_tokens,
-  });
-
-  return parseJsonResponse(responseText);
-}
-
-// Parse JSON from response text
-function parseJsonResponse(responseText: string): any {
-  let jsonText = responseText.trim();
-
-  // Remove markdown code blocks if present
-  const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  if (jsonMatch) {
-    jsonText = jsonMatch[1];
-  }
-
-  return JSON.parse(jsonText);
-}
-
-const OCR_PROMPT = `Te adjunto una póliza. Debes analizarla y devolver ÚNICAMENTE un JSON válido que cumpla EXACTAMENTE con el siguiente JSON Schema (sin texto adicional):
+const SCHEMA_RULES = `Devuelve ÚNICAMENTE un JSON válido que cumpla EXACTAMENTE con el siguiente JSON Schema (sin texto adicional):
 
 {
   "numero_poliza": "string",
@@ -254,6 +57,268 @@ Ejemplo: "Matrícula: ABC123. Vehículo PONSSE ELEPHANT 8W año 2011, suma asegu
 
 Devuelve SOLO el JSON, sin comentarios ni explicaciones.`;
 
+// Prompt para modelos de visión (recibe la imagen directamente)
+const OCR_PROMPT = `Te adjunto una póliza. Debes analizarla y ${SCHEMA_RULES}`;
+
+// Prompt para el paso 2 del flujo de PDF (recibe el texto ya extraído por el OCR)
+const TEXT_TO_JSON_PROMPT = (text: string) =>
+  `A continuación está el texto de una póliza extraído por OCR. Analízalo y ${SCHEMA_RULES}
+
+--- TEXTO DE LA PÓLIZA ---
+${text}
+--- FIN DEL TEXTO ---`;
+
+// Parse JSON from response text
+function parseJsonResponse(responseText: string): any {
+  let jsonText = responseText.trim();
+
+  // Remove markdown code blocks if present
+  const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (jsonMatch) {
+    jsonText = jsonMatch[1];
+  }
+
+  return JSON.parse(jsonText);
+}
+
+async function readApiError(response: Response): Promise<string> {
+  try {
+    const body = await response.json();
+    return body.error?.message || body.message || JSON.stringify(body).slice(0, 500);
+  } catch {
+    return `HTTP ${response.status}: ${response.statusText}`;
+  }
+}
+
+// Paso 1 del flujo PDF: endpoint dedicado de OCR de Mistral.
+// Acepta PDFs como data URL en base64 y devuelve el texto en markdown por página.
+async function mistralOcrToText(base64Data: string, mediaType: string, fileName: string) {
+  const apiKey = process.env.MISTRAL_API_KEY;
+  if (!apiKey) throw new Error('MISTRAL_API_KEY not configured');
+
+  console.log('Mistral OCR: extracting text', { fileName, mediaType });
+
+  const response = await fetch('https://api.mistral.ai/v1/ocr', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'mistral-ocr-latest',
+      document: {
+        type: 'document_url',
+        document_url: `data:${mediaType};base64,${base64Data}`,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await readApiError(response);
+    console.error('Mistral OCR API error:', { status: response.status, errorMsg });
+    throw new Error(`Mistral OCR error: ${errorMsg}`);
+  }
+
+  const data = await response.json();
+  const pages: any[] = Array.isArray(data.pages) ? data.pages : [];
+
+  const text = pages
+    .map((page) => page.markdown ?? page.text ?? '')
+    .filter(Boolean)
+    .join('\n\n')
+    .trim();
+
+  if (!text) {
+    throw new Error('Mistral OCR devolvió el documento sin texto');
+  }
+
+  console.log('Mistral OCR: text extracted', {
+    pages: pages.length,
+    chars: text.length,
+  });
+
+  return text;
+}
+
+// Paso 2 del flujo PDF: convertir el texto del OCR en el JSON estructurado.
+// Se intenta con Mistral y, si falla, con OpenAI (ambas APIs las tiene el usuario).
+async function structureTextToJson(text: string) {
+  const prompt = TEXT_TO_JSON_PROMPT(text);
+  const errors: string[] = [];
+
+  const mistralKey = process.env.MISTRAL_API_KEY;
+  if (mistralKey) {
+    try {
+      const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${mistralKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'mistral-small-latest',
+          max_tokens: 2048,
+          response_format: { type: 'json_object' },
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+
+      if (!response.ok) throw new Error(await readApiError(response));
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) throw new Error('Respuesta vacía de Mistral');
+
+      console.log('Structured with Mistral', { model: 'mistral-small-latest' });
+      return parseJsonResponse(content);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      console.warn('Structuring with Mistral failed:', msg);
+      errors.push(`mistral: ${msg}`);
+    }
+  }
+
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (openaiKey) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          max_tokens: 2048,
+          response_format: { type: 'json_object' },
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+
+      if (!response.ok) throw new Error(await readApiError(response));
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) throw new Error('Respuesta vacía de OpenAI');
+
+      console.log('Structured with OpenAI', { model: 'gpt-4o-mini' });
+      return parseJsonResponse(content);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      console.warn('Structuring with OpenAI failed:', msg);
+      errors.push(`openai: ${msg}`);
+    }
+  }
+
+  throw new Error(`No se pudo estructurar el texto del OCR. ${errors.join('; ')}`);
+}
+
+// Flujo completo para PDFs: OCR de Mistral + estructuración a JSON.
+async function extractFromPdf(base64Data: string, mediaType: string, fileName: string) {
+  const text = await mistralOcrToText(base64Data, mediaType, fileName);
+  return structureTextToJson(text);
+}
+
+// Flujo para imágenes: modelo de visión de OpenAI (una sola llamada).
+async function extractWithOpenAIVision(base64Data: string, mediaType: string, fileName: string) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
+
+  console.log('Attempting OCR with OpenAI vision', { fileName, model: 'gpt-4o-mini' });
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      max_tokens: 2048,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:${mediaType};base64,${base64Data}`,
+                detail: 'auto',
+              },
+            },
+            { type: 'text', text: OCR_PROMPT },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await readApiError(response);
+    console.error('OpenAI API error:', { status: response.status, errorMsg });
+    throw new Error(`OpenAI API error: ${errorMsg}`);
+  }
+
+  const data = await response.json();
+  const responseText = data.choices?.[0]?.message?.content || '';
+  if (!responseText) throw new Error('No response text from OpenAI');
+
+  console.log('OpenAI response received', {
+    model: 'gpt-4o-mini',
+    inputTokens: data.usage?.prompt_tokens,
+    outputTokens: data.usage?.completion_tokens,
+  });
+
+  return parseJsonResponse(responseText);
+}
+
+// Flujo alternativo para imágenes: modelo de visión de Mistral.
+async function extractWithMistralVision(base64Data: string, mediaType: string, fileName: string) {
+  const apiKey = process.env.MISTRAL_API_KEY;
+  if (!apiKey) throw new Error('MISTRAL_API_KEY not configured');
+
+  console.log('Attempting OCR with Mistral vision', { fileName, model: 'pixtral-12b-2409' });
+
+  const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'pixtral-12b-2409',
+      max_tokens: 2048,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: OCR_PROMPT },
+            { type: 'image_url', image_url: `data:${mediaType};base64,${base64Data}` },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await readApiError(response);
+    console.error('Mistral vision API error:', { status: response.status, errorMsg });
+    throw new Error(`Mistral API error: ${errorMsg}`);
+  }
+
+  const data = await response.json();
+  const responseText = data.choices?.[0]?.message?.content || '';
+  if (!responseText) throw new Error('No response text from Mistral');
+
+  console.log('Mistral vision response received', {
+    model: 'pixtral-12b-2409',
+    inputTokens: data.usage?.prompt_tokens,
+    outputTokens: data.usage?.completion_tokens,
+  });
+
+  return parseJsonResponse(responseText);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -267,11 +332,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      console.error('OPENAI_API_KEY not configured');
+    if (!process.env.MISTRAL_API_KEY && !process.env.OPENAI_API_KEY) {
+      console.error('No OCR provider configured');
       return NextResponse.json(
-        { error: 'Servicio de OCR no configurado. Falta OPENAI_API_KEY.' },
+        { error: 'Servicio de OCR no configurado. Falta MISTRAL_API_KEY u OPENAI_API_KEY.' },
         { status: 500 }
       );
     }
@@ -299,26 +363,28 @@ export async function POST(req: NextRequest) {
     });
 
     let extractedData;
-    let usedProvider: string = '';
+    let usedProvider = '';
 
-    // Strategy: Use best provider per format
-    // PDFs: OpenAI GPT-4o (direct JSON output) with Mistral OCR as fallback
-    // Images: OpenAI GPT-4o mini (cheaper) → Mistral pixtral
-    const providers = mediaType === 'application/pdf'
-      ? ['openai', 'mistral'] // OpenAI for direct JSON, Mistral OCR as fallback
-      : ['openai', 'mistral'];
+    // Los modelos de visión (OpenAI y Mistral) rechazan PDFs en base64: sólo
+    // aceptan imágenes. Por eso los PDFs van al endpoint dedicado /v1/ocr de
+    // Mistral, que sí acepta data:application/pdf;base64 y devuelve markdown,
+    // y luego ese texto se estructura a JSON con un modelo de chat.
+    const providers: Array<{ name: string; run: () => Promise<any> }> =
+      mediaType === 'application/pdf'
+        ? [
+            { name: 'mistral-ocr', run: () => extractFromPdf(base64Data, mediaType, file.name) },
+          ]
+        : [
+            { name: 'openai', run: () => extractWithOpenAIVision(base64Data, mediaType, file.name) },
+            { name: 'mistral', run: () => extractWithMistralVision(base64Data, mediaType, file.name) },
+          ];
 
     const errors: Array<{ provider: string; error: string }> = [];
 
-    for (const providerName of providers) {
+    for (const provider of providers) {
       try {
-        if (providerName === 'mistral') {
-          extractedData = await extractWithMistral(base64Data, mediaType, file.name);
-        } else if (providerName === 'openai') {
-          extractedData = await extractWithOpenAI(base64Data, mediaType, file.name);
-        }
-
-        usedProvider = providerName;
+        extractedData = await provider.run();
+        usedProvider = provider.name;
         console.log('OCR extraction successful', {
           provider: usedProvider,
           mediaType,
@@ -329,8 +395,8 @@ export async function POST(req: NextRequest) {
         break;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.warn(`Provider ${providerName} failed:`, errorMessage);
-        errors.push({ provider: providerName, error: errorMessage });
+        console.warn(`Provider ${provider.name} failed:`, errorMessage);
+        errors.push({ provider: provider.name, error: errorMessage });
       }
     }
 
