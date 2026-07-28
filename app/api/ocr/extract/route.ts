@@ -42,12 +42,22 @@ ${JSON.stringify(COMPANIES, null, 2)}
 
 5. En "documento_asegurado" PRIORIZA: matrícula → documento → "DESCONOCIDO".
 
-6. CAMPOS DE FACTURACIÓN — extrae valores numéricos (sin símbolo de moneda):
-   - "total_a_pagar": monto TOTAL a abonar
-   - "prima_monto": prima pura (sin impuestos)
-   - "moneda": "USD" o "UYU"
+6. CAMPOS DE FACTURACIÓN — extrae valores numéricos (sin símbolo de moneda).
+   Los importes vienen en formato uruguayo (1.234,56 = mil doscientos treinta y
+   cuatro con 56). Devuélvelos como número con punto decimal: 1234.56
+
+   - "total_a_pagar": monto TOTAL a abonar. Búscalo bajo etiquetas como
+     "TOTAL A PAGAR", "PREMIO TOTAL", "IMPORTE TOTAL", "TOTAL", "COSTO TOTAL",
+     "MONTO A PAGAR" o en la última fila de la tabla de importes.
+   - "prima_monto": prima pura, sin impuestos ni recargos. Etiquetas habituales:
+     "PRIMA", "PRIMA PURA", "PREMIO", "PRIMA COMERCIAL".
+   - "moneda": "USD" o "UYU". Si ves "$" o "$U" es UYU; "U$S" o "USD" es USD.
    - "forma_pago": "Contado", "Mensual", etc.
    - "numero_factura": si aparece, sino null
+
+   IMPORTANTE: no confundas la SUMA ASEGURADA (el valor del bien cubierto) con
+   el importe a pagar. La suma asegurada NO va en estos campos, va en "notas".
+   Si el documento realmente no informa ningún importe a pagar, devuelve null.
 
 7. El campo "notas" SIEMPRE debe incluir:
    - "Matrícula: <valor o 'DESCONOCIDO'>."
@@ -213,10 +223,34 @@ async function structureTextToJson(text: string) {
   throw new Error(`No se pudo estructurar el texto del OCR. ${errors.join('; ')}`);
 }
 
+// Diagnóstico: busca importes en el texto del OCR. Sirve para distinguir si una
+// póliza queda sin prima porque el documento no la informa o porque el modelo
+// que arma el JSON no la encontró.
+function findAmountsInText(text: string) {
+  const labelled = text.match(
+    /(total a pagar|premio total|importe total|monto a pagar|costo total|prima pura|prima comercial|prima|premio|total)\s*:?\s*[^\n]{0,60}/gi
+  );
+  const currency = text.match(/(?:U\$S|USD|\$U|\$)\s?[\d.,]{3,}/g);
+  return {
+    labelledMatches: labelled ? labelled.slice(0, 8) : [],
+    currencyMatches: currency ? currency.slice(0, 8) : [],
+  };
+}
+
 // Flujo completo para PDFs: OCR de Mistral + estructuración a JSON.
 async function extractFromPdf(base64Data: string, mediaType: string, fileName: string) {
   const text = await mistralOcrToText(base64Data, mediaType, fileName);
-  return structureTextToJson(text);
+  const result = await structureTextToJson(text);
+
+  // Si no salió ningún importe, dejamos rastro de lo que sí había en el texto.
+  if (result.total_a_pagar == null && result.prima_monto == null) {
+    console.warn('No amount extracted', {
+      fileName,
+      ...findAmountsInText(text),
+    });
+  }
+
+  return result;
 }
 
 // Flujo para imágenes: modelo de visión de OpenAI (una sola llamada).
