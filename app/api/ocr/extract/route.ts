@@ -8,69 +8,50 @@ const COMPANIES = [
   { id: "da3a4d2e-539d-4d1a-95d8-d26c10020cfd", name: "Mapfre" },
 ];
 
-// Extract with Mistral OCR (native PDF support)
-async function extractWithMistral(base64Data: string, mediaType: string, fileName: string) {
-  const apiKey = process.env.MISTRAL_API_KEY;
-  if (!apiKey) throw new Error('MISTRAL_API_KEY not configured');
+// Extract with Claude (native PDF support)
+async function extractWithClaude(base64Data: string, mediaType: string, fileName: string) {
+  const { Anthropic } = await import('@anthropic-ai/sdk');
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
 
-  console.log('Attempting OCR with Mistral', { fileName, mediaType });
+  console.log('Attempting OCR with Claude', { fileName, mediaType });
 
-  // Mistral supports PDFs and images natively
-  const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'mistral-large-latest',
-      max_tokens: 2048,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: OCR_PROMPT,
+  const client = new Anthropic({ apiKey });
+
+  const response = await client.messages.create({
+    model: 'claude-3-5-sonnet-20241022',
+    max_tokens: 2048,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: mediaType as any,
+              data: base64Data,
             },
-            {
-              type: 'image_url',
-              image_url: `data:${mediaType};base64,${base64Data}`,
-            },
-          ],
-        },
-      ],
-    }),
+          },
+          {
+            type: 'text',
+            text: OCR_PROMPT,
+          },
+        ],
+      },
+    ],
   });
 
-  if (!response.ok) {
-    let errorMsg = 'Unknown error';
-    let errorDetails: any = {};
-    try {
-      errorDetails = await response.json();
-      errorMsg = errorDetails.error?.message || errorDetails.message || JSON.stringify(errorDetails);
-    } catch (parseErr) {
-      errorMsg = `HTTP ${response.status}: ${response.statusText}`;
-    }
-    console.error('Mistral API error details:', {
-      status: response.status,
-      errorMsg,
-      fullResponse: errorDetails
-    });
-    throw new Error(`Mistral API error: ${errorMsg}`);
-  }
-
-  const data = await response.json();
-  const responseText = data.choices?.[0]?.message?.content || '';
+  const responseText = response.content[0].type === 'text' ? response.content[0].text : '';
 
   if (!responseText) {
-    throw new Error('No response text from Mistral');
+    throw new Error('No response text from Claude');
   }
 
-  console.log('Mistral response received', {
-    model: 'mistral-large-latest',
-    inputTokens: data.usage?.prompt_tokens,
-    outputTokens: data.usage?.completion_tokens,
+  console.log('Claude response received', {
+    model: 'claude-3-5-sonnet-20241022',
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
   });
 
   return parseJsonResponse(responseText);
@@ -255,10 +236,10 @@ export async function POST(req: NextRequest) {
     // For images: try OpenAI first (cheaper), then Mistral as fallback
 
     if (mediaType === 'application/pdf') {
-      // PDF: must use Mistral, no fallback to OpenAI (it doesn't support PDFs)
+      // PDF: use Claude (native support), no fallback
       try {
-        extractedData = await extractWithMistral(base64Data, mediaType, file.name);
-        usedProvider = 'mistral';
+        extractedData = await extractWithClaude(base64Data, mediaType, file.name);
+        usedProvider = 'claude';
         console.log('OCR extraction successful', {
           provider: usedProvider,
           hasNumeroPoliza: !!extractedData.numero_poliza,
@@ -267,20 +248,20 @@ export async function POST(req: NextRequest) {
         });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error('Mistral OCR failed for PDF:', errorMessage);
+        console.error('Claude OCR failed for PDF:', errorMessage);
         throw new Error(`Error procesando PDF con OCR: ${errorMessage}`);
       }
     } else {
-      // Image: try OpenAI first (cheaper), fallback to Mistral
-      const imageProviders = ['openai', 'mistral'];
+      // Image: try OpenAI first (cheaper), fallback to Claude
+      const imageProviders = ['openai', 'claude'];
       const errors: Array<{ provider: string; error: string }> = [];
 
       for (const providerName of imageProviders) {
         try {
           if (providerName === 'openai') {
             extractedData = await extractWithOpenAI(base64Data, mediaType, file.name);
-          } else if (providerName === 'mistral') {
-            extractedData = await extractWithMistral(base64Data, mediaType, file.name);
+          } else if (providerName === 'claude') {
+            extractedData = await extractWithClaude(base64Data, mediaType, file.name);
           }
 
           usedProvider = providerName;
