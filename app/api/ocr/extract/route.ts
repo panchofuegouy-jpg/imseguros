@@ -8,6 +8,133 @@ const COMPANIES = [
   { id: "da3a4d2e-539d-4d1a-95d8-d26c10020cfd", name: "Mapfre" },
 ];
 
+// Extract with Mistral OCR (native PDF support)
+async function extractWithMistral(base64Data: string, mediaType: string, fileName: string) {
+  const apiKey = process.env.MISTRAL_API_KEY;
+  if (!apiKey) throw new Error('MISTRAL_API_KEY not configured');
+
+  console.log('Attempting OCR with Mistral', { fileName, mediaType });
+
+  // Mistral supports PDFs and images natively
+  const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'pixtral-12b-2409',
+      max_tokens: 2048,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: OCR_PROMPT,
+            },
+            {
+              type: 'image_url',
+              image_url: `data:${mediaType};base64,${base64Data}`,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Mistral API error: ${error.error?.message || 'Unknown error'}`);
+  }
+
+  const data = await response.json();
+  const responseText = data.choices?.[0]?.message?.content || '';
+
+  if (!responseText) {
+    throw new Error('No response text from Mistral');
+  }
+
+  console.log('Mistral response received', {
+    model: 'pixtral-12b-2409',
+    inputTokens: data.usage?.prompt_tokens,
+    outputTokens: data.usage?.completion_tokens,
+  });
+
+  return parseJsonResponse(responseText);
+}
+
+// Extract with OpenAI (images only, faster & cheaper)
+async function extractWithOpenAI(base64Data: string, mediaType: string, fileName: string) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
+
+  console.log('Attempting OCR with OpenAI GPT-4o mini', { fileName });
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      max_tokens: 2048,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:${mediaType};base64,${base64Data}`,
+                detail: 'auto',
+              },
+            },
+            {
+              type: 'text',
+              text: OCR_PROMPT,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`OpenAI API error: ${error.error?.message || 'Unknown error'}`);
+  }
+
+  const data = await response.json();
+  const responseText = data.choices?.[0]?.message?.content || '';
+
+  if (!responseText) {
+    throw new Error('No response text from OpenAI');
+  }
+
+  console.log('OpenAI response received', {
+    model: 'gpt-4o-mini',
+    inputTokens: data.usage?.prompt_tokens,
+    outputTokens: data.usage?.completion_tokens,
+  });
+
+  return parseJsonResponse(responseText);
+}
+
+// Parse JSON from response text
+function parseJsonResponse(responseText: string): any {
+  let jsonText = responseText.trim();
+
+  // Remove markdown code blocks if present
+  const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (jsonMatch) {
+    jsonText = jsonMatch[1];
+  }
+
+  return JSON.parse(jsonText);
+}
+
 const OCR_PROMPT = `Te adjunto una póliza. Debes analizarla y devolver ÚNICAMENTE un JSON válido que cumpla EXACTAMENTE con el siguiente JSON Schema (sin texto adicional):
 
 {
@@ -79,105 +206,75 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Convert file to base64
+    // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+    const mediaType: string = file.type;
     const base64Data = buffer.toString('base64');
 
-    // Determine media type
-    let mediaType: string = 'image/jpeg';
-    if (file.type === 'image/png') mediaType = 'image/png';
-    else if (file.type === 'image/gif') mediaType = 'image/gif';
-    else if (file.type === 'image/webp') mediaType = 'image/webp';
-    else if (file.type === 'application/pdf') mediaType = 'application/pdf';
+    // Validate file type
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(mediaType)) {
+      return NextResponse.json(
+        { error: `Tipo de archivo no soportado: ${file.type}. Solo se aceptan PDF, JPEG, PNG, GIF o WebP.` },
+        { status: 400 }
+      );
+    }
 
-    console.log('Starting OCR extraction with OpenAI', {
+    console.log('Starting OCR extraction', {
       fileName: file.name,
       fileType: file.type,
-      mediaType,
       fileSize: file.size,
       clientId,
     });
 
-    // Call OpenAI API
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        max_tokens: 2048,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mediaType};base64,${base64Data}`,
-                  detail: 'auto',
-                },
-              },
-              {
-                type: 'text',
-                text: OCR_PROMPT,
-              },
-            ],
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      const errorMsg = error.error?.message || error.error?.type || 'Error desconocido';
-      console.error('OpenAI API error:', errorMsg);
-
-      return NextResponse.json(
-        { error: `Error del servicio OCR: ${errorMsg}` },
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
-    const responseText = data.choices?.[0]?.message?.content || '';
-
-    if (!responseText) {
-      throw new Error('No response text from OpenAI');
-    }
-
-    console.log('OpenAI response received', {
-      model: 'gpt-4o-mini',
-      inputTokens: data.usage?.prompt_tokens,
-      outputTokens: data.usage?.completion_tokens,
-    });
-
-    // Parse JSON from response
     let extractedData;
-    try {
-      extractedData = JSON.parse(responseText);
-    } catch (parseError) {
-      // Try to extract JSON from markdown code blocks
-      const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (jsonMatch) {
-        extractedData = JSON.parse(jsonMatch[1]);
-      } else {
-        throw new Error('Invalid JSON response from OpenAI');
+    let usedProvider: string = '';
+    const errors: Array<{ provider: string; error: string }> = [];
+
+    // Strategy: Use Mistral for PDFs (native support), OpenAI for images (cheaper)
+    const providers: Array<{ name: string; condition: boolean }> = [
+      { name: 'mistral', condition: mediaType === 'application/pdf' },
+      { name: 'openai', condition: mediaType !== 'application/pdf' },
+    ];
+
+    // Fallback order if preferred provider fails
+    const fallbackProviders = mediaType === 'application/pdf'
+      ? ['mistral', 'openai'] // For PDF: try Mistral first, then OpenAI
+      : ['openai', 'mistral']; // For images: try OpenAI first (cheaper), then Mistral
+
+    for (const providerName of fallbackProviders) {
+      try {
+        if (providerName === 'mistral') {
+          extractedData = await extractWithMistral(base64Data, mediaType, file.name);
+        } else if (providerName === 'openai') {
+          extractedData = await extractWithOpenAI(base64Data, mediaType, file.name);
+        }
+
+        usedProvider = providerName;
+        console.log('OCR extraction successful', {
+          provider: usedProvider,
+          hasNumeroPoliza: !!extractedData.numero_poliza,
+          hasTipo: !!extractedData.tipo,
+          hasVigencia: !!extractedData.vigencia_inicio && !!extractedData.vigencia_fin,
+        });
+        break;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.warn(`Provider ${providerName} failed:`, errorMessage);
+        errors.push({ provider: providerName, error: errorMessage });
       }
     }
 
-    console.log('OCR extraction successful', {
-      hasNumeroPoliza: !!extractedData.numero_poliza,
-      hasTipo: !!extractedData.tipo,
-      hasVigencia: !!extractedData.vigencia_inicio && !!extractedData.vigencia_fin,
-    });
+    if (!extractedData) {
+      const errorSummary = errors.map(e => `${e.provider}: ${e.error}`).join('; ');
+      throw new Error(`All OCR providers failed. Errors: ${errorSummary}`);
+    }
 
     return NextResponse.json({
       extractedData,
       status: 'success',
-      provider: 'openai',
+      provider: usedProvider,
     });
   } catch (error) {
     console.error('OCR extraction error:', error);
