@@ -23,7 +23,7 @@ async function extractWithMistral(base64Data: string, mediaType: string, fileNam
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'pixtral-12b-2409',
+      model: 'mistral-large-latest',
       max_tokens: 2048,
       messages: [
         {
@@ -44,8 +44,20 @@ async function extractWithMistral(base64Data: string, mediaType: string, fileNam
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Mistral API error: ${error.error?.message || 'Unknown error'}`);
+    let errorMsg = 'Unknown error';
+    let errorDetails: any = {};
+    try {
+      errorDetails = await response.json();
+      errorMsg = errorDetails.error?.message || errorDetails.message || JSON.stringify(errorDetails);
+    } catch (parseErr) {
+      errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+    }
+    console.error('Mistral API error details:', {
+      status: response.status,
+      errorMsg,
+      fullResponse: errorDetails
+    });
+    throw new Error(`Mistral API error: ${errorMsg}`);
   }
 
   const data = await response.json();
@@ -56,7 +68,7 @@ async function extractWithMistral(base64Data: string, mediaType: string, fileNam
   }
 
   console.log('Mistral response received', {
-    model: 'pixtral-12b-2409',
+    model: 'mistral-large-latest',
     inputTokens: data.usage?.prompt_tokens,
     outputTokens: data.usage?.completion_tokens,
   });
@@ -102,8 +114,15 @@ async function extractWithOpenAI(base64Data: string, mediaType: string, fileName
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`OpenAI API error: ${error.error?.message || 'Unknown error'}`);
+    let errorMsg = 'Unknown error';
+    try {
+      const error = await response.json();
+      errorMsg = error.error?.message || error.message || JSON.stringify(error);
+    } catch (parseErr) {
+      errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+    }
+    console.error('OpenAI API error details:', { status: response.status, errorMsg });
+    throw new Error(`OpenAI API error: ${errorMsg}`);
   }
 
   const data = await response.json();
@@ -230,45 +249,59 @@ export async function POST(req: NextRequest) {
 
     let extractedData;
     let usedProvider: string = '';
-    const errors: Array<{ provider: string; error: string }> = [];
 
     // Strategy: Use Mistral for PDFs (native support), OpenAI for images (cheaper)
-    const providers: Array<{ name: string; condition: boolean }> = [
-      { name: 'mistral', condition: mediaType === 'application/pdf' },
-      { name: 'openai', condition: mediaType !== 'application/pdf' },
-    ];
+    // For PDFs: only try Mistral (OpenAI doesn't support PDFs)
+    // For images: try OpenAI first (cheaper), then Mistral as fallback
 
-    // Fallback order if preferred provider fails
-    const fallbackProviders = mediaType === 'application/pdf'
-      ? ['mistral', 'openai'] // For PDF: try Mistral first, then OpenAI
-      : ['openai', 'mistral']; // For images: try OpenAI first (cheaper), then Mistral
-
-    for (const providerName of fallbackProviders) {
+    if (mediaType === 'application/pdf') {
+      // PDF: must use Mistral, no fallback to OpenAI (it doesn't support PDFs)
       try {
-        if (providerName === 'mistral') {
-          extractedData = await extractWithMistral(base64Data, mediaType, file.name);
-        } else if (providerName === 'openai') {
-          extractedData = await extractWithOpenAI(base64Data, mediaType, file.name);
-        }
-
-        usedProvider = providerName;
+        extractedData = await extractWithMistral(base64Data, mediaType, file.name);
+        usedProvider = 'mistral';
         console.log('OCR extraction successful', {
           provider: usedProvider,
           hasNumeroPoliza: !!extractedData.numero_poliza,
           hasTipo: !!extractedData.tipo,
           hasVigencia: !!extractedData.vigencia_inicio && !!extractedData.vigencia_fin,
         });
-        break;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.warn(`Provider ${providerName} failed:`, errorMessage);
-        errors.push({ provider: providerName, error: errorMessage });
+        console.error('Mistral OCR failed for PDF:', errorMessage);
+        throw new Error(`Error procesando PDF con OCR: ${errorMessage}`);
       }
-    }
+    } else {
+      // Image: try OpenAI first (cheaper), fallback to Mistral
+      const imageProviders = ['openai', 'mistral'];
+      const errors: Array<{ provider: string; error: string }> = [];
 
-    if (!extractedData) {
-      const errorSummary = errors.map(e => `${e.provider}: ${e.error}`).join('; ');
-      throw new Error(`All OCR providers failed. Errors: ${errorSummary}`);
+      for (const providerName of imageProviders) {
+        try {
+          if (providerName === 'openai') {
+            extractedData = await extractWithOpenAI(base64Data, mediaType, file.name);
+          } else if (providerName === 'mistral') {
+            extractedData = await extractWithMistral(base64Data, mediaType, file.name);
+          }
+
+          usedProvider = providerName;
+          console.log('OCR extraction successful', {
+            provider: usedProvider,
+            hasNumeroPoliza: !!extractedData.numero_poliza,
+            hasTipo: !!extractedData.tipo,
+            hasVigencia: !!extractedData.vigencia_inicio && !!extractedData.vigencia_fin,
+          });
+          break;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.warn(`Provider ${providerName} failed:`, errorMessage);
+          errors.push({ provider: providerName, error: errorMessage });
+        }
+      }
+
+      if (!extractedData) {
+        const errorSummary = errors.map(e => `${e.provider}: ${e.error}`).join('; ');
+        throw new Error(`All image OCR providers failed. Errors: ${errorSummary}`);
+      }
     }
 
     return NextResponse.json({
