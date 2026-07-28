@@ -1,38 +1,38 @@
-# OCR Directo con Claude API
+# OCR Directo con OpenAI GPT-4o mini
 
 ## Cambio de Arquitectura
 
-Se eliminó la dependencia de n8n webhook. Ahora el OCR se procesa directamente usando Claude 3.5 Sonnet Vision.
+Se eliminó la dependencia de n8n webhook. Ahora el OCR se procesa directamente usando **OpenAI GPT-4o mini Vision** (80% más económico que Claude).
 
 ### Antes (n8n)
 ```
-Cliente → Webhook n8n → Claude API → JSON → Aplicación
+Cliente → Webhook n8n → Servicio OCR → JSON → Aplicación
 ```
 
 ### Después (Directo)
 ```
-Cliente → /api/ocr/extract → Claude API → JSON → Aplicación
+Cliente → /api/ocr/extract → OpenAI GPT-4o mini → JSON → Aplicación
 ```
 
 ## Ventajas
 
 ✅ **Más rápido** - Sin latencia de n8n  
 ✅ **Más confiable** - Menos puntos de fallo  
-✅ **Más simple** - Menos configuración externa  
-✅ **Mejor debugging** - Logs directos de Claude  
-✅ **Mejor precisión** - Manejo consistente de respuestas  
+✅ **Más económico** - 80-95% menos caro que Claude  
+✅ **Más simple** - Una sola llamada API  
+✅ **Mejor debugging** - Logs directos  
 
 ## Configuración Requerida
 
 ### Variable de Entorno
 
-Agrega a tu `.env.local`:
+Ya deberías tener en tu `.env`:
 
 ```bash
-ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
 ```
 
-La API key debe tener acceso a vision capabilities.
+Verifica que esté presente y tenga acceso a vision capabilities.
 
 ## Flujo Técnico
 
@@ -53,12 +53,12 @@ const response = await fetch("/api/ocr/extract", {
 })
 ```
 
-### 3. Servidor procesa con Claude
+### 3. Servidor procesa con OpenAI
 
 `/api/ocr/extract` recibe el archivo y:
 
 1. Convierte a base64
-2. Envía a Claude 3.5 Sonnet con el prompt OCR
+2. Envía a OpenAI GPT-4o mini con el prompt OCR
 3. Parsea la respuesta JSON
 4. Retorna `{ extractedData: {...} }`
 
@@ -118,16 +118,16 @@ El prompt está embebido en `/api/ocr/extract/route.ts` y asegura:
 
 ## Manejo de Errores
 
-### Error: "API Key not configured"
+### Error: "OPENAI_API_KEY not configured"
 
 ```bash
-# .env.local falta ANTHROPIC_API_KEY
-ANTHROPIC_API_KEY=sk-ant-...
+# Falta OPENAI_API_KEY en .env
+OPENAI_API_KEY=sk-...
 ```
 
-### Error: "Invalid JSON response from Claude"
+### Error: "Invalid JSON response from OpenAI"
 
-Claude no devolvió JSON válido. El endpoint intenta:
+OpenAI no devolvió JSON válido. El endpoint intenta:
 1. Parsear directamente
 2. Buscar JSON entre backticks
 3. Si falla, error descriptivo
@@ -135,10 +135,11 @@ Claude no devolvió JSON válido. El endpoint intenta:
 ### Error: "Error al procesar el documento"
 
 Posibles causas:
-- Archivo corrupto o no es PDF/imagen
+- Archivo corrupto o no es PDF/imagen válida
 - Imagen ilegible o muy oscura
-- Documento no es póliza válida
-- Rate limit de Claude API
+- Documento no es póliza
+- Rate limit de OpenAI API
+- Llamada timeout (>30s)
 
 ## Testing Manual
 
@@ -152,55 +153,55 @@ curl -X POST http://localhost:3000/api/ocr/extract \
 
 ## Costos API
 
-Claude 3.5 Sonnet Vision cobra por tokens:
+OpenAI GPT-4o mini Vision cobra por tokens:
 
-- **Tokens de entrada:** ~$3 por millón (vision)
-- **Tokens de salida:** ~$15 por millón
+- **Tokens de entrada (vision):** $0.15 por millón
+- **Tokens de salida:** $0.60 por millón
 
 Una póliza típica (1-2 páginas):
-- ~2,000 tokens entrada
-- ~500 tokens salida
-- **Costo aproximado:** $0.009 USD por póliza
+- ~1,000 tokens entrada
+- ~300 tokens salida
+- **Costo aproximado:** $0.0005 USD por póliza
 
-vs. n8n que podría costar más con múltiples pasos y servicios.
+**100 pólizas/mes:** $0.05 USD
+
+**Comparación:**
+- OpenAI GPT-4o mini: $0.0005/póliza ⭐
+- Claude 3.5 Sonnet: $0.009/póliza (18x más caro)
+- n8n + otros servicios: variable
 
 ## Logging
 
 Revisa los logs del servidor para:
 
 ```
-Starting OCR extraction: { fileName, fileType, fileSize, clientId }
-Claude response received: { inputTokens, outputTokens, responseLength }
-OCR extraction successful: { hasNumeroPoliza, hasTipo, hasVigencia }
+Starting OCR extraction with OpenAI: { fileName, fileType, fileSize, clientId }
+OpenAI response received: { model: 'gpt-4o-mini', inputTokens, outputTokens }
+OCR extraction successful: { hasNumeroPoliza, hasTipo, hasVigencia, provider: 'openai' }
 ```
 
 O errores:
 
 ```
+OpenAI API error: { error details }
 OCR extraction error: { error details }
 ```
 
-## Fallback a n8n (Opcional)
-
-Si quieres mantener n8n como fallback:
-
-```typescript
-try {
-  const response = await fetch("/api/ocr/extract", ...)
-  if (!response.ok) throw new Error("Claude failed")
-  return response.json()
-} catch (error) {
-  console.warn("Falling back to n8n", error)
-  const response = await fetch("/api/ocr-webhook", ...)
-  return response.json()
-}
-```
-
-Actualmente la aplicación usa SOLO el endpoint directo.
-
 ## Próximos Pasos
 
-- [ ] Configurar `ANTHROPIC_API_KEY` en `.env.local`
+- [x] OPENAI_API_KEY ya está en `.env`
 - [ ] Testear OCR en `/admin/polizas/por-vencer`
-- [ ] Revisar logs para verificar extracción correcta
-- [ ] (Opcional) Remover n8n webhook si se confirma que todo funciona
+- [ ] Revisar logs (F12 Console) para verificar extracción correcta
+- [ ] Monitorear costos en OpenAI dashboard
+
+## Testing Rápido
+
+```bash
+# Prueba con curl
+curl -X POST http://localhost:3000/api/ocr/extract \
+  -F "file=@poliza.pdf" \
+  -F "clientId=test-123"
+
+# Respuesta esperada:
+# {"extractedData": {...}, "status": "success", "provider": "openai"}
+```
