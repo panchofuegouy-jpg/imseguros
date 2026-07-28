@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Mistral OCR with correct model and format
-async function extractWithMistralOCR(base64Data: string, mediaType: string, fileName: string) {
+// Mistral OCR with vision model (pixtral) for images
+async function extractWithMistral(base64Data: string, mediaType: string, fileName: string) {
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) throw new Error('MISTRAL_API_KEY not configured');
 
-  console.log('Attempting OCR with Mistral', { fileName, mediaType });
+  console.log('Attempting OCR with Mistral pixtral', { fileName, mediaType });
 
   const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
     method: 'POST',
@@ -48,9 +48,8 @@ async function extractWithMistralOCR(base64Data: string, mediaType: string, file
     console.error('Mistral API error:', {
       status: response.status,
       errorMsg,
-      fullResponse: errorDetails
     });
-    throw new Error(`Mistral OCR error: ${errorMsg}`);
+    throw new Error(`Mistral API error: ${errorMsg}`);
   }
 
   const data = await response.json();
@@ -60,7 +59,7 @@ async function extractWithMistralOCR(base64Data: string, mediaType: string, file
     throw new Error('No response text from Mistral');
   }
 
-  console.log('Mistral OCR response received', {
+  console.log('Mistral response received', {
     model: 'pixtral-12b-2409',
     inputTokens: data.usage?.prompt_tokens,
     outputTokens: data.usage?.completion_tokens,
@@ -302,11 +301,11 @@ export async function POST(req: NextRequest) {
     let extractedData;
     let usedProvider: string = '';
 
-    // Strategy: Use available APIs that support the format
-    // PDFs: OpenAI GPT-4o (supports PDFs) → Mistral (if works with URLs)
-    // Images: OpenAI GPT-4o mini (cheaper) → Mistral
+    // Strategy: Use best provider per format
+    // PDFs: OpenAI GPT-4o (direct JSON output) with Mistral OCR as fallback
+    // Images: OpenAI GPT-4o mini (cheaper) → Mistral pixtral
     const providers = mediaType === 'application/pdf'
-      ? ['openai'] // OpenAI GPT-4o supports PDFs natively
+      ? ['openai', 'mistral'] // OpenAI for direct JSON, Mistral OCR as fallback
       : ['openai', 'mistral'];
 
     const errors: Array<{ provider: string; error: string }> = [];
@@ -314,11 +313,9 @@ export async function POST(req: NextRequest) {
     for (const providerName of providers) {
       try {
         if (providerName === 'mistral') {
-          extractedData = await extractWithMistralOCR(base64Data, mediaType, file.name);
+          extractedData = await extractWithMistral(base64Data, mediaType, file.name);
         } else if (providerName === 'openai') {
           extractedData = await extractWithOpenAI(base64Data, mediaType, file.name);
-        } else if (providerName === 'claude') {
-          extractedData = await extractWithClaude(base64Data, mediaType, file.name);
         }
 
         usedProvider = providerName;
