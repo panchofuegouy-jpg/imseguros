@@ -300,11 +300,12 @@ export async function POST(req: NextRequest) {
     let extractedData;
     let usedProvider: string = '';
 
-    // Strategy: Mistral for PDFs (native support), OpenAI for images (cheaper)
-    // Mistral's pixtral model supports both PDFs and images natively
+    // Strategy: Try available providers in order
+    // For PDFs: Mistral (if configured) → OpenAI → Claude
+    // For images: OpenAI (cheaper) → Mistral → Claude
     const providers = mediaType === 'application/pdf'
-      ? ['mistral'] // Only Mistral for PDFs
-      : ['openai', 'mistral', 'claude']; // Try cheaper option first for images
+      ? ['mistral', 'claude', 'openai'] // Mistral first, fallback to Claude (supports PDFs), then OpenAI
+      : ['openai', 'mistral', 'claude'];
 
     const errors: Array<{ provider: string; error: string }> = [];
 
