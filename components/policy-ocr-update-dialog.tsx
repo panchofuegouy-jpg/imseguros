@@ -5,7 +5,6 @@ import { FileUp, Loader2, RefreshCw, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { normalizeOcrDate } from "@/lib/ocr-date"
-import { parseOcrData } from "@/lib/parse-ocr-data"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -160,37 +159,18 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
 
       const formData = new FormData()
       formData.append("file", file)
-      formData.append("filePath", uploadedPath)
       formData.append("clientId", policy.client_id)
-      formData.append("fileName", file.name)
-      formData.append("analysisContext", "actualizacion_de_poliza")
-      formData.append("expectedFields", JSON.stringify([
-        "numero_poliza",
-        "aseguradora",
-        "tipo",
-        "vigencia_inicio",
-        "vigencia_fin",
-        "total_a_pagar",
-        "moneda",
-        "forma_pago",
-        "numero_factura",
-        "nombre_asegurado",
-        "documento_asegurado",
-        "parentesco",
-        "notas",
-      ]))
 
-      const response = await fetch("/api/ocr-webhook", { method: "POST", body: formData })
+      const response = await fetch("/api/ocr/extract", { method: "POST", body: formData })
       if (!response.ok) {
         const body = await response.json().catch(() => null)
         throw new Error(body?.error || "No se pudo analizar el documento")
       }
 
       const responseData = await response.json()
-      const extracted = parseOcrData(responseData)
+      const extracted = responseData.extractedData || responseData
 
       console.log('OCR Update Dialog - extraction result:', {
-        responseKeys: Object.keys(responseData).slice(0, 5),
         extractedKeys: Object.keys(extracted),
         hasNumeroPoliza: !!extracted.numero_poliza,
         hasTipo: !!extracted.tipo,

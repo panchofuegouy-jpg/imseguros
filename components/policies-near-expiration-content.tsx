@@ -16,7 +16,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, RefreshCw, Edit, CheckCircle, AlertCircle, Clock, XCircle, Phone, MessageCircle, Upload, FileText, X, User, Wand2, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { normalizeOcrDate } from "@/lib/ocr-date";
-import { parseOcrData } from "@/lib/parse-ocr-data";
 
 interface Policy {
   id: string;
@@ -757,11 +756,9 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
 
       const fd = new FormData();
       fd.append('file', file);
-      fd.append('filePath', storedPath);
       fd.append('clientId', policy.client_id);
-      fd.append('fileName', file.name);
 
-      const res = await fetch('/api/ocr-webhook', { method: 'POST', body: fd });
+      const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
       if (!res.ok) {
         let detail = res.statusText;
         try {
@@ -772,7 +769,7 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
       }
 
       const raw = await res.json();
-      const ext = parseOcrData(raw);
+      const ext = raw.extractedData || raw;
 
       console.log('OCR extraction result:', {
         extractedKeys: Object.keys(ext),
