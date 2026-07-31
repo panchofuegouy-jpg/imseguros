@@ -4,7 +4,7 @@ export function generateWhatsAppPolicyLink(
   policyNumber: string,
   policyType: string,
   endDate: string,
-  policyId: string | undefined
+  policyFileUrl: string | undefined
 ): string | null {
   if (!clientPhone) return null;
 
@@ -22,12 +22,8 @@ export function generateWhatsAppPolicyLink(
 
   let message = `Hola ${clientName},\n\nAdjunto póliza N° ${policyNumber}\nTipo: ${policyType}\nVigente hasta: ${expirationFormatted}`;
 
-  if (policyId) {
-    const baseUrl = typeof window !== "undefined"
-      ? window.location.origin
-      : process.env.NEXT_PUBLIC_APP_URL || "https://app.imseguros.com";
-    const shortLink = `${baseUrl}/p/${policyId}`;
-    message += `\n\nDescargar: ${shortLink}`;
+  if (policyFileUrl) {
+    message += `\n\nDescargar: ${policyFileUrl}`;
   }
 
   message += "\n\nSaludos, IM Seguros.";

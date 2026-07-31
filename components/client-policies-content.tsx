@@ -154,7 +154,7 @@ export function ClientPoliciesContent({ initialPolicies }: ClientPoliciesContent
                             policy.numero_poliza,
                             policy.tipo,
                             policy.vigencia_fin,
-                            policy.id
+                            policy.archivo_urls?.[0] ? resolvePolicyFileUrl(policy.archivo_urls[0]) : undefined
                           );
                           return waLink ? (
                             <a
