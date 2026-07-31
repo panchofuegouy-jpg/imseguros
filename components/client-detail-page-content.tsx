@@ -839,87 +839,160 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                     {filteredPolicies.length === 0 ? (
                         <p>{policies.length === 0 ? "No hay pólizas registradas para este cliente." : "No se encontraron pólizas que coincidan con la búsqueda."}</p>
                     ) : (
-                        <div className="overflow-hidden rounded-md border border-border/70">
-                        <Table className="table-fixed text-xs">
-                            <TableHeader>
+                        <>
+                          {/* Mobile View - Cards */}
+                          <div className="space-y-2 md:hidden">
+                            {filteredPolicies.map((policy) => (
+                              <div key={policy.id} className="rounded-lg border p-3 space-y-2">
+                                <div className="flex justify-between items-start gap-2">
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-semibold">Póliza</p>
+                                    <p className="font-bold text-sm">{policy.numero_poliza}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-xs text-muted-foreground font-semibold">Vence</p>
+                                    <p className="text-sm font-medium text-red-400">{formatPolicyDate(policy.vigencia_fin)}</p>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div>
+                                    <p className="text-muted-foreground font-semibold mb-1">Aseguradora</p>
+                                    <p className="truncate">{policy.companies?.name || "N/A"}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground font-semibold mb-1">Tipo</p>
+                                    <p className="truncate">{policy.tipo}</p>
+                                  </div>
+                                </div>
+
+                                {policy.prima_monto != null && (
+                                  <div className="text-sm">
+                                    <p className="text-xs text-muted-foreground font-semibold mb-1">Prima</p>
+                                    <p className="font-medium">
+                                      {policy.moneda || 'UYU'} {Number(policy.prima_monto).toLocaleString('es-UY', { minimumFractionDigits: 0 })}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {policy.notas && (
+                                  <div className="text-xs pt-1 border-t">
+                                    <p className="text-muted-foreground font-semibold mb-1">Notas</p>
+                                    <p className="text-foreground/80">{policy.notas}</p>
+                                  </div>
+                                )}
+
+                                <div className="flex gap-1 pt-1 border-t flex-wrap">
+                                  <PolicyOcrUpdateDialog
+                                    policy={policy}
+                                    companies={companies}
+                                    onSuccess={fetchPolicies}
+                                  />
+                                  <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => openEditForm(policy)}>
+                                    <Edit className="h-3 w-3 mr-1" />
+                                    Editar
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="h-8 text-xs"
+                                    onClick={() => openDeleteDialog(policy)}
+                                    disabled={isDeleting}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+
+                                <div className="pt-1 border-t">
+                                  {renderPolicyFiles(policy)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Desktop View - Table */}
+                          <div className="hidden md:block overflow-hidden rounded-md border border-border/70">
+                            <Table className="text-xs">
+                              <TableHeader>
                                 <TableRow className="hover:bg-transparent">
-                                    <TableHead className="w-[9%] px-2 text-center text-[10px]">Póliza</TableHead>
-                                    <TableHead className="w-[23%] border-l border-dashed border-border px-2 text-[10px]">Notas</TableHead>
-                                    <TableHead className="w-[8%] border-l border-dashed border-border px-1 text-center text-[10px]">Aseguradora</TableHead>
-                                    <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-[10px]">Tipo</TableHead>
-                                    <TableHead className="w-[12%] border-l border-dashed border-border px-1 text-center text-[10px]">Prima</TableHead>
-                                    <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-[10px]">Inicio</TableHead>
-                                    <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-[10px]">Fin</TableHead>
-                                    <TableHead className="w-[8%] border-l border-dashed border-border px-1 text-center text-[10px]">Documentos</TableHead>
-                                    <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-[10px]">Acciones</TableHead>
+                                  <TableHead className="w-[10%] px-2 text-center text-xs">Póliza</TableHead>
+                                  <TableHead className="w-[20%] border-l border-dashed border-border px-2 text-xs">Notas</TableHead>
+                                  <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-xs">Aseguradora</TableHead>
+                                  <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-xs">Tipo</TableHead>
+                                  <TableHead className="w-[12%] border-l border-dashed border-border px-1 text-center text-xs">Prima</TableHead>
+                                  <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-xs">Inicio</TableHead>
+                                  <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-xs">Fin</TableHead>
+                                  <TableHead className="w-[8%] border-l border-dashed border-border px-1 text-center text-xs">Doc</TableHead>
+                                  <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-xs">Acciones</TableHead>
                                 </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                              </TableHeader>
+                              <TableBody>
                                 {filteredPolicies.map((policy) => (
-                                    <TableRow key={policy.id}>
-                                        <TableCell className="truncate px-2 text-center font-bold">{policy.numero_poliza}</TableCell>
-                                        <TableCell className="border-l border-dashed border-border px-2 text-left">
-                                            <span className="block truncate text-[10px] font-medium text-foreground/80" title={policy.notas || "SIN NOTAS"}>
-                                                {policy.notas || "N/A"}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="border-l border-dashed border-border px-1 text-center">
-                                            <span className="inline-flex max-w-full truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-1 font-semibold">
-                                                {policy.companies?.name || "N/A"}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="border-l border-dashed border-border px-1 text-center">
-                                            <span className="inline-flex max-w-full truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-1 font-semibold" title={policy.tipo}>
-                                                {policy.tipo}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="border-l border-dashed border-border px-1 text-center">
-                                            {policy.prima_monto != null ? (
-                                                <span className="inline-flex max-w-full flex-col rounded-md border border-border/80 bg-muted/40 px-1.5 py-1 font-semibold leading-tight">
-                                                    {policy.moneda || 'UYU'} {Number(policy.prima_monto).toLocaleString('es-UY', { minimumFractionDigits: 2 })}
-                                                </span>
-                                            ) : <span className="text-muted-foreground">—</span>}
-                                        </TableCell>
-                                        <TableCell className="border-l border-dashed border-border px-1 text-center">
-                                            <span className="inline-flex rounded-md border border-green-500/45 bg-green-500/15 px-1.5 py-1 text-[10px] font-semibold text-green-400">
-                                                {formatPolicyDate(policy.vigencia_inicio)}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="border-l border-dashed border-border px-1 text-center">
-                                            <span className="inline-flex rounded-md border border-red-500/45 bg-red-500/15 px-1.5 py-1 text-[10px] font-semibold text-red-400">
-                                                {formatPolicyDate(policy.vigencia_fin)}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="border-l border-dashed border-border px-1 text-center">
-                                            {renderPolicyFiles(policy)}
-                                        </TableCell>
-                                        <TableCell className="border-l border-dashed border-border px-1">
-                                            <div className="flex items-center justify-center gap-1">
-                                                <PolicyOcrUpdateDialog
-                                                    policy={policy}
-                                                    companies={companies}
-                                                    onSuccess={fetchPolicies}
-                                                />
-                                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openEditForm(policy)} title="Editar">
-                                                    <Edit className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button
-                                                    variant="destructive"
-                                                    size="icon"
-                                                    className="h-7 w-7"
-                                                    onClick={() => openDeleteDialog(policy)}
-                                                    disabled={isDeleting}
-                                                    title="Eliminar"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
+                                  <TableRow key={policy.id}>
+                                    <TableCell className="truncate px-2 text-center font-bold">{policy.numero_poliza}</TableCell>
+                                    <TableCell className="border-l border-dashed border-border px-2 text-left">
+                                      <span className="block truncate text-xs font-medium text-foreground/80" title={policy.notas || "SIN NOTAS"}>
+                                        {policy.notas || "N/A"}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="border-l border-dashed border-border px-1 text-center">
+                                      <span className="inline-flex max-w-full truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-1 font-semibold text-xs">
+                                        {policy.companies?.name || "N/A"}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="border-l border-dashed border-border px-1 text-center">
+                                      <span className="inline-flex max-w-full truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-1 font-semibold text-xs" title={policy.tipo}>
+                                        {policy.tipo}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="border-l border-dashed border-border px-1 text-center">
+                                      {policy.prima_monto != null ? (
+                                        <span className="inline-flex max-w-full flex-col rounded-md border border-border/80 bg-muted/40 px-1.5 py-1 font-semibold leading-tight text-xs">
+                                          {policy.moneda || 'UYU'} {Number(policy.prima_monto).toLocaleString('es-UY', { minimumFractionDigits: 0 })}
+                                        </span>
+                                      ) : <span className="text-muted-foreground">—</span>}
+                                    </TableCell>
+                                    <TableCell className="border-l border-dashed border-border px-1 text-center">
+                                      <span className="inline-flex rounded-md border border-green-500/45 bg-green-500/15 px-1.5 py-1 text-xs font-semibold text-green-400">
+                                        {formatPolicyDate(policy.vigencia_inicio)}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="border-l border-dashed border-border px-1 text-center">
+                                      <span className="inline-flex rounded-md border border-red-500/45 bg-red-500/15 px-1.5 py-1 text-xs font-semibold text-red-400">
+                                        {formatPolicyDate(policy.vigencia_fin)}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="border-l border-dashed border-border px-1 text-center">
+                                      {renderPolicyFiles(policy)}
+                                    </TableCell>
+                                    <TableCell className="border-l border-dashed border-border px-1">
+                                      <div className="flex items-center justify-center gap-1">
+                                        <PolicyOcrUpdateDialog
+                                          policy={policy}
+                                          companies={companies}
+                                          onSuccess={fetchPolicies}
+                                        />
+                                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openEditForm(policy)} title="Editar">
+                                          <Edit className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button
+                                          variant="destructive"
+                                          size="icon"
+                                          className="h-7 w-7"
+                                          onClick={() => openDeleteDialog(policy)}
+                                          disabled={isDeleting}
+                                          title="Eliminar"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
                                 ))}
-                            </TableBody>
-                        </Table>
-                        </div>
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </>
                     )}
                 </CardContent>
             </Card>

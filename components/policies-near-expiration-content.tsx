@@ -500,153 +500,251 @@ export function PoliciesNearExpirationContent() {
                 : "No se encontraron pólizas con ese cliente."}
             </div>
           ) : (
-            <div className="w-full overflow-hidden">
-              <Table className="table-fixed text-[10px] uppercase sm:text-xs [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-dotted [&_td:not(:last-child)]:border-border/70 [&_td]:overflow-hidden [&_td]:px-1.5 [&_td]:py-2 [&_td]:text-ellipsis [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-dotted [&_th:not(:last-child)]:border-border/80 [&_th]:h-9 [&_th]:px-1.5 [&_th]:text-[10px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[8%] text-center">Vence en</TableHead>
-                    <TableHead className="w-[10%]">Póliza</TableHead>
-                    <TableHead className="w-[31%]">Cliente</TableHead>
-                    <TableHead className="w-[8%] text-center">Aseguradora</TableHead>
-                    <TableHead className="w-[9%] text-center">Tipo</TableHead>
-                    <TableHead className="w-[7%] text-center">Vence</TableHead>
-                    <TableHead className="w-[12%] text-center">Acciones</TableHead>
-                    <TableHead className="w-[15%] text-center">Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredPolicies.map((policy) => {
-                    const daysUntilExpiration = getDaysUntilExpiration(policy.vigencia_fin);
-                    const isUrgent = daysUntilExpiration <= 7;
-                    const isExpired = daysUntilExpiration <= 0;
-                    const currentStatus = STATUS_OPTIONS.find((status) => status.value === policy.status);
-                    
-                    return (
-                      <TableRow key={policy.id} className={isExpired ? "bg-red-500/20" : isUrgent ? "bg-red-500/20" : ""}>
-                        <TableCell className="text-center">
-                          <span className={`inline-flex max-w-full items-center justify-center truncate rounded-md border px-2 py-1 font-medium ${
-                            isUrgent
-                              ? 'border-red-500/40 bg-red-500/10 text-red-400'
-                              : daysUntilExpiration <= 15
-                                ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400'
-                                : 'border-primary/40 bg-primary/10 text-primary'
-                          }`}>
-                            {daysUntilExpiration > 0
-                              ? `${daysUntilExpiration} días`
-                              : `Vencida (${Math.abs(daysUntilExpiration)} días)`
-                            }
-                          </span>
-                        </TableCell>
-                        <TableCell className="truncate font-medium" title={policy.numero_poliza}>
-                          {policy.numero_poliza}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex min-w-0 flex-col">
-                            <Link
-                              href={`/admin/clientes/${policy.client_id}`}
-                              title={policy.clients.nombre}
-                              className="block truncate font-medium text-white hover:underline"
-                            >
-                              {policy.clients.nombre}
-                            </Link>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center" title={policy.companies.name}>
-                          <span className="inline-flex max-w-full items-center justify-center truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-0.5 font-medium">
-                            {policy.companies.name}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center" title={policy.tipo}>
-                          <span className="inline-flex max-w-full items-center justify-center truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-0.5 font-medium">
-                            {policy.tipo}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className="inline-flex max-w-full items-center justify-center truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-0.5 font-medium">
-                            {formatShortDate(policy.vigencia_fin)}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-0.5">
+            <>
+              {/* Mobile View - Cards */}
+              <div className="space-y-2 md:hidden">
+                {filteredPolicies.map((policy) => {
+                  const daysUntilExpiration = getDaysUntilExpiration(policy.vigencia_fin);
+                  const isUrgent = daysUntilExpiration <= 7;
+                  const isExpired = daysUntilExpiration <= 0;
+                  const currentStatus = STATUS_OPTIONS.find((status) => status.value === policy.status);
+
+                  return (
+                    <div key={policy.id} className={`rounded-lg border p-3 space-y-2 ${isExpired ? "bg-red-500/10 border-red-500/30" : isUrgent ? "bg-red-500/10 border-red-500/30" : ""}`}>
+                      <div className="flex justify-between items-start gap-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground font-semibold">Póliza</p>
+                          <p className="font-bold text-sm">{policy.numero_poliza}</p>
+                        </div>
+                        <div className={`inline-flex items-center justify-center rounded-md border px-2 py-1 text-xs font-semibold ${
+                          isUrgent
+                            ? 'border-red-500/40 bg-red-500/10 text-red-400'
+                            : daysUntilExpiration <= 15
+                              ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400'
+                              : 'border-primary/40 bg-primary/10 text-primary'
+                        }`}>
+                          {daysUntilExpiration > 0
+                            ? `${daysUntilExpiration}d`
+                            : `Vencida`
+                          }
+                        </div>
+                      </div>
+
+                      <div className="pt-1 border-t">
+                        <p className="text-xs text-muted-foreground font-semibold mb-1">Cliente</p>
+                        <Link
+                          href={`/admin/clientes/${policy.client_id}`}
+                          className="font-semibold text-primary hover:underline text-sm truncate block"
+                        >
+                          {policy.clients.nombre}
+                        </Link>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p className="text-muted-foreground font-semibold mb-1">Aseguradora</p>
+                          <p className="truncate">{policy.companies.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground font-semibold mb-1">Tipo</p>
+                          <p className="truncate">{policy.tipo}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-1 pt-1 border-t flex-wrap">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRenewal(policy)}
+                          className="flex-1 h-8 text-xs"
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Renovar
+                        </Button>
+
+                        {policy.clients.telefono && (() => {
+                          const waLink = getWhatsAppLink(policy);
+                          return waLink ? (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleRenewal(policy)}
-                              aria-label="Renovar póliza"
-                              title="Renovar póliza"
-                              className="h-7 px-2 text-[10px] uppercase"
+                              onClick={() => window.open(waLink, '_blank')}
+                              className="h-8 w-8 p-0"
                             >
-                              <Edit className="h-3.5 w-3.5" />
-                              Renovar
+                              <MessageCircle className="h-4 w-4" />
                             </Button>
+                          ) : null;
+                        })()}
 
-                            {policy.clients.telefono && (() => {
-                              const waLink = getWhatsAppLink(policy);
-                              return waLink ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => window.open(waLink, '_blank')}
-                                  aria-label="Abrir WhatsApp"
-                                  title="Abrir WhatsApp"
-                                  className="h-6 w-6 border-primary/50 p-0 text-primary hover:bg-primary/10"
-                                >
-                                  <MessageCircle className="h-3.5 w-3.5" />
-                                </Button>
-                              ) : null;
-                            })()}
+                        {policy.clients.telefono && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`tel:${policy.clients.telefono}`, '_self')}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Phone className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
 
-                            {policy.clients.telefono && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => window.open(`tel:${policy.clients.telefono}`, '_self')}
-                                aria-label="Llamar cliente"
-                                title="Llamar cliente"
-                                className="h-6 w-6 p-0"
-                              >
-                                <Phone className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full h-8 justify-between gap-1 px-2 text-xs"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <span className={`h-2 w-2 rounded-full ${currentStatus?.color || "bg-gray-500"}`} />
+                              <span className="truncate text-xs">{policy.status}</span>
+                            </span>
+                            <ChevronDown className="h-3 w-3 shrink-0" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          {STATUS_OPTIONS.map((status) => (
+                            <DropdownMenuItem
+                              key={status.value}
+                              onClick={() => updatePolicyStatus(policy.id, status.value)}
+                              className="cursor-pointer text-xs"
+                              disabled={policy.status === status.value}
+                            >
+                              <span className={`mr-2 h-2 w-2 rounded-full ${status.color}`} />
+                              {status.label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop View - Table */}
+              <div className="hidden md:block overflow-hidden">
+                <Table className="text-xs uppercase">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[9%] text-center">Vence</TableHead>
+                      <TableHead className="w-[11%]">Póliza</TableHead>
+                      <TableHead className="w-[25%]">Cliente</TableHead>
+                      <TableHead className="w-[10%] text-center">Aseguradora</TableHead>
+                      <TableHead className="w-[10%] text-center">Tipo</TableHead>
+                      <TableHead className="w-[8%] text-center">Fecha</TableHead>
+                      <TableHead className="w-[13%] text-center">Acciones</TableHead>
+                      <TableHead className="w-[14%] text-center">Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPolicies.map((policy) => {
+                      const daysUntilExpiration = getDaysUntilExpiration(policy.vigencia_fin);
+                      const isUrgent = daysUntilExpiration <= 7;
+                      const isExpired = daysUntilExpiration <= 0;
+                      const currentStatus = STATUS_OPTIONS.find((status) => status.value === policy.status);
+
+                      return (
+                        <TableRow key={policy.id} className={isExpired || isUrgent ? "bg-red-500/10" : ""}>
+                          <TableCell className="text-center">
+                            <span className={`inline-flex items-center justify-center rounded-md border px-2 py-1 font-semibold text-xs ${
+                              isUrgent
+                                ? 'border-red-500/40 bg-red-500/10 text-red-400'
+                                : daysUntilExpiration <= 15
+                                  ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400'
+                                  : 'border-primary/40 bg-primary/10 text-primary'
+                            }`}>
+                              {daysUntilExpiration > 0
+                                ? `${daysUntilExpiration}d`
+                                : `Vencida`
+                              }
+                            </span>
+                          </TableCell>
+                          <TableCell className="truncate font-semibold">{policy.numero_poliza}</TableCell>
+                          <TableCell>
+                            <Link
+                              href={`/admin/clientes/${policy.client_id}`}
+                              className="truncate font-medium text-primary hover:underline block"
+                            >
+                              {policy.clients.nombre}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-center truncate">{policy.companies.name}</TableCell>
+                          <TableCell className="text-center truncate">{policy.tipo}</TableCell>
+                          <TableCell className="text-center">{formatShortDate(policy.vigencia_fin)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-1">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-7 w-full min-w-0 justify-between gap-1 px-2 text-[10px] uppercase"
-                                aria-label={`Cambiar estado actual: ${policy.status}`}
+                                onClick={() => handleRenewal(policy)}
+                                className="h-7 px-2 text-xs"
                               >
-                                <span className="flex min-w-0 items-center gap-1.5">
-                                  <span className={`h-2 w-2 shrink-0 rounded-full ${currentStatus?.color || "bg-gray-500"}`} />
-                                  <span className="truncate">{policy.status}</span>
-                                </span>
-                                <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                <Edit className="h-3 w-3" />
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-44 uppercase">
-                              {STATUS_OPTIONS.map((status) => (
-                                <DropdownMenuItem
-                                  key={status.value}
-                                  onClick={() => updatePolicyStatus(policy.id, status.value)}
-                                  className="cursor-pointer"
-                                  disabled={policy.status === status.value}
+
+                              {policy.clients.telefono && (() => {
+                                const waLink = getWhatsAppLink(policy);
+                                return waLink ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => window.open(waLink, '_blank')}
+                                    className="h-7 w-7 p-0"
+                                  >
+                                    <MessageCircle className="h-3.5 w-3.5" />
+                                  </Button>
+                                ) : null;
+                              })()}
+
+                              {policy.clients.telefono && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => window.open(`tel:${policy.clients.telefono}`, '_self')}
+                                  className="h-7 w-7 p-0"
                                 >
-                                  <span className={`mr-2 h-2 w-2 rounded-full ${status.color}`} />
-                                  {status.label}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                                  <Phone className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 w-full justify-between gap-1 px-2 text-xs"
+                                >
+                                  <span className="flex items-center gap-1">
+                                    <span className={`h-2 w-2 rounded-full ${currentStatus?.color || "bg-gray-500"}`} />
+                                    <span className="truncate text-xs">{policy.status}</span>
+                                  </span>
+                                  <ChevronDown className="h-3 w-3 shrink-0" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40 text-xs">
+                                {STATUS_OPTIONS.map((status) => (
+                                  <DropdownMenuItem
+                                    key={status.value}
+                                    onClick={() => updatePolicyStatus(policy.id, status.value)}
+                                    className="cursor-pointer text-xs"
+                                    disabled={policy.status === status.value}
+                                  >
+                                    <span className={`mr-2 h-2 w-2 rounded-full ${status.color}`} />
+                                    {status.label}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -919,21 +1017,21 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
   };
 
   return (
-    <div className="min-h-0 overflow-y-auto px-5 pb-4 lg:overflow-hidden">
-      <form onSubmit={handleSubmit} className="grid gap-3 pt-3 lg:h-full lg:grid-cols-12 lg:grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)_auto]">
+    <div className="min-h-0 overflow-y-auto px-3 pb-3 sm:px-5 sm:pb-4 lg:overflow-hidden">
+      <form onSubmit={handleSubmit} className="grid gap-2 sm:gap-3 pt-3 lg:h-full lg:grid-cols-12 lg:grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)_auto]">
 
         {/* OCR Banner */}
-        <div className="flex items-center gap-3 rounded-xl border border-primary/40 bg-black/25 p-3 lg:col-span-12">
-          <Wand2 className="h-4 w-4 flex-shrink-0 text-primary" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 rounded-lg border border-primary/40 bg-black/25 p-2 sm:p-3 lg:col-span-12 text-sm">
+          <Wand2 className="h-4 w-4 flex-shrink-0 text-primary mt-0.5 sm:mt-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground">Cargar documento de renovación y extraer datos automáticamente</p>
-            <p className="text-xs text-muted-foreground">El OCR leerá el documento y pre-llenará los campos del formulario</p>
+            <p className="font-medium text-foreground text-sm">Cargar documento y extraer datos</p>
+            <p className="text-xs text-muted-foreground">El OCR pre-llenará los campos</p>
           </div>
-          <label className="cursor-pointer">
-            <Button type="button" variant="outline" size="sm" disabled={ocrLoading} asChild>
+          <label className="cursor-pointer shrink-0">
+            <Button type="button" variant="outline" size="sm" disabled={ocrLoading} asChild className="text-xs">
               <span>
-                {ocrLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-                {ocrLoading ? "Analizando..." : "Analizar con OCR"}
+                {ocrLoading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
+                <span className="hidden sm:inline">{ocrLoading ? "Analizando..." : "OCR"}</span>
               </span>
             </Button>
             <input type="file" className="sr-only" accept=".pdf,.png,.jpg,.jpeg" onChange={handleOcrFileChange} disabled={ocrLoading} />
@@ -941,30 +1039,30 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         </div>
 
         {/* Información General */}
-        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:col-span-4">
-          <div className="flex items-center gap-3 pb-3 border-b">
-            <div className="w-1.5 h-6 bg-primary rounded-full" />
-            <h3 className="text-base font-semibold">Información General</h3>
+        <div className="space-y-2 sm:space-y-3 rounded-lg border border-white/10 bg-black/20 p-2.5 sm:p-3 lg:col-span-4">
+          <div className="flex items-center gap-2 pb-2 border-b">
+            <div className="w-1 h-5 bg-primary rounded-full" />
+            <h3 className="text-sm font-semibold">Información</h3>
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Número de Póliza <span className="text-destructive">*</span></Label>
-              <Input value={formData.numero_poliza} onChange={e => setFormData({ ...formData, numero_poliza: e.target.value })} placeholder="Ej: POL-2025-001" required />
+          <div className="grid grid-cols-1 gap-2 sm:gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Póliza <span className="text-destructive">*</span></Label>
+              <Input value={formData.numero_poliza} onChange={e => setFormData({ ...formData, numero_poliza: e.target.value })} placeholder="POL-2025-001" required className="h-8 text-xs" />
             </div>
-            <div className="space-y-2">
-              <Label>Aseguradora</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Aseguradora</Label>
               <Select value={formData.company_id} onValueChange={v => setFormData({ ...formData, company_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar aseguradora" /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                <SelectContent className="text-xs">
                   {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Tipo de Póliza <span className="text-destructive">*</span></Label>
+            <div className="space-y-1 sm:col-span-2">
+              <Label className="text-xs">Tipo <span className="text-destructive">*</span></Label>
               <Select value={formData.tipo} onValueChange={v => setFormData({ ...formData, tipo: v })} required>
-                <SelectTrigger><SelectValue placeholder="Seleccionar tipo" /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Seleccionar tipo" /></SelectTrigger>
+                <SelectContent className="text-xs">
                   {POLICY_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -973,128 +1071,128 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         </div>
 
         {/* Vigencia */}
-        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:col-span-4">
-          <div className="flex items-center gap-3 pb-3 border-b">
-            <div className="w-1.5 h-6 bg-primary rounded-full" />
-            <h3 className="text-base font-semibold">Nueva Vigencia</h3>
+        <div className="space-y-2 sm:space-y-3 rounded-lg border border-white/10 bg-black/20 p-2.5 sm:p-3 lg:col-span-4">
+          <div className="flex items-center gap-2 pb-2 border-b">
+            <div className="w-1 h-5 bg-primary rounded-full" />
+            <h3 className="text-sm font-semibold">Vigencia</h3>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Fecha de Inicio <span className="text-destructive">*</span></Label>
-              <Input type="date" value={formData.vigencia_inicio} onChange={e => setFormData({ ...formData, vigencia_inicio: e.target.value })} required />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Inicio <span className="text-destructive">*</span></Label>
+              <Input type="date" value={formData.vigencia_inicio} onChange={e => setFormData({ ...formData, vigencia_inicio: e.target.value })} required className="h-8 text-xs" />
             </div>
-            <div className="space-y-2">
-              <Label>Fecha de Fin <span className="text-destructive">*</span></Label>
-              <Input type="date" value={formData.vigencia_fin} onChange={e => setFormData({ ...formData, vigencia_fin: e.target.value })} required />
+            <div className="space-y-1">
+              <Label className="text-xs">Fin <span className="text-destructive">*</span></Label>
+              <Input type="date" value={formData.vigencia_fin} onChange={e => setFormData({ ...formData, vigencia_fin: e.target.value })} required className="h-8 text-xs" />
             </div>
           </div>
         </div>
 
         {/* Asegurado */}
-        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:col-span-4">
-          <div className="flex items-center gap-3 pb-3 border-b">
-            <div className="w-1.5 h-6 bg-primary rounded-full" />
-            <User className="h-4 w-4 text-primary" />
-            <h3 className="text-base font-semibold">Información del Asegurado</h3>
+        <div className="space-y-2 sm:space-y-3 rounded-lg border border-white/10 bg-black/20 p-2.5 sm:p-3 lg:col-span-4">
+          <div className="flex items-center gap-2 pb-2 border-b">
+            <div className="w-1 h-5 bg-primary rounded-full" />
+            <h3 className="text-sm font-semibold">Asegurado</h3>
           </div>
-          <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-2.5">
-            <input type="checkbox" id="sameClient" checked={useClientAsInsured} onChange={e => setUseClientAsInsured(e.target.checked)} className="h-4 w-4" />
-            <Label htmlFor="sameClient" className="font-normal cursor-pointer">El asegurado es el mismo cliente ({policy.clients.nombre})</Label>
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-2">
+            <input type="checkbox" id="sameClient" checked={useClientAsInsured} onChange={e => setUseClientAsInsured(e.target.checked)} className="h-4 w-4 rounded" />
+            <Label htmlFor="sameClient" className="font-normal cursor-pointer text-xs">Mismo que cliente</Label>
           </div>
           {!useClientAsInsured && (
-            <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/30 p-3">
-              <div className="col-span-2 space-y-2">
-                <Label>Nombre del Asegurado</Label>
-                <Input value={formData.nombre_asegurado} onChange={e => setFormData({ ...formData, nombre_asegurado: e.target.value })} placeholder="Nombre completo" />
+            <div className="space-y-2 rounded-lg border bg-muted/30 p-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Nombre</Label>
+                <Input value={formData.nombre_asegurado} onChange={e => setFormData({ ...formData, nombre_asegurado: e.target.value })} placeholder="Nombre" className="h-8 text-xs" />
               </div>
-              <div className="space-y-2">
-                <Label>Documento</Label>
-                <Input value={formData.documento_asegurado} onChange={e => setFormData({ ...formData, documento_asegurado: e.target.value })} placeholder="CI del asegurado" />
-              </div>
-              <div className="space-y-2">
-                <Label>Parentesco</Label>
-                <Select value={formData.parentesco} onValueChange={v => setFormData({ ...formData, parentesco: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["Cónyuge","Hijo/a","Padre","Madre","Hermano/a","Familiar","Tercero","Otro"].map(p =>
-                      <SelectItem key={p} value={p}>{p}</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Documento</Label>
+                  <Input value={formData.documento_asegurado} onChange={e => setFormData({ ...formData, documento_asegurado: e.target.value })} placeholder="CI" className="h-8 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Parentesco</Label>
+                  <Select value={formData.parentesco} onValueChange={v => setFormData({ ...formData, parentesco: v })}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent className="text-xs">
+                      {["Cónyuge","Hijo/a","Padre","Madre","Hermano/a","Familiar","Tercero","Otro"].map(p =>
+                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           )}
         </div>
 
         {/* Facturación */}
-        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:col-span-4">
-          <div className="flex items-center gap-3 pb-3 border-b">
-            <div className="w-1.5 h-6 bg-primary rounded-full" />
-            <h3 className="text-base font-semibold">Facturación</h3>
+        <div className="space-y-2 sm:space-y-3 rounded-lg border border-white/10 bg-black/20 p-2.5 sm:p-3 lg:col-span-4">
+          <div className="flex items-center gap-2 pb-2 border-b">
+            <div className="w-1 h-5 bg-primary rounded-full" />
+            <h3 className="text-sm font-semibold">Facturación</h3>
           </div>
-          <div className="grid grid-cols-1 gap-2">
-            <div className="space-y-2">
-              <Label>Prima / Monto</Label>
-              <div className="flex gap-2">
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Prima</Label>
+              <div className="flex gap-1">
                 <Select value={formData.moneda} onValueChange={v => setFormData({ ...formData, moneda: v })}>
-                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                  <SelectContent>
+                  <SelectTrigger className="w-16 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent className="text-xs">
                     <SelectItem value="UYU">UYU</SelectItem>
                     <SelectItem value="USD">USD</SelectItem>
                     <SelectItem value="EUR">EUR</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input type="number" min="0" step="0.01" placeholder="0.00" className="flex-1" value={formData.prima_monto} onChange={e => setFormData({ ...formData, prima_monto: e.target.value })} />
+                <Input type="number" min="0" step="0.01" placeholder="0.00" className="flex-1 h-8 text-xs" value={formData.prima_monto} onChange={e => setFormData({ ...formData, prima_monto: e.target.value })} />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Forma de Pago</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Forma de Pago</Label>
               <Select value={formData.forma_pago} onValueChange={v => setFormData({ ...formData, forma_pago: v })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar frecuencia" /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                <SelectContent className="text-xs">
                   {PAYMENT_FREQUENCY_OPTIONS.map(f =>
                     <SelectItem key={f} value={f}>{f}</SelectItem>
                   )}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>N° de Factura / Recibo</Label>
-              <Input placeholder="Ej: F-001234" value={formData.numero_factura} onChange={e => setFormData({ ...formData, numero_factura: e.target.value })} />
+            <div className="space-y-1">
+              <Label className="text-xs">N° Factura</Label>
+              <Input placeholder="F-001234" value={formData.numero_factura} onChange={e => setFormData({ ...formData, numero_factura: e.target.value })} className="h-8 text-xs" />
             </div>
           </div>
         </div>
 
         {/* Documentos */}
-        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:col-span-4">
-          <div className="flex items-center gap-3 pb-3 border-b">
-            <div className="w-1.5 h-6 bg-primary rounded-full" />
-            <h3 className="text-base font-semibold">Documentos</h3>
+        <div className="space-y-2 sm:space-y-3 rounded-lg border border-white/10 bg-black/20 p-2.5 sm:p-3 lg:col-span-4">
+          <div className="flex items-center gap-2 pb-2 border-b">
+            <div className="w-1 h-5 bg-primary rounded-full" />
+            <h3 className="text-sm font-semibold">Documentos</h3>
           </div>
-          <div className="rounded-lg border-2 border-dashed border-border bg-muted/20 p-3 text-center transition-colors hover:border-primary/50">
-            <Upload className="mx-auto mb-1 h-5 w-5 text-muted-foreground" />
-            <label htmlFor="renewal-file-upload" className="cursor-pointer text-sm font-medium hover:text-primary transition-colors">
-              Cargar archivos adjuntos
+          <div className="rounded-lg border-2 border-dashed border-border bg-muted/20 p-2 text-center transition-colors hover:border-primary/50">
+            <Upload className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
+            <label htmlFor="renewal-file-upload" className="cursor-pointer text-xs font-medium hover:text-primary transition-colors">
+              Cargar archivos
               <input id="renewal-file-upload" type="file" multiple className="sr-only" accept=".pdf,.doc,.docx" onChange={handleFileChange} />
             </label>
-            <p className="text-xs text-muted-foreground mt-1">PDF, DOC, DOCX hasta 10MB</p>
+            <p className="text-xs text-muted-foreground mt-1">PDF, DOC, DOCX</p>
           </div>
           {fileAttachments.length > 0 && (
-            <div className="max-h-16 space-y-1 overflow-y-auto">
+            <div className="max-h-20 space-y-1 overflow-y-auto">
               {fileAttachments.map(att => (
-                <div key={att.id} className="flex items-center justify-between rounded-lg border bg-muted/30 p-2">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                <div key={att.id} className="flex items-center justify-between rounded border bg-muted/30 p-1.5 gap-2 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="h-3 w-3 text-primary flex-shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{att.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {att.size ? formatFileSize(att.size) : 'Archivo existente'}
-                        {att.isExisting && ' (actual)'}
+                      <p className="truncate font-medium">{att.name}</p>
+                      <p className="text-muted-foreground">
+                        {att.size ? formatFileSize(att.size) : 'Existente'}
                       </p>
                     </div>
                   </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setFileAttachments(prev => prev.filter(f => f.id !== att.id))} className="text-muted-foreground hover:text-destructive">
-                    <X className="h-4 w-4" />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setFileAttachments(prev => prev.filter(f => f.id !== att.id))} className="text-muted-foreground hover:text-destructive p-0 h-5 w-5">
+                    <X className="h-3 w-3" />
                   </Button>
                 </div>
               ))}
@@ -1103,16 +1201,16 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
         </div>
 
         {/* Notas */}
-        <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3 lg:col-span-4">
-          <Label>Notas de Renovación</Label>
-          <Textarea value={formData.notas} onChange={e => setFormData({ ...formData, notas: e.target.value })} placeholder="Observaciones sobre la renovación..." rows={3} className="resize-none" />
+        <div className="space-y-1 rounded-lg border border-white/10 bg-black/20 p-2.5 sm:p-3 lg:col-span-4">
+          <Label className="text-xs">Notas</Label>
+          <Textarea value={formData.notas} onChange={e => setFormData({ ...formData, notas: e.target.value })} placeholder="Observaciones..." rows={2} className="resize-none text-xs" />
         </div>
 
         {/* Botones */}
-        <div className="flex justify-end gap-3 border-t border-white/10 pt-3 lg:col-span-12">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>Cancelar</Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Renovando...</> : "Confirmar Renovación"}
+        <div className="flex justify-end gap-2 border-t border-white/10 pt-2 sm:pt-3 lg:col-span-12">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={loading} className="text-xs h-8">Cancelar</Button>
+          <Button type="submit" disabled={loading} className="text-xs h-8">
+            {loading ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Renovando</> : "Renovar"}
           </Button>
         </div>
       </form>
