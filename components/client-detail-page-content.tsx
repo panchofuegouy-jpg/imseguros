@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import PolicyForm from "@/components/policy-form";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Mail, Phone, User, Edit, Trash2, ExternalLink, Search, MessageCircle, Send, MapPin, IdCard, Building2, Hash, Sparkles } from 'lucide-react';
@@ -829,13 +830,13 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
             </div>
             </div>
 
-            <Card className="gap-4 py-4 uppercase overflow-visible">
+            <Card className="gap-4 py-4 uppercase overflow-visible h-auto">
                 <CardHeader className="px-4">
                     <CardTitle className="text-sm">
                         Pólizas ({filteredPolicies.length}{filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="px-3 sm:px-4 overflow-visible">
+                <CardContent className="px-3 sm:px-4 overflow-visible h-auto">
                     {filteredPolicies.length === 0 ? (
                         <p>{policies.length === 0 ? "No hay pólizas registradas para este cliente." : "No se encontraron pólizas que coincidan con la búsqueda."}</p>
                     ) : (
@@ -911,37 +912,50 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                           </div>
 
                           {/* Desktop View - Table */}
-                          <div className="hidden md:block overflow-visible rounded-md border border-border/70 w-full">
-                            <Table className="text-xs">
+                          <div className="hidden md:block rounded-md border border-border/70 w-full overflow-x-auto">
+                            <Table className="text-xs whitespace-nowrap">
                               <TableHeader>
                                 <TableRow className="hover:bg-transparent">
-                                  <TableHead className="w-[10%] px-2 text-center text-xs">Póliza</TableHead>
-                                  <TableHead className="w-[20%] border-l border-dashed border-border px-2 text-xs">Notas</TableHead>
-                                  <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-xs">Aseguradora</TableHead>
-                                  <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-xs">Tipo</TableHead>
-                                  <TableHead className="w-[12%] border-l border-dashed border-border px-1 text-center text-xs">Prima</TableHead>
-                                  <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-xs">Inicio</TableHead>
-                                  <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-xs">Fin</TableHead>
-                                  <TableHead className="w-[8%] border-l border-dashed border-border px-1 text-center text-xs">Doc</TableHead>
-                                  <TableHead className="w-[10%] border-l border-dashed border-border px-1 text-center text-xs">Acciones</TableHead>
+                                  <TableHead className="px-1 text-center text-xs min-w-max">Póliza</TableHead>
+                                  <TableHead className="border-l border-dashed border-border px-1 text-xs min-w-max">Notas</TableHead>
+                                  <TableHead className="border-l border-dashed border-border px-1 text-center text-xs min-w-max">Aseguradora</TableHead>
+                                  <TableHead className="border-l border-dashed border-border px-1 text-center text-xs min-w-max">Tipo</TableHead>
+                                  <TableHead className="border-l border-dashed border-border px-1 text-center text-xs min-w-max">Prima</TableHead>
+                                  <TableHead className="border-l border-dashed border-border px-1 text-center text-xs min-w-max">Inicio</TableHead>
+                                  <TableHead className="border-l border-dashed border-border px-1 text-center text-xs min-w-max">Fin</TableHead>
+                                  <TableHead className="border-l border-dashed border-border px-1 text-center text-xs min-w-max">Doc</TableHead>
+                                  <TableHead className="border-l border-dashed border-border px-1 text-center text-xs min-w-max">Acciones</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {filteredPolicies.map((policy) => (
                                   <TableRow key={policy.id}>
-                                    <TableCell className="truncate px-2 text-center font-bold">{policy.numero_poliza}</TableCell>
-                                    <TableCell className="border-l border-dashed border-border px-2 text-left">
-                                      <span className="block truncate text-xs font-medium text-foreground/80" title={policy.notas || "SIN NOTAS"}>
-                                        {policy.notas || "N/A"}
-                                      </span>
+                                    <TableCell className="px-1 text-center font-bold min-w-max">{policy.numero_poliza}</TableCell>
+                                    <TableCell className="border-l border-dashed border-border px-1 text-left text-xs min-w-max">
+                                      {policy.notas ? (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <span className="block text-foreground/80 cursor-help border-b border-dotted border-foreground/30">
+                                                {policy.notas.substring(0, 40)}...
+                                              </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="max-w-xs">
+                                              <p className="text-sm">{policy.notas}</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      ) : (
+                                        <span className="text-foreground/50">N/A</span>
+                                      )}
                                     </TableCell>
                                     <TableCell className="border-l border-dashed border-border px-1 text-center">
-                                      <span className="inline-flex max-w-full truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-1 font-semibold text-xs">
+                                      <span className="inline-flex rounded-md border border-border/80 bg-muted/40 px-1 py-0.5 font-semibold text-xs whitespace-nowrap">
                                         {policy.companies?.name || "N/A"}
                                       </span>
                                     </TableCell>
                                     <TableCell className="border-l border-dashed border-border px-1 text-center">
-                                      <span className="inline-flex max-w-full truncate rounded-md border border-border/80 bg-muted/40 px-1.5 py-1 font-semibold text-xs" title={policy.tipo}>
+                                      <span className="inline-flex rounded-md border border-border/80 bg-muted/40 px-1 py-0.5 font-semibold text-xs whitespace-nowrap" title={policy.tipo}>
                                         {policy.tipo}
                                       </span>
                                     </TableCell>

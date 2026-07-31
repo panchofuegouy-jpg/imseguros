@@ -8,6 +8,7 @@ import { Search, FileText, MessageCircle } from "lucide-react";
 import { resolvePolicyFileUrl } from "@/lib/policy-file-url";
 import { generateWhatsAppPolicyLink } from "@/lib/whatsapp-share";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ClientPoliciesContentProps {
   initialPolicies: any[];

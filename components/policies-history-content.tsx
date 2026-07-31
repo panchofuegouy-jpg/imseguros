@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { resolvePolicyFileUrl } from "@/lib/policy-file-url";
 import { generateWhatsAppPolicyLink } from "@/lib/whatsapp-share";
 
@@ -322,9 +323,22 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
                           </div>
                         </TableCell>
                         <TableCell className="border-l border-dashed border-border px-2 text-center">
-                          <span className="block truncate text-muted-foreground text-xs" title={policy.notas || "SIN NOTAS"}>
-                            {policy.notas || "N/A"}
-                          </span>
+                          {policy.notas ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="block truncate text-muted-foreground text-xs cursor-help border-b border-dotted border-muted-foreground/30">
+                                    {policy.notas.substring(0, 30)}...
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <p className="text-xs">{policy.notas}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">N/A</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
