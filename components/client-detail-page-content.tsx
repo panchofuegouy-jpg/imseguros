@@ -829,13 +829,13 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
             </div>
             </div>
 
-            <Card className="gap-4 py-4 uppercase">
+            <Card className="gap-4 py-4 uppercase overflow-visible">
                 <CardHeader className="px-4">
                     <CardTitle className="text-sm">
                         Pólizas ({filteredPolicies.length}{filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="px-3 sm:px-4">
+                <CardContent className="px-3 sm:px-4 overflow-visible">
                     {filteredPolicies.length === 0 ? (
                         <p>{policies.length === 0 ? "No hay pólizas registradas para este cliente." : "No se encontraron pólizas que coincidan con la búsqueda."}</p>
                     ) : (
@@ -911,7 +911,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                           </div>
 
                           {/* Desktop View - Table */}
-                          <div className="hidden md:block overflow-hidden rounded-md border border-border/70">
+                          <div className="hidden md:block overflow-visible rounded-md border border-border/70 w-full">
                             <Table className="text-xs">
                               <TableHeader>
                                 <TableRow className="hover:bg-transparent">
