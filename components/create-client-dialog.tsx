@@ -50,6 +50,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
     direccion: "",
     numero_cliente: "",
     departamento: "",
+    fecha_nacimiento: "",
   })
   const [createUserAccount, setCreateUserAccount] = useState(false)
 
@@ -65,6 +66,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
         direccion: client.direccion || "",
         numero_cliente: client.numero_cliente || "",
         departamento: client.departamento || "",
+        fecha_nacimiento: client.fecha_nacimiento || "",
       });
       // En modo edición, solo permitir crear cuenta si no tiene email
       setCreateUserAccount(false);
@@ -78,6 +80,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
         direccion: "",
         numero_cliente: "",
         departamento: "",
+        fecha_nacimiento: "",
       });
       setCreateUserAccount(false);
     }
@@ -188,6 +191,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
       direccion: "",
       numero_cliente: "",
       departamento: "",
+      fecha_nacimiento: "",
     })
     setCreateUserAccount(false)
     setError("")
@@ -352,6 +356,17 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
                 placeholder="123"
               />
           
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>
+              <Input
+                id="fecha_nacimiento"
+                type="date"
+                value={formData.fecha_nacimiento}
+                onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">Opcional. Alimenta el módulo de cumpleaños.</p>
             </div>
 
             <div className="space-y-2">

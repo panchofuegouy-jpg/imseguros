@@ -25,6 +25,7 @@ import {
   matchPaymentFrequency,
   matchPolicyType,
   pickOcrAmount,
+  policyTypeLabel,
 } from "@/lib/ocr-normalize";
 
 interface Policy {
@@ -449,7 +450,7 @@ export function PoliciesNearExpirationContent() {
                     <SelectItem value="all">Todos</SelectItem>
                     {POLICY_TYPES.map(type => (
                       <SelectItem key={type} value={type}>
-                        {type}
+                        {policyTypeLabel(type)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1063,7 +1064,7 @@ function RenewalForm({ policy, companies, onSuccess, onCancel }: {
               <Select value={formData.tipo} onValueChange={v => setFormData({ ...formData, tipo: v })} required>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Seleccionar tipo" /></SelectTrigger>
                 <SelectContent className="text-xs">
-                  {POLICY_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  {POLICY_TYPES.map(t => <SelectItem key={t} value={t}>{policyTypeLabel(t)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser, signOut } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, FileText, LogOut, Menu, DollarSign } from "lucide-react"
+import { LayoutDashboard, Users, FileText, LogOut, Menu, DollarSign, ShieldAlert, HandCoins, Cake } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -46,6 +46,9 @@ export function AdminLayout({ children, headerTitle, headerDescription }: AdminL
     { name: "Pólizas", href: "/admin/polizas", icon: FileText },
     { name: "Renovaciones", href: "/admin/polizas/por-vencer", icon: FileText },
     { name: "Facturación", href: "/admin/facturacion", icon: DollarSign },
+    { name: "Siniestros", href: "/admin/siniestros", icon: ShieldAlert },
+    { name: "Cobranza", href: "/admin/cobranza", icon: HandCoins },
+    { name: "Cumpleaños", href: "/admin/cumpleanos", icon: Cake },
   ]
 
   const displayName =

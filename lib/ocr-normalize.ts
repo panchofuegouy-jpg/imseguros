@@ -12,6 +12,9 @@
 export const POLICY_TYPE_OPTIONS = [
   "Auto",
   "Vida",
+  // Antes que "Hogar": una garantía de alquiler menciona la vivienda arrendada
+  // y, con Hogar primero, el alias "vivienda" se la quedaba.
+  "Alquiler",
   "Hogar",
   "Salud",
   "Empresarial",
@@ -22,6 +25,19 @@ export const POLICY_TYPE_OPTIONS = [
   "Lancha",
   "Otro",
 ] as const;
+
+/**
+ * Etiqueta a mostrar cuando el valor guardado no se explica solo. El valor que
+ * viaja a la base sigue siendo el de POLICY_TYPE_OPTIONS.
+ */
+export const POLICY_TYPE_LABELS: Record<string, string> = {
+  Alquiler: "Garantía de alquiler",
+};
+
+/** Texto para mostrar un tipo de póliza en un select o una tabla. */
+export function policyTypeLabel(type: string): string {
+  return POLICY_TYPE_LABELS[type] ?? type;
+}
 
 /** Formas de pago que aceptan los formularios. */
 export const PAYMENT_FREQUENCY_OPTIONS = [
@@ -44,6 +60,7 @@ const POLICY_TYPE_ALIASES: Record<string, string[]> = {
   Lancha: ["lancha", "embarcacion", "nautico", "nautica", "yate"],
   Agricola: ["agricola", "agro", "tractor", "cosechadora", "maquinaria"],
   Vida: ["vida", "sepelio", "accidentes personales"],
+  Alquiler: ["alquiler", "arrendamiento", "fianza", "garantia de alquiler"],
   Hogar: ["hogar", "vivienda", "casa", "combinado familiar", "incendio"],
   Salud: ["salud", "medico", "medica", "asistencia medica", "emergencia"],
   Empresarial: ["empresarial", "empresa", "comercio", "comercial", "industria", "negocio", "integral"],

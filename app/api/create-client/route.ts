@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { nombre, email, telefono, documento, direccion, numero_cliente, departamento, createUserAccount } = body
+    const { nombre, email, telefono, documento, direccion, numero_cliente, departamento, fecha_nacimiento, createUserAccount } = body
 
     if (!nombre || !documento) {
       return NextResponse.json(
@@ -94,6 +94,8 @@ export async function POST(request: NextRequest) {
       direccion,
       numero_cliente,
       departamento,
+      // Un date vacío no es un date: Postgres rechaza "".
+      fecha_nacimiento: fecha_nacimiento || null,
       createUserAccount: createUserAccount || false,
     })
     

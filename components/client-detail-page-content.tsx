@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import PolicyForm from "@/components/policy-form";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Mail, Phone, User, Edit, Trash2, ExternalLink, Search, MessageCircle, Send, MapPin, IdCard, Building2, Hash, Sparkles } from 'lucide-react';
+import { Mail, Phone, User, Edit, Trash2, ExternalLink, Search, MessageCircle, Send, MapPin, IdCard, Building2, Hash, Sparkles, Cake } from 'lucide-react';
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
@@ -31,6 +31,7 @@ interface Client {
     created_at: string;
     numero_cliente: number | null;
     departamento: string | null;
+    fecha_nacimiento: string | null;
 }
 
 interface Policy {
@@ -740,6 +741,19 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                             <div className="min-w-0">
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Departamento</p>
                                 <p className="truncate text-sm font-semibold uppercase">{client.departamento}</p>
+                            </div>
+                        </div>
+                    )}
+                    {client.fecha_nacimiento && (
+                        <div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border/70 bg-background/35 p-2.5">
+                            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
+                                <Cake className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Cumpleaños</p>
+                                <p className="truncate text-sm font-semibold uppercase">
+                                    {new Date(`${client.fecha_nacimiento}T00:00:00`).toLocaleDateString("es-UY", { day: "2-digit", month: "long" })}
+                                </p>
                             </div>
                         </div>
                     )}

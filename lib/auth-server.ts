@@ -21,6 +21,7 @@ export async function createClientUser(clientData: {
   direccion?: string
   numero_cliente?: number
   departamento?: string
+  fecha_nacimiento?: string | null
   createUserAccount?: boolean
 }) {
   const logPrefix = `[ClientCreation][${Date.now()}]`

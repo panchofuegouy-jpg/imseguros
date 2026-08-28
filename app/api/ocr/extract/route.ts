@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseOcrAmount } from '@/lib/ocr-normalize';
 
 const COMPANIES = [
   { id: "75d6c24c-85ad-4a6a-b33e-80c871a65bb3", name: "SURA" },
@@ -16,6 +17,7 @@ Devuelve ÚNICAMENTE un JSON válido que cumpla EXACTAMENTE con el siguiente JSO
 
 {
   "tipo_movimiento": "poliza_nueva" | "renovacion" | "endoso" | "cotizacion",
+  "tipo_bien": "vehiculo" | "inmueble" | "persona" | "garantia_alquiler" | "otro",
   "numero_poliza": "string",
   "tipo": "string",
   "vigencia_inicio": "YYYY-MM-DD",
@@ -47,6 +49,16 @@ Reglas IMPORTANTES:
    Si el documento es una FACTURA o RECIBO de una póliza, clasifícalo según la
    operación que factura (normalmente "poliza_nueva" o "renovacion").
 
+0.bis "tipo_bien" indica QUÉ se está asegurando. No todas las pólizas son de
+   vehículos y las reglas 5 y 8 dependen de este campo:
+   - "vehiculo": auto, moto, camión, taxi, lancha, maquinaria agrícola.
+   - "inmueble": hogar, vivienda, incendio, comercio, empresarial.
+   - "persona": vida, salud, sepelio, accidentes personales.
+   - "garantia_alquiler": garantía o fianza de alquiler. El documento habla de
+     un contrato de arrendamiento, un inmueble arrendado, un propietario y un
+     inquilino. NO es una póliza de hogar.
+   - "otro": cualquier otra cosa.
+
 1. Usa el formato de fecha ISO: "YYYY-MM-DD" (ejemplo: 2025-09-30).
    - Las fechas del documento están en formato uruguayo/latino: DD/MM/AAAA.
    - Ejemplo: si dice "04/05/2026", devuelve "2026-05-04".
@@ -58,7 +70,15 @@ Reglas IMPORTANTES:
 4. "company_id" debes obtenerlo de esta lista:
 ${JSON.stringify(COMPANIES, null, 2)}
 
-5. En "documento_asegurado" PRIORIZA: matrícula → documento → "DESCONOCIDO".
+5. "documento_asegurado" depende de "tipo_bien":
+   - Si es "vehiculo": matrícula → cédula/RUT del titular → "DESCONOCIDO".
+   - En TODOS los demás casos ("inmueble", "persona", "garantia_alquiler",
+     "otro"): la cédula o RUT del asegurado. Estos documentos NO tienen
+     matrícula, así que NO devuelvas "DESCONOCIDO" sin antes buscar la cédula:
+     aparece junto al nombre del titular, con etiquetas como "C.I.", "CI",
+     "CÉDULA", "DOCUMENTO", "RUT" o "RUC", y suele venir con puntos y guion
+     ("1.234.567-8"). Devuélvela tal como figura.
+   - Sólo usa "DESCONOCIDO" si de verdad no hay ningún identificador.
 
 6. CAMPOS DE FACTURACIÓN — este es el punto donde más se falla, léelo con atención.
 
@@ -69,6 +89,9 @@ ${JSON.stringify(COMPANIES, null, 2)}
    - "total_a_pagar": el monto TOTAL que el cliente debe abonar, impuestos incluidos.
      Etiquetas habituales: "TOTAL A PAGAR", "PREMIO TOTAL", "PREMIO", "IMPORTE TOTAL",
      "TOTAL", "COSTO TOTAL", "MONTO A PAGAR", "TOTAL FACTURA".
+     En garantías de alquiler el importe casi nunca se llama "prima": buscá
+     "COSTO DEL SERVICIO", "PRECIO DEL SERVICIO", "COSTO DE LA GARANTÍA",
+     "COSTO ANUAL", "HONORARIOS" o "CUOTA".
      Si hay una tabla de importes, este valor suele estar en la ÚLTIMA fila.
    - "prima_monto": la prima pura, antes de impuestos y recargos. Etiquetas:
      "PRIMA", "PRIMA PURA", "PRIMA COMERCIAL".
@@ -87,6 +110,9 @@ ${JSON.stringify(COMPANIES, null, 2)}
    a) No confundas la SUMA ASEGURADA (el valor del vehículo o bien cubierto, suele ser
       un número grande y redondo) con el importe a pagar. La suma asegurada NO va en
       estos campos: va en "notas".
+      En garantías de alquiler pasa lo mismo con el ALQUILER MENSUAL y con el MONTO
+      GARANTIZADO: son el bien cubierto, no lo que cobra la aseguradora. Van en
+      "notas", nunca en "total_a_pagar".
 
    b) Si el documento es una FACTURA o RECIBO, SIEMPRE informa un importe. No devuelvas
       null: busca en las tablas y en el pie del documento hasta encontrarlo.
@@ -98,11 +124,18 @@ ${JSON.stringify(COMPANIES, null, 2)}
    "vehiculo_nuevo" con la matrícula y descripción de cada uno. En los demás
    tipos de movimiento van null.
 
-8. El campo "notas" SIEMPRE debe incluir:
-   - "Matrícula: <valor o 'DESCONOCIDO'>."
-   - Breve detalle: tipo vehículo/bien, año, suma asegurada, cobertura
+8. El campo "notas" describe el bien asegurado, y su formato depende de
+   "tipo_bien":
+   - "vehiculo": empieza con "Matrícula: <valor o 'DESCONOCIDO'>." y sigue con
+     tipo de vehículo, año, suma asegurada y cobertura.
+   - "inmueble": dirección del inmueble, sumas aseguradas y coberturas.
+   - "garantia_alquiler": dirección del inmueble arrendado, monto del alquiler
+     mensual garantizado, plazo del contrato y nombre del propietario si figura.
+   - "persona" u "otro": capital asegurado y coberturas.
+   NO escribas "Matrícula:" en pólizas que no son de vehículos.
 
-Ejemplo: "Matrícula: ABC123. Vehículo PONSSE ELEPHANT 8W año 2011, suma asegurada U$S 70.000, plan Todo Riesgo y RC del BSE."
+Ejemplo vehículo: "Matrícula: ABC123. Vehículo PONSSE ELEPHANT 8W año 2011, suma asegurada U$S 70.000, plan Todo Riesgo y RC del BSE."
+Ejemplo garantía de alquiler: "Garantía de alquiler para vivienda en Av. Italia 1234 ap. 302, Montevideo. Alquiler mensual garantizado $ 28.000, contrato a 24 meses."
 
 Devuelve SOLO el JSON, sin comentarios ni explicaciones.`;
 
@@ -266,12 +299,60 @@ async function structureTextToJson(text: string) {
   throw new Error(`No se pudo estructurar el texto del OCR. ${errors.join('; ')}`);
 }
 
-// Diagnóstico: busca importes en el texto del OCR. Sirve para distinguir si una
-// póliza queda sin prima porque el documento no la informa o porque el modelo
-// que arma el JSON no la encontró.
+// Etiquetas con las que los documentos nombran el importe a cobrar, de la más
+// específica a la más ambigua. Las de garantía de alquiler ("costo del
+// servicio", "honorarios") no dicen "prima" en ninguna parte, que es por lo que
+// el modelo devolvía null en esas pólizas.
+const AMOUNT_LABELS = [
+  "total a pagar",
+  "premio total",
+  "importe total",
+  "monto a pagar",
+  "costo total",
+  "total factura",
+  "costo del servicio",
+  "precio del servicio",
+  "costo de la garantia",
+  "costo anual",
+  "honorarios",
+  "premio",
+  "prima comercial",
+  "prima pura",
+  "prima",
+  "cuota",
+  "total",
+];
+
+// Líneas donde el número es el bien cubierto, no lo que se cobra.
+const AMOUNT_DECOYS = [
+  "suma asegurada",
+  "capital asegurado",
+  "monto garantizado",
+  "alquiler mensual",
+  "valor del inmueble",
+  "limite",
+];
+
+// Las etiquetas se escriben sin tildes, pero en el documento pueden venir con
+// ellas ("garantía"). Cada vocal matchea sus dos formas, sobre el texto ORIGINAL:
+// así el índice del match sigue alineado con la línea, cosa que se perdería si
+// normalizáramos con NFD (quitar una tilde cambia el largo del string).
+const ACCENT_CLASSES: Record<string, string> = {
+  a: "[aá]", e: "[eé]", i: "[ií]", o: "[oó]", u: "[uúü]", n: "[nñ]",
+};
+
+const labelPattern = (label: string) =>
+  new RegExp(
+    label.replace(/[aeioun]/g, (vowel) => ACCENT_CLASSES[vowel]).replace(/ /g, "\\s+"),
+    "i",
+  );
+
+// Diagnóstico: qué importes hay en el texto del OCR. Sirve para distinguir si
+// una póliza queda sin prima porque el documento no la informa o porque el
+// modelo que arma el JSON no la encontró.
 function findAmountsInText(text: string) {
   const labelled = text.match(
-    /(total a pagar|premio total|importe total|monto a pagar|costo total|prima pura|prima comercial|prima|premio|total)\s*:?\s*[^\n]{0,60}/gi
+    new RegExp(`(${AMOUNT_LABELS.join('|')})\\s*:?\\s*[^\\n]{0,60}`, 'gi')
   );
   const currency = text.match(/(?:U\$S|USD|\$U|\$)\s?[\d.,]{3,}/g);
   return {
@@ -280,17 +361,63 @@ function findAmountsInText(text: string) {
   };
 }
 
+// Rescate determinístico del importe cuando el modelo devolvió todo en null.
+// Recorre las etiquetas por prioridad y se queda con el primer número de la
+// misma línea. El texto viene en markdown, así que la etiqueta y el importe
+// pueden estar separados por celdas de tabla ("| TOTAL A PAGAR | $ 53.790,00 |").
+function rescueAmountFromText(text: string): { amount: number; label: string; line: string } | null {
+  const decoys = AMOUNT_DECOYS.map(labelPattern);
+  const lines = text
+    .split('\n')
+    .filter((line) => !decoys.some((decoy) => decoy.test(line)));
+
+  for (const label of AMOUNT_LABELS) {
+    const pattern = labelPattern(label);
+
+    for (const line of lines) {
+      const found = pattern.exec(line);
+      if (!found) continue;
+
+      // Sólo lo que viene DESPUÉS de la etiqueta, para no tomar el número de la
+      // columna anterior de la tabla.
+      const after = line.slice(found.index + found[0].length);
+      const match = after.match(/\d[\d.,]*/);
+      if (!match) continue;
+
+      const amount = parseOcrAmount(match[0]);
+      if (amount === null || amount <= 0) continue;
+
+      return { amount, label, line: line.trim().slice(0, 120) };
+    }
+  }
+
+  return null;
+}
+
 // Flujo completo para PDFs: OCR de Mistral + estructuración a JSON.
 async function extractFromPdf(base64Data: string, mediaType: string, fileName: string) {
   const text = await mistralOcrToText(base64Data, mediaType, fileName);
   const result = await structureTextToJson(text);
 
-  // Si no salió ningún importe, dejamos rastro de lo que sí había en el texto.
+  // Si no salió ningún importe, lo buscamos nosotros en el texto del OCR antes
+  // de devolver la póliza sin prima.
   if (result.total_a_pagar == null && result.prima_monto == null) {
-    console.warn('No amount extracted', {
-      fileName,
-      ...findAmountsInText(text),
-    });
+    const rescued = rescueAmountFromText(text);
+
+    if (rescued) {
+      result.total_a_pagar = rescued.amount;
+      console.log('Amount rescued from OCR text', {
+        fileName,
+        amount: rescued.amount,
+        label: rescued.label,
+        line: rescued.line,
+      });
+    } else {
+      console.warn('No amount extracted', {
+        fileName,
+        ...findAmountsInText(text),
+      });
+    }
   }
 
   return result;

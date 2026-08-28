@@ -5,6 +5,14 @@ import { FileUp, Loader2, RefreshCw, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { normalizeOcrDate } from "@/lib/ocr-date"
+import {
+  matchCompanyId,
+  matchCurrency,
+  matchPaymentFrequency,
+  matchPolicyType,
+  parseOcrAmount,
+  pickOcrAmount,
+} from "@/lib/ocr-normalize"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -58,18 +66,6 @@ interface UpdateDraft {
   notas: string
 }
 
-const parseAmount = (value: unknown): number => {
-  if (value === null || value === undefined || value === "") return 0
-  const cleaned = String(value).replace(/[^\d.,-]/g, "")
-  const lastComma = cleaned.lastIndexOf(",")
-  const lastDot = cleaned.lastIndexOf(".")
-  const normalized = lastComma > lastDot
-    ? cleaned.replace(/\./g, "").replace(",", ".")
-    : cleaned.replace(/,/g, "")
-  const parsed = Number.parseFloat(normalized)
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
 export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOcrUpdateDialogProps) {
   const [open, setOpen] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
@@ -81,32 +77,12 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
   const supabase = createClient()
 
   const previousPremium = Number(policy.prima_monto || 0)
-  const newPremium = parseAmount(draft?.nueva_prima)
+  const newPremium = parseOcrAmount(draft?.nueva_prima) ?? 0
   const updatedPremium = previousPremium + newPremium
-
-  const matchCompany = (extracted: any) => {
-    const raw = extracted.company_id ?? extracted.aseguradora ?? extracted.compania ?? extracted.company ?? extracted.name
-    if (!raw) return policy.company_id || ""
-    const rawStr = String(raw).trim().toLowerCase()
-
-    // First try exact ID match
-    if (companies.find(c => c.id === raw)) return raw
-
-    // Then try name match (case-insensitive)
-    const matched = companies.find((company) =>
-      company.name.toLowerCase() === rawStr
-    )
-    if (matched) return matched.id
-
-    // Try partial match as fallback
-    const partial = companies.find((company) =>
-      rawStr.includes(company.name.toLowerCase()) || company.name.toLowerCase().includes(rawStr)
-    )
-    if (partial) return partial.id
-
-    // Default to existing company
-    return policy.company_id || ""
-  }
+  // La prima puede quedar vacía (ej. garantía de alquiler sin prima): se toma como 0.
+  // Solo se bloquea el guardado si lo escrito no contiene ningún número.
+  const premiumInput = draft?.nueva_prima?.trim() ?? ""
+  const invalidPremium = premiumInput !== "" && !/\d/.test(premiumInput)
 
   const cleanupPendingUpload = async () => {
     if (!storedPath) return
@@ -182,25 +158,22 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
         throw new Error("No se pudieron extraer datos del documento. Verificá que sea una póliza válida.")
       }
 
-      const premiumValue =
-        extracted.diferencia ??
-        extracted.diferencia_a_pagar ??
-        extracted.total_a_pagar ??
-        extracted.prima_monto ??
-        extracted.prima ??
-        extracted.monto ??
-        extracted.importe ??
-        extracted.premio
+      // En un endoso lo que se suma es la diferencia; en el resto, el importe
+      // del documento. pickOcrAmount saltea los nulls y entiende "53.790,00".
+      const premiumValue = pickOcrAmount(extracted, [
+        "diferencia", "diferencia_a_pagar", "total_a_pagar", "prima_monto",
+        "prima", "monto", "importe", "premio",
+      ])
 
       setDraft({
         numero_poliza: String(extracted.numero_poliza || policy.numero_poliza || ""),
-        company_id: matchCompany(extracted),
-        tipo: String(extracted.tipo || policy.tipo || ""),
+        company_id: matchCompanyId(extracted, companies, policy.company_id || ""),
+        tipo: matchPolicyType(extracted.tipo, policy.tipo || ""),
         vigencia_inicio: normalizeOcrDate(extracted.vigencia_inicio, policy.vigencia_inicio),
         vigencia_fin: normalizeOcrDate(extracted.vigencia_fin, policy.vigencia_fin),
-        nueva_prima: premiumValue != null ? String(premiumValue) : "",
-        moneda: String(extracted.moneda || policy.moneda || "UYU"),
-        forma_pago: String(extracted.forma_pago ?? extracted.frecuencia_pago ?? policy.forma_pago ?? ""),
+        nueva_prima: premiumValue !== null ? String(premiumValue) : "",
+        moneda: matchCurrency(extracted.moneda, policy.moneda || "UYU"),
+        forma_pago: matchPaymentFrequency(extracted.forma_pago ?? extracted.frecuencia_pago, policy.forma_pago ?? ""),
         numero_factura: String(extracted.numero_factura ?? extracted.factura ?? policy.numero_factura ?? ""),
         nombre_asegurado: String(extracted.nombre_asegurado ?? policy.nombre_asegurado ?? ""),
         documento_asegurado: String(extracted.documento_asegurado ?? policy.documento_asegurado ?? ""),
@@ -220,7 +193,15 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
   }
 
   const handleSave = async () => {
-    if (!draft || !storedPath || !documentUrl) return
+    if (!draft) return
+    if (!storedPath || !documentUrl) {
+      toast.error("El documento no terminó de subirse. Volvé a seleccionar el archivo.")
+      return
+    }
+    if (invalidPremium) {
+      toast.error("La prima nueva no es un número válido")
+      return
+    }
     setSaving(true)
 
     try {
@@ -413,7 +394,7 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
 
             <div className="flex justify-end gap-2 border-t pt-3">
               <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={saving}>Cancelar</Button>
-              <Button onClick={handleSave} disabled={saving || !draft.nueva_prima}>
+              <Button onClick={handleSave} disabled={saving || invalidPremium}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Confirmar actualización
               </Button>

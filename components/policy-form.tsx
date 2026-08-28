@@ -383,6 +383,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                       <SelectItem value="Auto">Auto</SelectItem>
                       <SelectItem value="Vida">Vida</SelectItem>
                       <SelectItem value="Hogar">Hogar</SelectItem>
+                      <SelectItem value="Alquiler">Garantía de alquiler</SelectItem>
                       <SelectItem value="Salud">Salud</SelectItem>
                       <SelectItem value="Empresarial">Empresarial</SelectItem>
                       <SelectItem value="Otro">Otro</SelectItem>

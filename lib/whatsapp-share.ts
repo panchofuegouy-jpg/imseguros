@@ -30,3 +30,25 @@ export function generateWhatsAppPolicyLink(
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
+
+export function generateWhatsAppBirthdayLink(
+  clientPhone: string | undefined | null,
+  clientName: string,
+  brokerName = "Isgleas Seguros"
+): string | null {
+  if (!clientPhone) return null;
+
+  const digits = clientPhone.replace(/\D/g, "");
+  if (!digits) return null;
+
+  const phone = digits.startsWith("598")
+    ? digits
+    : digits.startsWith("0")
+      ? "598" + digits.slice(1)
+      : "598" + digits;
+
+  const firstName = clientName.trim().split(/\s+/)[0];
+  const message = `¡Feliz cumpleaños, ${firstName}! 🎉\n\nQue tengas un día espectacular. Te mandamos un saludo muy especial de parte de todo el equipo.\n\nUn abrazo, ${brokerName}.`;
+
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}

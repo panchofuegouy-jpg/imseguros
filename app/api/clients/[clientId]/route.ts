@@ -22,6 +22,11 @@ export async function PATCH(
 
     const { id, created_at, updated_at, createUserAccount, ...updateData } = body;
 
+    // Un date vacío no es un date: Postgres rechaza "".
+    if ("fecha_nacimiento" in updateData) {
+      updateData.fecha_nacimiento = updateData.fecha_nacimiento || null;
+    }
+
     if (updateData.numero_cliente) {
       updateData.numero_cliente = parseInt(updateData.numero_cliente, 10);
       if (isNaN(updateData.numero_cliente)) {
