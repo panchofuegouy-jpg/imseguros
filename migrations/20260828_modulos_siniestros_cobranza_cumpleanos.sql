@@ -26,6 +26,17 @@ AS $$
   );
 $$;
 
+-- El repo la da por creada en supabase-setup.sql, pero puede no estar aplicada
+-- en la base: se define acá para que esta migración no dependa de eso.
+CREATE OR REPLACE FUNCTION public.update_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END; $$;
+
 -- Cumpleaños: la fecha vive en el cliente, no hay tabla aparte.
 ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE;
 

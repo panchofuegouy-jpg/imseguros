@@ -16,11 +16,11 @@ export async function getCurrentUser() {
 export async function createClientUser(clientData: {
   nombre: string
   email?: string | null
-  telefono?: string
+  telefono?: string | null
   documento: string
-  direccion?: string
+  direccion?: string | null
   numero_cliente?: number
-  departamento?: string
+  departamento?: string | null
   fecha_nacimiento?: string | null
   createUserAccount?: boolean
 }) {

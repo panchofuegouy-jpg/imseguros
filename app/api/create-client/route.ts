@@ -88,12 +88,13 @@ export async function POST(request: NextRequest) {
 
     const result = await createClientUser({
       nombre,
-      email,
-      telefono,
+      // "" no es NULL: email es UNIQUE, así que dos clientes sin email chocan.
+      email: email || null,
+      telefono: telefono || null,
       documento,
-      direccion,
+      direccion: direccion || null,
       numero_cliente,
-      departamento,
+      departamento: departamento || null,
       // Un date vacío no es un date: Postgres rechaza "".
       fecha_nacimiento: fecha_nacimiento || null,
       createUserAccount: createUserAccount || false,

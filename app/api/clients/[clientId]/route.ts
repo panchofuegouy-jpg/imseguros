@@ -22,9 +22,18 @@ export async function PATCH(
 
     const { id, created_at, updated_at, createUserAccount, ...updateData } = body;
 
-    // Un date vacío no es un date: Postgres rechaza "".
-    if ("fecha_nacimiento" in updateData) {
-      updateData.fecha_nacimiento = updateData.fecha_nacimiento || null;
+    // El form manda "" para todo campo vacío, y "" no es NULL para Postgres:
+    // un date rechaza "", y email/numero_cliente son UNIQUE, así que dos
+    // clientes sin email chocan entre sí al guardarse como "".
+    for (const field of ["fecha_nacimiento", "email", "telefono", "direccion", "departamento"]) {
+      if (field in updateData && !updateData[field]) {
+        updateData[field] = null;
+      }
+    }
+
+    // documento es NOT NULL: si viene vacío no lo tocamos.
+    if ("documento" in updateData && !updateData.documento) {
+      delete updateData.documento;
     }
 
     if (updateData.numero_cliente) {
@@ -48,7 +57,7 @@ export async function PATCH(
     // 1. Obtener el estado actual del cliente
     const { data: currentClient, error: fetchError } = await adminSupabase
       .from("clients")
-      .select("email, numero_cliente, documento")
+      .select("nombre, email, numero_cliente, documento")
       .eq("id", clientId)
       .single();
 
@@ -218,6 +227,20 @@ export async function PATCH(
       // Si la creación del usuario de Auth funcionó, deberíamos intentar revertirla
       if (newAuthUser) {
         await adminSupabase.auth.admin.deleteUser(newAuthUser.id);
+      }
+      // 23505 = unique_violation. Decir qué campo choca, no un 500 opaco.
+      if (error.code === "23505") {
+        const campo = /email/.test(error.message)
+          ? "email"
+          : /numero_cliente/.test(error.message)
+            ? "número de cliente"
+            : /documento/.test(error.message)
+              ? "documento"
+              : "un dato";
+        return NextResponse.json(
+          { error: `Ya existe otro cliente con ese ${campo}.` },
+          { status: 409 }
+        );
       }
       return NextResponse.json(
         { error: "Error al actualizar el cliente" },
