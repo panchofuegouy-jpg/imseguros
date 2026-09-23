@@ -124,18 +124,29 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
         });
         result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Error al actualizar');
-        setSuccess({ 
-          client: result,
-          password: result.tempPassword,
-          emailSent: result.emailSent || false,
-          userCreated: result.userCreated || false
-        });
-        if(onClientUpdated) onClientUpdated(result);
-        
+
         const successMessage = result.userCreated
           ? "Cliente actualizado y cuenta de acceso creada exitosamente!"
           : "Cliente actualizado exitosamente!";
         toast.success(successMessage);
+
+        // La pantalla de éxito sólo aporta cuando hay credenciales que mostrar.
+        // Sin eso, cambiar el form por un Alert hace colapsar el alto del modal
+        // (está centrado con translate -50%) y se ve como un salto antes de cerrar.
+        if (result.userCreated) {
+          setSuccess({
+            client: result,
+            password: result.tempPassword,
+            emailSent: result.emailSent || false,
+            userCreated: true
+          });
+          if (onClientUpdated) onClientUpdated(result);
+        } else {
+          // Cerrar primero: el modal alcanza a hacer su animación de salida
+          // mientras el padre refresca los datos por debajo.
+          handleClose();
+          if (onClientUpdated) onClientUpdated(result);
+        }
 
       } else {
         // Create new client
@@ -202,8 +213,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent
-        overlayClassName="bg-black/85 backdrop-blur-[2px] duration-300"
-        className="max-h-[calc(100vh-2rem)] overflow-y-auto border-white/10 bg-black text-white shadow-2xl shadow-black/60 duration-300 sm:max-w-3xl [&_[data-slot=input]]:border-white/10 [&_[data-slot=input]]:bg-white/[0.04] [&_[data-slot=select-trigger]]:border-white/10 [&_[data-slot=select-trigger]]:bg-white/[0.04] [&_[data-slot=textarea]]:border-white/10 [&_[data-slot=textarea]]:bg-white/[0.04]"
+        className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-3xl"
       >
         <DialogHeader className="pr-8">
           <DialogTitle>{isEditMode ? "Editar Cliente" : "Agregar Nuevo Cliente"}</DialogTitle>
@@ -216,7 +226,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
         </DialogHeader>
 
         {success ? (
-          <div className="space-y-4">
+          <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-emphasized">
             <Alert>
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
@@ -387,7 +397,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
             </div>
             </div>
 
-            <DialogFooter className="sticky bottom-0 -mx-1 border-t border-white/10 bg-black/95 px-1 pt-4 backdrop-blur-sm">
+            <DialogFooter className="sticky bottom-0 -mx-1 border-t bg-card/95 px-1 pt-4 backdrop-blur-sm">
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancelar
               </Button>

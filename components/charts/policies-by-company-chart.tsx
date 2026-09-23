@@ -1,58 +1,57 @@
-"use client"
+import { SectionCard } from "@/components/brand/section-card"
+import { formatNumber } from "@/lib/format"
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-
-const COLORS = ["#0088FE", "#25595E", "#FFBB28", "#FF8042", "#8884d8", "#ffc658"]
-
-interface Policy {
-  id: string
-  company_id: string
+interface CompanyShareChartProps {
+  data: { name: string; value: number }[]
 }
 
-interface Company {
-  id: string
-  name: string
-}
+const BAR_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "var(--chart-6)",
+]
 
-interface PoliciesByCompanyChartProps {
-  policies: Policy[]
-  companies: Company[]
-}
-
-export function PoliciesByCompanyChart({ policies, companies }: PoliciesByCompanyChartProps) {
-  const data = companies.map(company => {
-    const policyCount = policies.filter(p => p.company_id === company.id).length
-    return { name: company.name, value: policyCount }
-  }).filter(item => item.value > 0)
+/**
+ * Pólizas vigentes por aseguradora como barras con el número escrito al lado.
+ * Reemplaza a la torta: comparar largos es más fácil que comparar ángulos.
+ */
+export function CompanyShareChart({ data }: CompanyShareChartProps) {
+  const total = data.reduce((sum, item) => sum + item.value, 0)
+  const max = Math.max(1, ...data.map((item) => item.value))
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Distribución de Pólizas por Aseguradora</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey="value"
-              nameKey="name"
-              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-            >
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
+    <SectionCard title="Pólizas vigentes por aseguradora" description={`${formatNumber(total)} pólizas en total`}>
+      {data.length === 0 ? (
+        <p className="py-6 text-base text-muted-foreground">Todavía no hay pólizas vigentes.</p>
+      ) : (
+        <ul className="space-y-4 py-1">
+          {data.map((item, index) => {
+            const percent = total ? Math.round((item.value / total) * 100) : 0
+            return (
+              <li key={item.name} className="space-y-1.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="truncate text-base font-semibold">{item.name}</span>
+                  <span className="shrink-0 text-base tabular-nums text-muted-foreground">
+                    <span className="font-semibold text-foreground">{formatNumber(item.value)}</span> · {percent}%
+                  </span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-muted" aria-hidden>
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.max(2, (item.value / max) * 100)}%`,
+                      background: BAR_COLORS[index % BAR_COLORS.length],
+                    }}
+                  />
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </SectionCard>
   )
 }

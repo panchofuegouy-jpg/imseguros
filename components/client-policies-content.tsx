@@ -162,7 +162,7 @@ export function ClientPoliciesContent({ initialPolicies }: ClientPoliciesContent
                               href={waLink}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-green-600 hover:underline bg-green-500/10 px-2 py-1 rounded"
+                              className="inline-flex items-center gap-1 text-xs text-success-strong hover:underline bg-success-soft px-2 py-1 rounded"
                             >
                               <MessageCircle className="h-3 w-3" />
                               WhatsApp
@@ -244,7 +244,7 @@ export function ClientPoliciesContent({ initialPolicies }: ClientPoliciesContent
                                     href={waLink}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center text-green-600 hover:text-green-700"
+                                    className="inline-flex items-center justify-center text-success-strong hover:opacity-80"
                                     title="Compartir por WhatsApp"
                                   >
                                     <MessageCircle className="h-4 w-4" />

@@ -5,23 +5,19 @@ import React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser, signOut } from "@/lib/auth"
-import { Button } from "@/components/ui/button"
-import { LogOut, Menu, FileText, Home } from "lucide-react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
+import { FileText, Home } from "lucide-react"
 import { ChangePasswordDialog } from "@/components/change-password-dialog"
 import { useFirstLogin } from "@/hooks/use-first-login"
+import { LoadingScreen } from "@/components/ui/spinner"
+import { AppShell } from "@/components/shell/app-shell"
 
 interface ClientLayoutProps {
   children: React.ReactNode
 }
 
 export function ClientLayout({ children }: ClientLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
-  const pathname = usePathname()
   const { needsPasswordChange, markPasswordChanged, loading: firstLoginLoading } = useFirstLogin()
 
   useEffect(() => {
@@ -43,114 +39,36 @@ export function ClientLayout({ children }: ClientLayoutProps) {
 
   const navigation = [
     { name: "Inicio", href: "/cliente", icon: Home },
-    { name: "Mis Pólizas", href: "/cliente/polizas", icon: FileText },
+    { name: "Mis pólizas", href: "/cliente/polizas", icon: FileText },
   ]
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingScreen />
       </div>
     )
   }
 
+  const displayName = user?.profile?.client?.nombre || user?.user?.email?.split("@")[0] || "Cliente"
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Mobile sidebar */}
-      <div className={cn("fixed inset-0 z-50 lg:hidden", sidebarOpen ? "block" : "hidden")}>
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-sidebar shadow-lg border-r border-sidebar-border">
-          <div className="flex h-16 items-center justify-center border-b border-sidebar-border">
-            <img src="/IM_IDEINTIDAD-LOGO.png" alt="IM Seguros Logo" className="h-8 w-auto" />
-          </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-xs font-medium transition-colors",
-                    isActive 
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs" 
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  )}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center">
-                    <item.icon className="h-4 w-4 stroke-[1.8]" />
-                  </span>
-                  <span className="truncate leading-none">{item.name}</span>
-                </Link>
-              )
-            })}
-          </nav>
-          <div className="border-t border-sidebar-border p-4">
-            <Button variant="outline" onClick={handleSignOut} className="w-full">
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar Sesión
-            </Button>
-          </div>
-        </div>
-      </div>
+    <>
+      <AppShell
+        groups={[{ items: navigation }]}
+        mobileTabs={navigation}
+        userName={displayName}
+        userRole="Mi cuenta"
+        onSignOut={handleSignOut}
+      >
+        {children}
+      </AppShell>
 
-      {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-40 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-sidebar border-r border-sidebar-border">
-          <div className="flex h-16 items-center justify-center border-b border-sidebar-border">
-            <img src="/IM_IDEINTIDAD-LOGO.png" alt="IM Seguros Logo" className="h-8 w-auto" />
-          </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-xs font-medium transition-colors",
-                    isActive 
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs" 
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  )}
-                >
-                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center">
-                    <item.icon className="h-4 w-4 stroke-[1.8]" />
-                  </span>
-                  <span className="truncate leading-none">{item.name}</span>
-                </Link>
-              )
-            })}
-          </nav>
-          <div className="border-t border-sidebar-border p-4">
-            <div className="text-sm text-muted-foreground mb-2">{user.profile?.clients?.nombre || user.user.email}</div>
-            <Button variant="outline" onClick={handleSignOut} className="w-full">
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar Sesión
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="lg:pl-40">
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-sidebar px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-          <button type="button" className="-m-2.5 p-2.5 text-foreground lg:hidden" onClick={() => setSidebarOpen(true)}>
-            <Menu className="h-6 w-6" />
-          </button>
-        </div>
-
-        <main className="py-6">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">{children}</div>
-        </main>
-      </div>
-
-      {/* First Login Password Change Dialog */}
-      <ChangePasswordDialog 
+      {/* Dialog de cambio de contraseña obligatorio */}
+      <ChangePasswordDialog
         open={!!needsPasswordChange && !firstLoginLoading}
         onPasswordChanged={markPasswordChanged}
       />
-    </div>
+    </>
   )
 }

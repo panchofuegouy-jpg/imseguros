@@ -537,7 +537,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                         onChange={handleFileChange}
                       />
                     </label>
-                    <p className="mt-1 text-[10px] text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       PDF, DOC, DOCX hasta 10MB cada uno. Puedes seleccionar múltiples archivos.
                     </p>
                   </div>
@@ -566,7 +566,7 @@ export default function PolicyForm({ clients, companies, onSubmit, initialData }
                               <p className="truncate text-xs font-medium text-foreground">
                                 {attachment.name}
                               </p>
-                              <p className="text-[9px] text-muted-foreground">
+                              <p className="text-xs text-muted-foreground">
                                 {attachment.size ? formatFileSize(attachment.size) : "Archivo existente"}
                               </p>
                             </div>

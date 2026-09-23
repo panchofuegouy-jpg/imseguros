@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button"
+import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
@@ -53,10 +55,10 @@ export default async function DebtorDetailPage({ params }: { params: Promise<{ d
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <Link className="text-sm text-primary underline" href="/admin/cobranza">← Volver al tablero</Link>
+          <Button asChild variant="ghost" className="-ml-3"><Link href="/admin/cobranza"><ArrowLeft aria-hidden />Volver a cobranza</Link></Button>
           <div className="mt-3 flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
             <div>
-              <h1 className="text-3xl font-bold">{debtor.display_name}</h1>
+              <h1 className="font-display text-4xl">{debtor.display_name}</h1>
               <p className="text-muted-foreground">
                 {debtor.document ? `Doc. ${debtor.document}` : "Sin documento"}
                 {debtor.client_id && (

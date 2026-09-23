@@ -118,9 +118,18 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
         fetchPolicies();
     }, [client.id]);
 
+    // Sin recarga completa este estado quedaría con el email viejo después de
+    // editar el cliente.
+    useEffect(() => {
+        setCredentialsEmail(client.email);
+    }, [client.email]);
+
     const handleClientUpdated = () => {
         setIsEditModalOpen(false);
-        window.location.reload();
+        // router.refresh() revalida los datos del server component sin descartar
+        // el árbol de React: no hay pantallazo blanco ni se corta la animación
+        // de salida del modal.
+        router.refresh();
     };
 
     const handleSendCredentials = async () => {
@@ -242,7 +251,8 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                 prev.map((p) => (p.id === editingPolicy.id ? updatedPolicy as Policy : p))
             );
             setIsEditPolicyFormOpen(false);
-            setEditingPolicy(null);
+            // Igual que arriba: el form vive de editingPolicy y vaciarlo acá lo
+            // haría desaparecer mientras el modal se está cerrando.
             toast.success("Póliza actualizada exitosamente!");
         } catch (err: any) {
             console.error("Error in handleUpdatePolicy:", err);
@@ -466,7 +476,9 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
             // Update local state
             setPolicies((prev) => prev.filter((p) => p.id !== deletingPolicy.id));
             setIsDeleteDialogOpen(false);
-            setDeletingPolicy(null);
+            // No vaciamos deletingPolicy acá: el diálogo tarda ~150ms en salir y
+            // se vería el nombre de la póliza desaparecer a mitad de la animación.
+            // openDeleteDialog siempre lo reasigna antes de abrir.
             toast.success("Póliza eliminada exitosamente!");
 
             // Force refresh to ensure data consistency
@@ -564,7 +576,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
             : files;
 
         if (!toShow || toShow.length === 0) {
-            return <span className="text-[10px] text-muted-foreground">N/A</span>;
+            return <span className="text-xs text-muted-foreground">N/A</span>;
         }
 
         // Deduplicate URLs
@@ -578,7 +590,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                         href={resolvePolicyFileUrl(url)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex h-6 min-w-6 items-center justify-center gap-0.5 rounded-md border border-primary/50 bg-primary/15 px-1 text-[9px] font-semibold text-foreground hover:bg-primary/25"
+                        className="inline-flex h-6 min-w-6 items-center justify-center gap-0.5 rounded-md border border-primary/50 bg-primary/15 px-1 text-xs font-semibold text-foreground hover:bg-primary/25"
                         title={`Abrir documento ${index + 1}`}
                     >
                         <ExternalLink className="h-2.5 w-2.5" />
@@ -622,13 +634,13 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                 {clientInitials || <User className="h-6 w-6" />}
                             </div>
                             <div className="min-w-0">
-                                <CardDescription className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
+                                <CardDescription className="mb-0.5 text-xs font-bold uppercase tracking-[0.18em] text-primary">
                                     Perfil del cliente
                                 </CardDescription>
                                 <CardTitle className="truncate text-lg font-bold uppercase tracking-tight sm:text-xl" title={client.nombre}>
                                     {client.nombre}
                                 </CardTitle>
-                                <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-border/80 bg-background/60 px-2 py-0.5 text-[9px] font-semibold uppercase text-muted-foreground">
+                                <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-border/80 bg-background/60 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                                     <Hash className="h-3 w-3 text-primary" />
                                     Cliente {client.numero_cliente || 'N/A'}
                                 </div>
@@ -668,7 +680,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                        <AlertDialogTitle>¿Seguro que querés eliminarlo?</AlertDialogTitle>
                                         <AlertDialogDescription>
                                             Esta acción no se puede deshacer. Eliminará permanentemente al cliente "{client.nombre}",
                                             todas sus pólizas asociadas, archivos y su cuenta de usuario.
@@ -691,7 +703,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                             <Mail className="h-4 w-4" />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Email</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Email</p>
                             <p className="truncate text-sm font-semibold normal-case" title={client.email}>{client.email || 'SIN EMAIL'}</p>
                         </div>
                     </div>
@@ -701,7 +713,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                 <Phone className="h-4 w-4" />
                             </div>
                             <div className="min-w-0">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Teléfono</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Teléfono</p>
                                 <a
                                     href={getWhatsAppLink(client.telefono) || undefined}
                                     target="_blank"
@@ -718,7 +730,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                             <IdCard className="h-4 w-4" />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Documento</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Documento</p>
                             <p className="truncate text-sm font-semibold">{client.documento || 'N/A'}</p>
                         </div>
                     </div>
@@ -728,8 +740,8 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                 <MapPin className="h-4 w-4" />
                             </div>
                             <div className="min-w-0">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Dirección</p>
-                                <p className="truncate text-sm font-semibold uppercase" title={client.direccion}>{client.direccion}</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Dirección</p>
+                                <p className="truncate text-sm font-semibold" title={client.direccion}>{client.direccion}</p>
                             </div>
                         </div>
                     )}
@@ -739,8 +751,8 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                 <Building2 className="h-4 w-4" />
                             </div>
                             <div className="min-w-0">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Departamento</p>
-                                <p className="truncate text-sm font-semibold uppercase">{client.departamento}</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Departamento</p>
+                                <p className="truncate text-sm font-semibold">{client.departamento}</p>
                             </div>
                         </div>
                     )}
@@ -750,8 +762,8 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                 <Cake className="h-4 w-4" />
                             </div>
                             <div className="min-w-0">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Cumpleaños</p>
-                                <p className="truncate text-sm font-semibold uppercase">
+                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Cumpleaños</p>
+                                <p className="truncate text-sm font-semibold">
                                     {new Date(`${client.fecha_nacimiento}T00:00:00`).toLocaleDateString("es-UY", { day: "2-digit", month: "long" })}
                                 </p>
                             </div>
@@ -760,17 +772,17 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                     {policiesWithAmount.length > 0 && (
                         <div className="col-span-full grid gap-2 border-t border-border/70 pt-2.5 sm:grid-cols-3">
                             <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
-                                <span className="text-[10px] font-semibold uppercase text-muted-foreground">Prima total UYU</span>
+                                <span className="text-xs font-semibold text-muted-foreground">Prima total UYU</span>
                                 <strong className="text-sm">{totalPremiumUYU.toLocaleString('es-UY', { minimumFractionDigits: 2 })}</strong>
                             </div>
                             {totalPremiumUSD > 0 && (
                                 <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
-                                    <span className="text-[10px] font-semibold uppercase text-muted-foreground">Prima total USD</span>
+                                    <span className="text-xs font-semibold text-muted-foreground">Prima total USD</span>
                                     <strong className="text-sm">{totalPremiumUSD.toLocaleString('es-UY', { minimumFractionDigits: 2 })}</strong>
                                 </div>
                             )}
                             <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
-                                <span className="text-[10px] font-semibold uppercase text-muted-foreground">Pólizas con monto</span>
+                                <span className="text-xs font-semibold text-muted-foreground">Pólizas con monto</span>
                                 <strong className="text-sm">{policiesWithAmount.length} / {policies.length}</strong>
                             </div>
                         </div>
@@ -804,9 +816,9 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                         fetchPolicies();
                     }}
                     trigger={
-                        <Button className="gap-2 font-semibold shadow-sm">
-                            <Sparkles className="h-4 w-4" />
-                            Cargar Pólizas con IA
+                        <Button data-tour="upload-policies" className="gap-2 font-semibold shadow-sm">
+                            <Sparkles />
+                            Cargar pólizas desde PDF
                         </Button>
                     }
                 />
@@ -814,7 +826,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                     {isMobile ? (
                         <Drawer open={isFormOpen} onOpenChange={setIsFormOpen}>
                             <DrawerTrigger asChild>
-                                <Button variant="outline">Cargar Póliza Manual</Button>
+                                <Button variant="outline" data-tour="manual-policy">Cargar póliza manual</Button>
                             </DrawerTrigger>
                             <DrawerContent className="h-[95vh]">
                                 <DrawerHeader className="text-left">
@@ -829,7 +841,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                     ) : (
                         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline">Cargar Póliza Manual</Button>
+                                <Button variant="outline" data-tour="manual-policy">Cargar póliza manual</Button>
                             </DialogTrigger>
                             <DialogContent className="w-[calc(100vw-1rem)] max-h-[96vh] gap-3 overflow-hidden p-4 sm:max-w-[1280px]">
                                 <DialogHeader>
@@ -844,7 +856,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
             </div>
             </div>
 
-            <Card className="gap-4 py-4 uppercase overflow-visible h-auto">
+            <Card className="gap-4 py-4 overflow-visible h-auto">
                 <CardHeader className="px-4">
                     <CardTitle className="text-sm">
                         Pólizas ({filteredPolicies.length}{filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})
@@ -866,7 +878,7 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                   </div>
                                   <div className="text-right">
                                     <p className="text-xs text-muted-foreground font-semibold">Vence</p>
-                                    <p className="text-sm font-medium text-red-400">{formatPolicyDate(policy.vigencia_fin)}</p>
+                                    <p className="text-sm font-medium text-danger-strong">{formatPolicyDate(policy.vigencia_fin)}</p>
                                   </div>
                                 </div>
 
@@ -903,14 +915,13 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                     companies={companies}
                                     onSuccess={fetchPolicies}
                                   />
-                                  <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => openEditForm(policy)}>
+                                  <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditForm(policy)}>
                                     <Edit className="h-3 w-3 mr-1" />
                                     Editar
                                   </Button>
                                   <Button
                                     variant="destructive"
                                     size="sm"
-                                    className="h-8 text-xs"
                                     onClick={() => openDeleteDialog(policy)}
                                     disabled={isDeleting}
                                   >
@@ -981,12 +992,12 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                       ) : <span className="text-muted-foreground">—</span>}
                                     </TableCell>
                                     <TableCell className="border-l border-dashed border-border px-1 text-center">
-                                      <span className="inline-flex rounded-md border border-green-500/45 bg-green-500/15 px-1.5 py-1 text-xs font-semibold text-green-400">
+                                      <span className="inline-flex rounded-md border border-success-strong/30 bg-success-soft px-1.5 py-1 text-xs font-semibold text-success-strong">
                                         {formatPolicyDate(policy.vigencia_inicio)}
                                       </span>
                                     </TableCell>
                                     <TableCell className="border-l border-dashed border-border px-1 text-center">
-                                      <span className="inline-flex rounded-md border border-red-500/45 bg-red-500/15 px-1.5 py-1 text-xs font-semibold text-red-400">
+                                      <span className="inline-flex rounded-md border border-destructive/30 bg-danger-soft px-1.5 py-1 text-xs font-semibold text-danger-strong">
                                         {formatPolicyDate(policy.vigencia_fin)}
                                       </span>
                                     </TableCell>
@@ -1000,13 +1011,13 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                                           companies={companies}
                                           onSuccess={fetchPolicies}
                                         />
-                                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openEditForm(policy)} title="Editar">
+                                        <Button variant="outline" size="icon" className="size-10" onClick={() => openEditForm(policy)} title="Editar">
                                           <Edit className="h-3.5 w-3.5" />
                                         </Button>
                                         <Button
                                           variant="destructive"
                                           size="icon"
-                                          className="h-7 w-7"
+                                          className="size-10"
                                           onClick={() => openDeleteDialog(policy)}
                                           disabled={isDeleting}
                                           title="Eliminar"
@@ -1064,13 +1075,13 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogTitle>¿Seguro que querés eliminarlo?</AlertDialogTitle>
                         <AlertDialogDescription>
                             Esta acción no se puede deshacer. Esto eliminará permanentemente la póliza "{deletingPolicy?.numero_poliza}" y todos sus archivos asociados.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setDeletingPolicy(null)} disabled={isDeleting}>
+                        <AlertDialogCancel disabled={isDeleting}>
                             Cancelar
                         </AlertDialogCancel>
                         <AlertDialogAction onClick={handleDeletePolicy} disabled={isDeleting}>

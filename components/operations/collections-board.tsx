@@ -124,7 +124,7 @@ export function CollectionsBoard({ basePath }: { basePath: string }) {
                   <h2 className="text-sm font-semibold">{column.label}</h2>
                   <span className="text-xs text-muted-foreground">{items.length}</span>
                 </div>
-                <p className="mt-1 text-[11px] leading-tight text-muted-foreground">{column.hint}</p>
+                <p className="mt-1 text-xs leading-tight text-muted-foreground">{column.hint}</p>
               </header>
 
               <div className="space-y-2">

@@ -189,7 +189,7 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                 <div className="group relative min-w-0 flex-1">
                     <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground transition-colors duration-200 group-focus-within:text-primary" />
                     <Input
-                        placeholder="Buscar por nombre, email, documento, teléfono o número de cliente..."
+                        placeholder="Filtrar por nombre, cédula, teléfono o número de cliente…"
                         value={searchTerm}
                         aria-label="Buscar clientes"
                         role="combobox"
@@ -229,7 +229,7 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                                 setHighlightedSuggestion(-1)
                             }
                         }}
-                        className="h-14 w-full rounded-xl border-border/60 bg-card/50 pl-12 pr-12 text-lg font-semibold uppercase tracking-wide shadow-sm transition-all duration-200 placeholder:text-base placeholder:font-medium placeholder:tracking-normal placeholder:text-muted-foreground/70 hover:border-border focus-visible:border-primary/50 focus-visible:bg-background focus-visible:ring-4 focus-visible:ring-primary/10 md:text-lg"
+                        className="h-14 w-full rounded-xl border-border/60 bg-card/50 pl-12 pr-12 text-lg shadow-sm transition-all duration-200 placeholder:text-base placeholder:text-muted-foreground hover:border-border focus-visible:border-primary/50 focus-visible:bg-background focus-visible:ring-4 focus-visible:ring-primary/10 md:text-lg"
                     />
                     {searchTerm && (
                         <Button
@@ -237,7 +237,7 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                             variant="ghost"
                             size="icon"
                             aria-label="Limpiar búsqueda"
-                            className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            className="absolute right-2 top-1/2 size-10 -translate-y-1/2 rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                             onClick={() => {
                                 setSearchTerm("")
                                 setCurrentPage(1)
@@ -278,10 +278,10 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                                         <User className="h-4 w-4" />
                                     </span>
                                     <span className="min-w-0 flex-1">
-                                        <span className="block truncate text-sm font-semibold uppercase">
+                                        <span className="block truncate text-sm font-semibold">
                                             {client.nombre}
                                         </span>
-                                        <span className="block truncate text-xs uppercase text-muted-foreground">
+                                        <span className="block truncate text-xs text-muted-foreground">
                                             #{client.numero_cliente || "N/A"} · {client.documento}
                                         </span>
                                     </span>
@@ -290,20 +290,12 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                         </div>
                     )}
                 </div>
-                <Button
-                    onClick={() => setShowCreateDialog(true)}
-                    aria-label="Agregar cliente"
-                    className="h-14 shrink-0 rounded-xl px-3 text-base font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:px-6"
-                >
-                    <Plus className="h-5 w-5" />
-                    <span className="hidden sm:inline">Agregar Cliente</span>
-                </Button>
             </div>,
             topbarActionsContainer,
             )}
 
             <div className="rounded-md border">
-                <Table className="uppercase [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-dotted [&_th:not(:last-child)]:border-border/80 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-dotted [&_td:not(:last-child)]:border-border/60">
+                <Table className="[&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-dotted [&_th:not(:last-child)]:border-border/80 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-dotted [&_td:not(:last-child)]:border-border/60">
                     <TableHeader>
                         <TableRow>
                             <TableHead>N° Cliente</TableHead>
@@ -337,12 +329,12 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                                                     variant="outline"
                                                     size="icon"
                                                     aria-label={`Ver email de ${client.nombre}`}
-                                                    className="h-8 w-8 text-muted-foreground hover:border-primary/50 hover:text-primary"
+                                                    className="size-10 text-muted-foreground hover:border-primary/50 hover:text-primary"
                                                 >
                                                     <Mail className="h-4 w-4" />
                                                 </Button>
                                             </HoverCardTrigger>
-                                            <HoverCardContent align="start" className="w-auto max-w-sm space-y-3 uppercase">
+                                            <HoverCardContent align="start" className="w-auto max-w-sm space-y-3">
                                                 <div>
                                                     <p className="text-xs font-medium text-muted-foreground">Email</p>
                                                     <p className="mt-1 break-all text-sm font-semibold">{client.email}</p>
@@ -389,12 +381,12 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                                                 variant="outline"
                                                 size="icon"
                                                 aria-label={`Ver documento de ${client.nombre}`}
-                                                className="h-8 w-8 text-muted-foreground hover:border-primary/50 hover:text-primary"
+                                                className="size-10 text-muted-foreground hover:border-primary/50 hover:text-primary"
                                             >
                                                 <IdCard className="h-4 w-4" />
                                             </Button>
                                         </HoverCardTrigger>
-                                        <HoverCardContent align="start" className="w-auto min-w-52 space-y-3 uppercase">
+                                        <HoverCardContent align="start" className="w-auto min-w-52 space-y-3">
                                             <div>
                                                 <p className="text-xs font-medium text-muted-foreground">Documento</p>
                                                 <p className="mt-1 text-sm font-semibold">{client.documento}</p>
@@ -445,27 +437,36 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                                     <div className="flex justify-end items-center gap-2">
                                         <Link href={`/admin/clientes/${client.id}`}>
                                             <Button variant="outline" size="sm">
-                                                Ver Detalles
+                                                Ver ficha
                                             </Button>
                                         </Link>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
-                                                <Button variant="destructive" size="sm">
-                                                    <Trash2 className="h-4 w-4" />
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    aria-label={`Eliminar a ${client.nombre}`}
+                                                    title="Eliminar cliente"
+                                                    className="text-muted-foreground hover:bg-danger-soft hover:text-destructive"
+                                                >
+                                                    <Trash2 />
                                                 </Button>
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
-                                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                                    <AlertDialogTitle>¿Eliminar a este cliente?</AlertDialogTitle>
                                                     <AlertDialogDescription>
                                                         Esta acción no se puede deshacer. Eliminará permanentemente al cliente "{client.nombre}", 
                                                         todas sus pólizas asociadas, archivos y su cuenta de usuario.
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeleteClient(client)}>
-                                                        Eliminar Cliente
+                                                    <AlertDialogCancel>No, volver</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={() => handleDeleteClient(client)}
+                                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                    >
+                                                        Sí, eliminar cliente
                                                     </AlertDialogAction>
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
@@ -543,8 +544,8 @@ export function ClientPageContent({ initialClients, onClientsUpdate }: ClientPag
                         </p>
                         {!searchTerm && (
                             <Button onClick={() => setShowCreateDialog(true)}>
-                                <Plus className="h-4 w-4 mr-2" />
-                                Agregar Cliente
+                                <Plus />
+                                Agregar el primer cliente
                             </Button>
                         )}
                     </CardContent>

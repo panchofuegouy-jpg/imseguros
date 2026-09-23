@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, Suspense } from "react"
+import { AuthFrame } from "@/components/brand/auth-frame"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { resetPassword, getCurrentUser } from "@/lib/auth"
@@ -94,9 +95,9 @@ function ResetPasswordForm() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <AuthFrame>
         <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
+          <CardHeader>
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15">
               <CheckCircle className="h-6 w-6 text-primary" />
             </div>
@@ -118,21 +119,14 @@ function ResetPasswordForm() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </AuthFrame>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <AuthFrame>
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-6 flex items-center justify-center">
-            <img
-              src="/IM_IDEINTIDAD-LOGO.png"
-              alt="IM Seguros Logo"
-              className="h-12 w-auto max-w-[200px] object-contain"
-            />
-          </div>
+        <CardHeader>
           <CardTitle className="text-2xl">Nueva Contraseña</CardTitle>
           <CardDescription>
             Establece tu nueva contraseña
@@ -224,23 +218,16 @@ function ResetPasswordForm() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </AuthFrame>
   )
 }
 
 // Componente de loading para Suspense
 function ResetPasswordLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <AuthFrame>
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-6 flex items-center justify-center">
-            <img
-              src="/IM_IDEINTIDAD-LOGO.png"
-              alt="IM Seguros Logo"
-              className="h-12 w-auto max-w-[200px] object-contain"
-            />
-          </div>
+        <CardHeader>
           <CardTitle className="text-2xl">Nueva Contraseña</CardTitle>
           <CardDescription>
             Cargando...
@@ -249,18 +236,18 @@ function ResetPasswordLoading() {
         <CardContent>
           <div className="space-y-4">
             <div className="space-y-2">
-              <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-              <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-4 bg-muted rounded animate-pulse"></div>
+              <div className="h-10 bg-muted rounded animate-pulse"></div>
             </div>
             <div className="space-y-2">
-              <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-              <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-4 bg-muted rounded animate-pulse"></div>
+              <div className="h-10 bg-muted rounded animate-pulse"></div>
             </div>
-            <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-10 bg-muted rounded animate-pulse"></div>
           </div>
         </CardContent>
       </Card>
-    </div>
+    </AuthFrame>
   )
 }
 

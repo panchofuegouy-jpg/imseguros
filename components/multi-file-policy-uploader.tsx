@@ -395,13 +395,13 @@ export function MultiFilePolicyUploader({
             case 'completed':
                 return <CheckCircle className="h-4 w-4 text-primary" />;
             case 'error':
-                return <AlertCircle className="h-4 w-4 text-red-500" />;
+                return <AlertCircle className="h-4 w-4 text-destructive" />;
             case 'processing':
-                return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
+                return <Loader2 className="h-4 w-4 animate-spin text-info-strong" />;
             case 'saving':
                 return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
             case 'uploading':
-                return <Upload className="h-4 w-4 text-blue-500" />;
+                return <Upload className="h-4 w-4 text-info-strong" />;
             default:
                 return <FileText className="h-4 w-4 text-muted-foreground" />;
         }
@@ -462,7 +462,7 @@ export function MultiFilePolicyUploader({
                     </div>
 
                     <div
-                        className={`min-h-0 w-full flex-1 rounded-md border bg-black/10 p-3 ${
+                        className={`min-h-0 w-full flex-1 rounded-md border bg-muted/50 p-3 ${
                             files.length <= 1 ? 'overflow-visible' : 'overflow-y-auto'
                         }`}
                     >
@@ -524,7 +524,7 @@ export function MultiFilePolicyUploader({
                                             {(fileStatus.status === 'ready' || fileStatus.status === 'saving') && fileStatus.draft && (
                                                 <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 lg:grid-cols-4">
                                                     <div className="col-span-2 lg:col-span-4">
-                                                        <label className="text-[11px] font-medium text-muted-foreground">Tipo de movimiento</label>
+                                                        <label className="font-medium text-muted-foreground">Tipo de movimiento</label>
                                                         <select
                                                             value={fileStatus.draft.tipo_movimiento}
                                                             onChange={e => updateDraft(index, 'tipo_movimiento', e.target.value)}
@@ -535,13 +535,13 @@ export function MultiFilePolicyUploader({
                                                             <option value="cambio_vehiculo">Cambio de vehículo / diferencia</option>
                                                         </select>
                                                         {fileStatus.draft.tipo_movimiento === 'cambio_vehiculo' && (
-                                                            <p className="mt-1 text-[11px] text-primary">
+                                                            <p className="mt-1 text-xs text-primary">
                                                                 El monto se guardará como diferencia del cambio, no como prima total.
                                                             </p>
                                                         )}
                                                     </div>
                                                     <div className="col-span-2 sm:col-span-1">
-                                                        <label className="text-[11px] text-muted-foreground">N° Póliza</label>
+                                                        <label className="text-muted-foreground">N° Póliza</label>
                                                         <Input
                                                             value={fileStatus.draft.numero_poliza}
                                                             onChange={e => updateDraft(index, 'numero_poliza', e.target.value)}
@@ -550,7 +550,7 @@ export function MultiFilePolicyUploader({
                                                         />
                                                     </div>
                                                     <div className="col-span-2 sm:col-span-1">
-                                                        <label className="text-[11px] text-muted-foreground">Tipo</label>
+                                                        <label className="text-muted-foreground">Tipo</label>
                                                         <Input
                                                             value={fileStatus.draft.tipo}
                                                             onChange={e => updateDraft(index, 'tipo', e.target.value)}
@@ -559,7 +559,7 @@ export function MultiFilePolicyUploader({
                                                         />
                                                     </div>
                                                     <div className="col-span-2">
-                                                        <label className="text-[11px] text-muted-foreground">Aseguradora</label>
+                                                        <label className="text-muted-foreground">Aseguradora</label>
                                                         <select
                                                             value={fileStatus.draft.company_id}
                                                             onChange={e => updateDraft(index, 'company_id', e.target.value)}
@@ -573,7 +573,7 @@ export function MultiFilePolicyUploader({
                                                         </select>
                                                     </div>
                                                     <div>
-                                                        <label className="text-[11px] text-muted-foreground">Vigencia inicio</label>
+                                                        <label className="text-muted-foreground">Vigencia inicio</label>
                                                         <Input
                                                             type="date"
                                                             value={fileStatus.draft.vigencia_inicio}
@@ -583,7 +583,7 @@ export function MultiFilePolicyUploader({
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-[11px] text-muted-foreground">Vigencia fin</label>
+                                                        <label className="text-muted-foreground">Vigencia fin</label>
                                                         <Input
                                                             type="date"
                                                             value={fileStatus.draft.vigencia_fin}
@@ -594,7 +594,7 @@ export function MultiFilePolicyUploader({
                                                     </div>
                                                     <div className="col-span-2 flex gap-3">
                                                         <div className="flex-1">
-                                                            <label className="text-[11px] text-muted-foreground">
+                                                            <label className="text-muted-foreground">
                                                                 {fileStatus.draft.tipo_movimiento === 'cambio_vehiculo' ? 'Diferencia' : 'Prima / Total'}
                                                             </label>
                                                             <Input
@@ -606,7 +606,7 @@ export function MultiFilePolicyUploader({
                                                             />
                                                         </div>
                                                         <div className="w-24">
-                                                            <label className="text-[11px] text-muted-foreground">Moneda</label>
+                                                            <label className="text-muted-foreground">Moneda</label>
                                                             <select
                                                                 value={fileStatus.draft.moneda}
                                                                 onChange={e => updateDraft(index, 'moneda', e.target.value)}
@@ -621,7 +621,7 @@ export function MultiFilePolicyUploader({
                                                     {fileStatus.draft.tipo_movimiento === 'cambio_vehiculo' && (
                                                         <>
                                                             <div className="col-span-1 lg:col-span-2">
-                                                                <label className="text-[11px] text-muted-foreground">Vehículo anterior</label>
+                                                                <label className="text-muted-foreground">Vehículo anterior</label>
                                                                 <Input
                                                                     value={fileStatus.draft.vehiculo_anterior}
                                                                     onChange={e => updateDraft(index, 'vehiculo_anterior', e.target.value)}
@@ -631,7 +631,7 @@ export function MultiFilePolicyUploader({
                                                                 />
                                                             </div>
                                                             <div className="col-span-1 lg:col-span-2">
-                                                                <label className="text-[11px] text-muted-foreground">Vehículo nuevo</label>
+                                                                <label className="text-muted-foreground">Vehículo nuevo</label>
                                                                 <Input
                                                                     value={fileStatus.draft.vehiculo_nuevo}
                                                                     onChange={e => updateDraft(index, 'vehiculo_nuevo', e.target.value)}
@@ -646,7 +646,7 @@ export function MultiFilePolicyUploader({
                                             )}
 
                                             {fileStatus.error && (
-                                                <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
+                                                <div className="mt-2 text-xs text-danger-strong bg-danger-soft p-2 rounded">
                                                     <p className="font-semibold">Error:</p>
                                                     <p>{fileStatus.error}</p>
                                                 </div>

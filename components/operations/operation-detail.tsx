@@ -1,5 +1,6 @@
 "use client"
 
+import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Paperclip, Upload } from "lucide-react"
@@ -143,8 +144,8 @@ export function OperationDetail({ id, basePath }: { id: string; basePath: string
   return (
     <div className="space-y-6">
       <div>
-        <Link className="text-sm text-primary underline" href={`${basePath}/siniestros`}>← Volver a siniestros</Link>
-        <h1 className="mt-2 text-2xl font-semibold">{claim.external_number || claim.claim_type}</h1>
+        <Button asChild variant="ghost" className="-ml-3"><Link href={`${basePath}/siniestros`}><ArrowLeft aria-hidden />Volver a siniestros</Link></Button>
+        <h1 className="mt-2 font-display text-4xl">{claim.external_number || claim.claim_type}</h1>
         <p className="text-muted-foreground">
           {claim.clients?.nombre}
           {claim.policies && <> · {claim.policies.numero_poliza}</>}
@@ -157,7 +158,7 @@ export function OperationDetail({ id, basePath }: { id: string; basePath: string
       </div>
 
       {error && <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{error}</p>}
-      {success && <p className="text-sm text-emerald-600" role="status">{success}</p>}
+      {success && <p className="text-sm text-success-strong" role="status">{success}</p>}
 
       <Card>
         <CardHeader><CardTitle>Avanzar el siniestro</CardTitle></CardHeader>

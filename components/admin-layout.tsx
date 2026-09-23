@@ -1,25 +1,59 @@
 "use client"
 
-import React from "react"
-
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import React, { useEffect, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
+import {
+  BarChart3,
+  Cake,
+  CalendarClock,
+  FileText,
+  HandCoins,
+  Home,
+  Plus,
+  ShieldAlert,
+  Users,
+} from "lucide-react"
 import { getCurrentUser, signOut } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, FileText, LogOut, Menu, DollarSign, ShieldAlert, HandCoins, Cake } from "lucide-react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
+import { LoadingScreen } from "@/components/ui/spinner"
+import { AppShell, type NavGroup, type NavItem } from "@/components/shell/app-shell"
+import { GlobalSearch } from "@/components/shell/global-search"
+import { HelpPanel } from "@/components/help/help-panel"
+import { hasSeenTour, startTour } from "@/components/help/tour"
+import { CreateClientDialog } from "@/components/create-client-dialog"
+import { ShellUserContext } from "@/components/shell/user-context"
 
 interface AdminLayoutProps {
   children: React.ReactNode
+  /** @deprecated El título va en la página con <PageHeader>. Se mantiene por compatibilidad. */
   headerTitle?: string
   headerDescription?: string
 }
 
-export function AdminLayout({ children, headerTitle, headerDescription }: AdminLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+const inicio: NavItem = { name: "Inicio", href: "/admin", icon: Home }
+const clientes: NavItem = { name: "Clientes", href: "/admin/clientes", icon: Users }
+const polizas: NavItem = { name: "Pólizas", href: "/admin/polizas", icon: FileText }
+const porVencer: NavItem = { name: "Por vencer", href: "/admin/polizas/por-vencer", icon: CalendarClock }
+const cobranza: NavItem = { name: "Cobranza", href: "/admin/cobranza", icon: HandCoins }
+
+const NAV_GROUPS: NavGroup[] = [
+  { label: "Día a día", items: [inicio, clientes, polizas, porVencer] },
+  {
+    label: "Gestión",
+    items: [
+      cobranza,
+      { name: "Siniestros", href: "/admin/siniestros", icon: ShieldAlert },
+      { name: "Cumpleaños", href: "/admin/cumpleanos", icon: Cake },
+      { name: "Facturación", href: "/admin/facturacion", icon: BarChart3 },
+    ],
+  },
+]
+
+const MOBILE_TABS: NavItem[] = [inicio, clientes, porVencer, cobranza]
+
+export function AdminLayout({ children }: AdminLayoutProps) {
   const [user, setUser] = useState<any>(null)
+  const [newClientOpen, setNewClientOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
@@ -35,21 +69,17 @@ export function AdminLayout({ children, headerTitle, headerDescription }: AdminL
     checkUser()
   }, [router])
 
+  // La primera vez que entra al Inicio, el recorrido de bienvenida arranca solo.
+  useEffect(() => {
+    if (!user || pathname !== "/admin" || hasSeenTour("bienvenida")) return
+    const timeout = setTimeout(() => startTour("bienvenida"), 900)
+    return () => clearTimeout(timeout)
+  }, [user, pathname])
+
   const handleSignOut = async () => {
     await signOut()
     router.push("/login")
   }
-
-  const navigation = [
-    { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { name: "Clientes", href: "/admin/clientes", icon: Users },
-    { name: "Pólizas", href: "/admin/polizas", icon: FileText },
-    { name: "Renovaciones", href: "/admin/polizas/por-vencer", icon: FileText },
-    { name: "Facturación", href: "/admin/facturacion", icon: DollarSign },
-    { name: "Siniestros", href: "/admin/siniestros", icon: ShieldAlert },
-    { name: "Cobranza", href: "/admin/cobranza", icon: HandCoins },
-    { name: "Cumpleaños", href: "/admin/cumpleanos", icon: Cake },
-  ]
 
   const displayName =
     user?.profile?.nombre ||
@@ -61,116 +91,46 @@ export function AdminLayout({ children, headerTitle, headerDescription }: AdminL
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingScreen />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Mobile sidebar */}
-      <div className={cn("fixed inset-0 z-50 lg:hidden", sidebarOpen ? "block" : "hidden")}>
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-sidebar shadow-lg border-r border-sidebar-border">
-          <div className="flex h-16 items-center justify-start border-b border-sidebar-border px-5">
-            <img src="/nuevo-logo-isgleas-seguros.webp" alt="Isgleas Seguros" className="h-10 w-auto" />
+    <ShellUserContext.Provider value={{ displayName }}>
+    <AppShell
+      groups={NAV_GROUPS}
+      mobileTabs={MOBILE_TABS}
+      userName={displayName}
+      userRole="Administración"
+      onSignOut={handleSignOut}
+      pageActionsId="admin-topbar-actions"
+      topbar={
+        <>
+          <div className="min-w-0 flex-1">
+            <GlobalSearch />
           </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-xs font-medium transition-colors",
-                    isActive 
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs" 
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  )}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center">
-                    <item.icon className="h-4 w-4 stroke-[1.8]" />
-                  </span>
-                  <span className="truncate leading-none">{item.name}</span>
-                </Link>
-              )
-            })}
-          </nav>
-          <div className="border-t border-sidebar-border p-4">
-            <Button variant="outline" onClick={handleSignOut} className="w-full">
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar Sesión
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-40 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-sidebar border-r border-sidebar-border">
-          <div className="flex h-16 items-center justify-start border-b border-sidebar-border px-5">
-            <img src="/nuevo-logo-isgleas-seguros.webp" alt="Isgleas Seguros" className="h-10 w-auto" />
-          </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-xs font-medium transition-colors",
-                    isActive 
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs" 
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  )}
-                >
-                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center">
-                    <item.icon className="h-4 w-4 stroke-[1.8]" />
-                  </span>
-                  <span className="truncate leading-none">{item.name}</span>
-                </Link>
-              )
-            })}
-          </nav>
-          <div className="border-t border-sidebar-border p-4">
-            <div className="mb-2 truncate text-sm capitalize text-muted-foreground" title={displayName}>
-              {displayName}
-            </div>
-            <Button variant="outline" onClick={handleSignOut} className="w-full">
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar Sesión
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="lg:pl-40">
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-sidebar px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-          <button type="button" className="-m-2.5 p-2.5 text-foreground lg:hidden" onClick={() => setSidebarOpen(true)}>
-            <Menu className="h-6 w-6" />
-          </button>
-          {headerTitle && (
-            <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold leading-tight">{headerTitle}</h1>
-              {headerDescription && (
-                <p className="mt-0.5 hidden truncate text-xs text-muted-foreground sm:block">
-                  {headerDescription}
-                </p>
-              )}
-            </div>
-          )}
-          <div id="admin-topbar-actions" className="min-w-0 flex-1" />
-        </div>
-
-        <main className="py-6">
-          <div className="w-full px-4 sm:px-6 lg:px-8">{children}</div>
-        </main>
-      </div>
-    </div>
+          <Button data-tour="new" onClick={() => setNewClientOpen(true)} className="rounded-full">
+            <Plus aria-hidden />
+            <span className="hidden sm:inline">Nuevo cliente</span>
+            <span className="sr-only sm:hidden">Nuevo cliente</span>
+          </Button>
+          <HelpPanel />
+          <CreateClientDialog
+            open={newClientOpen}
+            onOpenChange={setNewClientOpen}
+            onClientCreated={() => {
+              router.refresh()
+              // Las pantallas que cargan clientes en el navegador escuchan este aviso.
+              window.dispatchEvent(new Event("isgleas:clients-changed"))
+            }}
+          />
+        </>
+      }
+    >
+      {children}
+    </AppShell>
+    </ShellUserContext.Provider>
   )
 }

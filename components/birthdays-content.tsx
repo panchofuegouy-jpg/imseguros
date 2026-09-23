@@ -64,10 +64,10 @@ export function BirthdaysContent({ clients }: BirthdaysContentProps) {
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="BUSCAR CLIENTE..."
+              placeholder="Buscar cliente…"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
-              className="h-14 w-full rounded-xl pl-12 pr-4 text-lg font-semibold uppercase tracking-wide placeholder:text-sm placeholder:font-medium placeholder:tracking-normal sm:placeholder:text-base"
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-14 w-full rounded-xl pl-12 pr-4 text-lg placeholder:text-base"
             />
           </div>
         </CardContent>
@@ -75,7 +75,7 @@ export function BirthdaysContent({ clients }: BirthdaysContentProps) {
 
       <Card className="gap-4">
         <CardHeader className="px-4">
-          <CardTitle className="text-sm uppercase">
+          <CardTitle>
             Cumpleaños de Clientes ({filtered.length})
           </CardTitle>
         </CardHeader>
@@ -113,7 +113,7 @@ export function BirthdaysContent({ clients }: BirthdaysContentProps) {
                             isToday
                               ? "border-primary/40 bg-primary/10 text-primary"
                               : daysUntil <= 7
-                                ? "border-yellow-500/40 bg-yellow-500/10 text-yellow-400"
+                                ? "border-gold/40 bg-warning-soft text-warning-strong"
                                 : "border-border bg-muted/40 text-muted-foreground"
                           }`}
                         >
@@ -127,7 +127,7 @@ export function BirthdaysContent({ clients }: BirthdaysContentProps) {
                             variant="outline"
                             size="sm"
                             onClick={() => window.open(waLink, "_blank")}
-                            className="h-8 flex-1 gap-1 text-xs"
+                            className="flex-1 gap-1"
                           >
                             <MessageCircle className="h-3.5 w-3.5" />
                             Saludar por WhatsApp
@@ -138,7 +138,7 @@ export function BirthdaysContent({ clients }: BirthdaysContentProps) {
                             variant="outline"
                             size="sm"
                             onClick={() => window.open(`tel:${client.telefono}`, "_self")}
-                            className="h-8 w-8 p-0"
+                            className="size-10 p-0"
                           >
                             <Phone className="h-3.5 w-3.5" />
                           </Button>
@@ -174,7 +174,7 @@ export function BirthdaysContent({ clients }: BirthdaysContentProps) {
                                 isToday
                                   ? "border-primary/40 bg-primary/10 text-primary"
                                   : daysUntil <= 7
-                                    ? "border-yellow-500/40 bg-yellow-500/10 text-yellow-400"
+                                    ? "border-gold/40 bg-warning-soft text-warning-strong"
                                     : "border-border bg-muted/40 text-muted-foreground"
                               }`}
                             >
@@ -198,7 +198,7 @@ export function BirthdaysContent({ clients }: BirthdaysContentProps) {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => window.open(waLink, "_blank")}
-                                  className="h-7 gap-1 px-2 text-xs"
+                                  className="gap-1 px-2"
                                 >
                                   <MessageCircle className="h-3.5 w-3.5" />
                                   Saludar
@@ -211,7 +211,7 @@ export function BirthdaysContent({ clients }: BirthdaysContentProps) {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => window.open(`tel:${client.telefono}`, "_self")}
-                                  className="h-7 w-7 p-0"
+                                  className="size-10 p-0"
                                 >
                                   <Phone className="h-3.5 w-3.5" />
                                 </Button>

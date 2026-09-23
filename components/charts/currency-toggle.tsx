@@ -19,7 +19,7 @@ export function CurrencyToggle({ value, onChange }: CurrencyToggleProps) {
           key={m}
           variant={value === m ? "default" : "outline"}
           size="sm"
-          className="h-7 px-2 text-xs"
+          className="px-2"
           onClick={() => onChange(m)}
         >
           {m}

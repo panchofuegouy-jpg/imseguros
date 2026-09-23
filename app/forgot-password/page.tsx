@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { AuthFrame } from "@/components/brand/auth-frame"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { sendPasswordResetEmail } from "@/lib/auth"
@@ -37,9 +38,9 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <AuthFrame>
         <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
+          <CardHeader>
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15">
               <Mail className="h-6 w-6 text-primary" />
             </div>
@@ -73,21 +74,14 @@ export default function ForgotPasswordPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </AuthFrame>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <AuthFrame>
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-6 flex items-center justify-center">
-            <img 
-              src="/IM_IDEINTIDAD-LOGO.png" 
-              alt="IM Seguros Logo" 
-              className="h-12 w-auto max-w-[200px] object-contain" 
-            />
-          </div>
+        <CardHeader>
           <CardTitle className="text-2xl">Restaurar Contraseña</CardTitle>
           <CardDescription>
             Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña
@@ -126,6 +120,6 @@ export default function ForgotPasswordPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </AuthFrame>
   )
 }

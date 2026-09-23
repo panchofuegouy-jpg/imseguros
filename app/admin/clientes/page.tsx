@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingScreen } from "@/components/ui/spinner"
+import { PageHeader } from "@/components/brand/page-header"
 import { createClient } from "@/lib/supabase/client"
 import { AdminLayout } from "@/components/admin-layout"
 import { ClientPageContent } from "@/components/client-page-content"
@@ -38,21 +40,29 @@ export default function ClientsPage() {
 
   useEffect(() => {
     getClients()
+    // «Nuevo cliente» de la barra superior avisa cuando crea uno.
+    window.addEventListener("isgleas:clients-changed", getClients)
+    return () => window.removeEventListener("isgleas:clients-changed", getClients)
   }, [])
 
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex justify-center items-center h-64">
-          <p>Cargando clientes...</p>
-        </div>
+        <LoadingScreen label="Cargando clientes…" />
       </AdminLayout>
     )
   }
 
   return (
     <AdminLayout>
-      <ClientPageContent initialClients={clients} onClientsUpdate={getClients} />
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Cartera"
+          title="Clientes"
+          description="Tocá un cliente para ver su ficha, sus pólizas y sus datos de contacto."
+        />
+        <ClientPageContent initialClients={clients} onClientsUpdate={getClients} />
+      </div>
     </AdminLayout>
   )
 }

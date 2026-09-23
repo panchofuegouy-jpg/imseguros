@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/brand/page-header"
 import { createClient } from "@/lib/supabase/server"
 import { fetchAllSupabaseRows } from "@/lib/supabase/fetch-all"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -208,12 +209,11 @@ export default async function FacturacionPage({
       <div className="space-y-6">
         {/* Header + filtros */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold">Facturación</h1>
-            <p className="text-muted-foreground">
-              Primas — {periodoLabel[periodo]}
-            </p>
-          </div>
+          <PageHeader
+            eyebrow="Gestión"
+            title="Facturación"
+            description={`Suma de primas: ${periodoLabel[periodo]}. Pesos y dólares se muestran por separado.`}
+          />
           <Suspense>
             <FacturacionFilters />
           </Suspense>

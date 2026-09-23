@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/brand/page-header"
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllSupabaseRows } from "@/lib/supabase/fetch-all";
 import { AdminLayout } from "@/components/admin-layout";
@@ -26,7 +27,14 @@ export default async function PoliciesPage() {
 
   return (
     <AdminLayout>
-      <PoliciesHistoryContent initialPolicies={policies} />
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Cartera"
+          title="Pólizas"
+          description="Todas las pólizas cargadas. Buscá por número, cliente o aseguradora."
+        />
+        <PoliciesHistoryContent initialPolicies={policies} />
+      </div>
     </AdminLayout>
   );
 }

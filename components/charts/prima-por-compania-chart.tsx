@@ -20,7 +20,7 @@ const TOP_N = 8
 const formatMonto = (value: number) =>
   value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toFixed(0)
 
-const COLORS: Record<Moneda, string> = { UYU: "#0088FE", USD: "#25595E" }
+const COLORS: Record<Moneda, string> = { UYU: "var(--chart-1)", USD: "var(--chart-2)" }
 
 export function PrimaPorCompaniaChart({ data }: PrimaPorCompaniaChartProps) {
   const [moneda, setMoneda] = useState<Moneda>("UYU")
@@ -51,10 +51,10 @@ export function PrimaPorCompaniaChart({ data }: PrimaPorCompaniaChartProps) {
         ) : (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" tickFormatter={formatMonto} tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="company" tick={{ fontSize: 11 }} width={110} />
-              <Tooltip
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis type="number" tickFormatter={formatMonto} tick={{ fontSize: 13, fill: "var(--muted-foreground)" }} />
+              <YAxis type="category" dataKey="company" tick={{ fontSize: 13, fill: "var(--muted-foreground)" }} width={110} />
+              <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 15 }}
                 formatter={(value: number) => [
                   `${moneda} ${value.toLocaleString("es-UY", { minimumFractionDigits: 2 })}`,
                   "Prima total",

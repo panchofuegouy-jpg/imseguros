@@ -266,7 +266,7 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
         <Button
           variant="outline"
           size="icon"
-          className="h-7 w-7 border-primary/50 text-primary hover:bg-primary/15"
+          className="size-10 border-primary/50 text-primary hover:bg-primary/15"
           title="Actualizar póliza con OCR"
         >
           <RefreshCw className="h-3.5 w-3.5" />
@@ -307,7 +307,7 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
           </label>
         ) : (
           <div className="space-y-3">
-            <div className="grid gap-2 rounded-xl border border-border bg-black/10 p-3 sm:grid-cols-4">
+            <div className="grid gap-2 rounded-xl border border-border bg-muted/50 p-3 sm:grid-cols-4">
               <div className="space-y-1">
                 <Label>Póliza</Label>
                 <Input className="h-9" value={draft.numero_poliza} onChange={(event) => setDraft({ ...draft, numero_poliza: event.target.value })} />
@@ -350,7 +350,7 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
               </div>
             </div>
 
-            <div className="grid gap-2 rounded-xl border border-border bg-black/10 p-3 sm:grid-cols-4">
+            <div className="grid gap-2 rounded-xl border border-border bg-muted/50 p-3 sm:grid-cols-4">
               <div className="space-y-1 sm:col-span-2">
                 <Label>Nombre del asegurado</Label>
                 <Input className="h-9" value={draft.nombre_asegurado} onChange={(event) => setDraft({ ...draft, nombre_asegurado: event.target.value })} />
@@ -378,11 +378,11 @@ export function PolicyOcrUpdateDialog({ policy, companies, onSuccess }: PolicyOc
             </div>
 
             <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 p-3 text-center">
-              <div><p className="text-[10px] uppercase text-muted-foreground">Prima anterior</p><p className="font-bold">{previousPremium.toLocaleString("es-UY")}</p></div>
+              <div><p className="text-xs text-muted-foreground">Prima anterior</p><p className="font-bold">{previousPremium.toLocaleString("es-UY")}</p></div>
               <span className="text-xl text-muted-foreground">+</span>
-              <div><p className="text-[10px] uppercase text-muted-foreground">Prima nueva</p><p className="font-bold">{newPremium.toLocaleString("es-UY")}</p></div>
+              <div><p className="text-xs text-muted-foreground">Prima nueva</p><p className="font-bold">{newPremium.toLocaleString("es-UY")}</p></div>
               <span className="text-xl text-muted-foreground">=</span>
-              <div><p className="text-[10px] uppercase text-muted-foreground">Prima actualizada</p><p className="font-bold text-primary">{updatedPremium.toLocaleString("es-UY")}</p></div>
+              <div><p className="text-xs text-muted-foreground">Prima actualizada</p><p className="font-bold text-primary">{updatedPremium.toLocaleString("es-UY")}</p></div>
             </div>
 
             <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-xs">

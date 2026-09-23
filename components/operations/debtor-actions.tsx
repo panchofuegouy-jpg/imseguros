@@ -29,7 +29,7 @@ export function DebtorActions({ debtorId, obligations }: { debtorId: string; obl
         onDone={(text) => { setMessage(text); setError(null); router.refresh() }}
         onError={(text) => { setError(text); setMessage(null) }}
       />
-      {message && <p role="status" className="text-sm text-emerald-600">{message}</p>}
+      {message && <p role="status" className="text-sm text-success-strong">{message}</p>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </div>
   )

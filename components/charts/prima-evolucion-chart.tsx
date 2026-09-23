@@ -21,7 +21,7 @@ interface PrimaEvolucionChartProps {
 
 const fmt = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)
 
-const COLORS: Record<Moneda, string> = { UYU: "#0088FE", USD: "#25595E" }
+const COLORS: Record<Moneda, string> = { UYU: "var(--chart-1)", USD: "var(--chart-2)" }
 
 export function PrimaEvolucionChart({ data, titulo }: PrimaEvolucionChartProps) {
   const [moneda, setMoneda] = useState<Moneda>("UYU")
@@ -40,10 +40,10 @@ export function PrimaEvolucionChart({ data, titulo }: PrimaEvolucionChartProps) 
         ) : (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="periodo" tick={{ fontSize: 11 }} angle={-30} textAnchor="end" interval={0} />
-              <YAxis tickFormatter={fmt} tick={{ fontSize: 11 }} />
-              <Tooltip
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey="periodo" tick={{ fontSize: 13, fill: "var(--muted-foreground)" }} angle={-30} textAnchor="end" interval={0} />
+              <YAxis tickFormatter={fmt} tick={{ fontSize: 13, fill: "var(--muted-foreground)" }} />
+              <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 15 }}
                 formatter={(value: number) =>
                   [`${moneda} ${value.toLocaleString("es-UY", { minimumFractionDigits: 2 })}`, "Prima"]
                 }

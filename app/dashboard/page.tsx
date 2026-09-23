@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
+import { LoadingScreen } from "@/components/ui/spinner"
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
@@ -31,10 +32,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Redirigiendo...</p>
-        </div>
+        <LoadingScreen label="Redirigiendo..." />
       </div>
     )
   }

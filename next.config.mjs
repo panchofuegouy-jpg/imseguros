@@ -9,6 +9,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // El indicador de desarrollo de Next tapaba «Cerrar sesión» abajo a la izquierda.
+  devIndicators: {
+    position: 'bottom-right',
+  },
   // Performance optimizations
   compress: true,
   poweredByHeader: false,

@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/brand/page-header"
 import { AdminLayout } from "@/components/admin-layout"
 import { BirthdaysContent } from "@/components/birthdays-content"
 import { createClient } from "@/lib/supabase/server"
@@ -14,10 +15,11 @@ export default async function BirthdaysPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold">Cumpleaños</h1>
-          <p className="text-muted-foreground">Los próximos cumpleaños de la cartera, ordenados por cercanía.</p>
-        </div>
+        <PageHeader
+          eyebrow="Clientes"
+          title="Cumpleaños"
+          description="Los próximos cumpleaños, empezando por los más cercanos. Un saludo a tiempo fideliza."
+        />
         <BirthdaysContent clients={(data as any) || []} />
       </div>
     </AdminLayout>

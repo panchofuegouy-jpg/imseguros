@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { AuthFrame } from "@/components/brand/auth-frame"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -13,6 +14,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Wand2 } from "lucide-react"
+
+/** Los errores de Supabase llegan en inglés y en lenguaje técnico. */
+function friendlyAuthError(message: string) {
+  const text = message.toLowerCase()
+  if (text.includes("invalid login credentials")) return "El email o la contraseña no coinciden. Revisalos y probá de nuevo."
+  if (text.includes("email not confirmed")) return "Todavía no confirmaste tu email. Buscá el correo de bienvenida."
+  if (text.includes("rate limit") || text.includes("too many")) return "Hubo demasiados intentos. Esperá un minuto y probá otra vez."
+  if (text.includes("network") || text.includes("fetch")) return "No hay conexión. Revisá internet y probá de nuevo."
+  return message
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -34,7 +45,7 @@ export default function LoginPage() {
     console.log("signIn function returned:", { data, error });
 
     if (error) {
-      setError(error.message);
+      setError(friendlyAuthError(error.message));
       setLoading(false);
       return;
     }
@@ -66,7 +77,7 @@ export default function LoginPage() {
   const handleMagicLinkLogin = async (e: React.FormEvent) => {
     e.preventDefault() // Prevent form submission if wrapped in form
     if (!email) {
-      setError("Por favor ingresa tu email para usar Magic Link")
+      setError("Escribí tu email para recibir el enlace.")
       return
     }
 
@@ -77,9 +88,9 @@ export default function LoginPage() {
     const { error } = await signInWithMagicLink(email)
 
     if (error) {
-      setError(error.message)
+      setError(friendlyAuthError(error.message))
     } else {
-      setSuccessMessage("¡Enlace mágico enviado! Revisa tu correo electrónico.")
+      setSuccessMessage("Listo. Revisá tu correo y tocá el enlace para entrar.")
     }
     setMagicLinkLoading(false)
   }
@@ -90,24 +101,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <AuthFrame>
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-6 flex items-center justify-center">
-            <img
-              src="/IM_IDEINTIDAD-LOGO.png"
-              alt="IM Seguros Logo"
-              className="h-12 w-auto max-w-[200px] object-contain"
-            />
-          </div>
-          <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
-          <CardDescription>Accede a tu panel de gestión de pólizas</CardDescription>
+        <CardHeader>
+          <CardTitle>Ingresar</CardTitle>
+          <CardDescription>Entrá con tu email y tu contraseña.</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="password" className="w-full" onValueChange={clearMessages}>
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="password">Contraseña</TabsTrigger>
-              <TabsTrigger value="magic-link">Magic Link</TabsTrigger>
+              <TabsTrigger value="magic-link">Sin contraseña</TabsTrigger>
             </TabsList>
 
             <TabsContent value="password">
@@ -141,8 +145,8 @@ export default function LoginPage() {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+                <Button type="submit" size="lg" className="w-full" disabled={loading}>
+                  {loading ? "Ingresando…" : "Ingresar"}
                 </Button>
               </form>
               <div className="mt-4 text-center">
@@ -169,7 +173,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  Te enviaremos un enlace a tu correo para que puedas iniciar sesión sin contraseña.
+                  Te mandamos un enlace a tu correo. Lo abrís y entrás, sin escribir contraseña.
                 </div>
                 {error && (
                   <Alert variant="destructive">
@@ -181,13 +185,13 @@ export default function LoginPage() {
                     <AlertDescription>{successMessage}</AlertDescription>
                   </Alert>
                 )}
-                <Button type="submit" className="w-full" disabled={magicLinkLoading}>
+                <Button type="submit" size="lg" className="w-full" disabled={magicLinkLoading}>
                   {magicLinkLoading ? (
                     "Enviando..."
                   ) : (
                     <>
-                      <Wand2 className="mr-2 h-4 w-4" />
-                      Enviar Magic Link
+                      <Wand2 />
+                      Enviarme el enlace
                     </>
                   )}
                 </Button>
@@ -196,6 +200,6 @@ export default function LoginPage() {
           </Tabs>
         </CardContent>
       </Card>
-    </div>
+    </AuthFrame>
   )
 }

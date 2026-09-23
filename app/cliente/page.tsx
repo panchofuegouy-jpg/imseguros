@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/brand/page-header"
 import { createClient } from "@/lib/supabase/server";
 import { ClientLayout } from "@/components/client-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,10 +28,11 @@ export default async function ClientDashboard() {
   return (
     <ClientLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Bienvenido, {clientName}!</h1>
-          <p className="text-muted-foreground">Aquí puedes ver un resumen de tu información y gestionar tus pólizas.</p>
-        </div>
+        <PageHeader
+          eyebrow="Isgleas Seguros"
+          title={`Hola, ${clientName}`}
+          description="Acá ves un resumen de tus seguros y podés descargar tus pólizas."
+        />
 
         {/* Client Stats */}
         <ClientStats />

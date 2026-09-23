@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { resolvePolicyFileUrl } from "@/lib/policy-file-url";
 import { generateWhatsAppPolicyLink } from "@/lib/whatsapp-share";
+import { useRouter } from "next/navigation";
 
 interface Policy {
   id: string;
@@ -43,9 +44,12 @@ const formatPolicyDate = (dateString: string) => {
 };
 
 export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryContentProps) {
-  const [policies] = useState<Policy[]>(initialPolicies);
+  // Derivado de props, no estado: así router.refresh() (que actualiza las props
+  // desde el server component) se refleja sin recargar la página.
+  const policies = initialPolicies;
   const [searchTerm, setSearchTerm] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [topbarActionsContainer, setTopbarActionsContainer] = useState<HTMLElement | null>(null);
   const itemsPerPage = 50;
@@ -101,7 +105,10 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
 
   const handleRefresh = () => {
     setRefreshing(true);
-    window.location.reload();
+    // Refrescar en el mismo árbol: el ícono alcanza a girar y el contenido se
+    // reemplaza en su lugar, en vez de recargar toda la página.
+    router.refresh();
+    setTimeout(() => setRefreshing(false), 600);
   };
 
   useEffect(() => {
@@ -118,7 +125,7 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
               disabled={refreshing}
               variant="outline"
               size="sm"
-              className="font-semibold uppercase"
+              className="font-semibold"
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               Actualizar
@@ -132,16 +139,16 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
           <div className="relative">
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="BUSCAR POR PÓLIZA, CLIENTE, ASEGURADORA, TELÉFONO O EMAIL..."
+              placeholder="Buscar por póliza, cliente, aseguradora o teléfono…"
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value.toUpperCase())}
-              className="h-14 rounded-xl pl-12 text-base font-semibold uppercase placeholder:text-sm sm:text-lg sm:placeholder:text-base"
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="h-14 rounded-xl pl-12 text-lg placeholder:text-base sm:text-lg sm:placeholder:text-base"
             />
           </div>
         </CardContent>
       </Card>
 
-      <Card className="gap-4 py-4 uppercase">
+      <Card className="gap-4 py-4">
         <CardHeader className="px-4">
           <CardTitle className="text-sm font-bold">
             Pólizas ({filteredPolicies.length}
@@ -217,7 +224,7 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
                               href={waLink}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded border border-green-500/50 bg-green-500/15 px-2 py-1 text-xs font-medium text-foreground hover:bg-green-500/25"
+                              className="inline-flex items-center gap-1 rounded border border-success-strong/30 bg-success-soft px-2 py-1 text-xs font-medium text-success-strong hover:bg-success-soft/700/25"
                             >
                               <MessageCircle className="h-3 w-3" />
                               WhatsApp
@@ -313,10 +320,10 @@ export function PoliciesHistoryContent({ initialPolicies }: PoliciesHistoryConte
                                   href={waLink}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 rounded-md border border-green-500/50 bg-green-500/15 px-2 py-1 text-foreground hover:bg-green-500/25"
+                                  className="inline-flex items-center gap-1 rounded-md border border-success-strong/30 bg-success-soft px-2 py-1 text-success-strong hover:bg-success-soft/70"
                                   title="Compartir por WhatsApp"
                                 >
-                                  <MessageCircle className="h-3.5 w-3.5 text-green-600" />
+                                  <MessageCircle className="h-3.5 w-3.5 text-success-strong" />
                                 </a>
                               ) : null;
                             })()}
