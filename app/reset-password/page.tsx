@@ -23,16 +23,22 @@ function ResetPasswordForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
+  const linkError = searchParams.get("error") === "link"
 
   useEffect(() => {
+    if (linkError) {
+      setError("El enlace de restablecimiento venció o ya fue usado. Pedí uno nuevo y abrí el email más reciente.")
+      return
+    }
+
     const checkSession = async () => {
       const result = await getCurrentUser()
       if (!result?.user) {
-        setError("Enlace inválido o sesión expirada. Por favor solicita un nuevo cambio de contraseña.")
+        setError("No pudimos validar el enlace. Pedí uno nuevo y abrí el email más reciente.")
       }
     }
     checkSession()
-  }, [])
+  }, [linkError])
 
   const validatePassword = (pass: string) => {
     const minLength = 8
@@ -201,7 +207,14 @@ function ResetPasswordForm() {
 
             {error && (
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>
+                  {error}{" "}
+                  {(linkError || error.startsWith("No pudimos validar")) && (
+                    <Link href="/forgot-password" className="font-medium underline underline-offset-4">
+                      Solicitar otro enlace
+                    </Link>
+                  )}
+                </AlertDescription>
               </Alert>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
