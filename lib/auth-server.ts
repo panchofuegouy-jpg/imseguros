@@ -25,7 +25,7 @@ export async function createClientUser(clientData: {
   createUserAccount?: boolean
 }) {
   const logPrefix = `[ClientCreation][${Date.now()}]`
-  console.log(`${logPrefix} Iniciando creación de cliente:`, clientData.email || 'sin email')
+  console.log(`${logPrefix} Iniciando creación de cliente:`, clientData.email?.trim().toLowerCase() || 'sin email')
   
   // Usar cliente admin para operaciones que requieren Service Role
   const adminSupabase = createAdminClient()
@@ -33,6 +33,7 @@ export async function createClientUser(clientData: {
   try {
     // Preparar datos del cliente para inserción
     const { createUserAccount, ...clientInsertData } = clientData
+    clientInsertData.email = clientInsertData.email?.trim().toLowerCase() || null
     
     // 1. Crear el cliente en la tabla clients
     console.log(`${logPrefix}[Step:Client] Creando registro de cliente...`)
@@ -61,7 +62,7 @@ export async function createClientUser(clientData: {
     console.log(`${logPrefix}[Step:Client] Cliente creado exitosamente:`, client.id)
     
     // Si no se debe crear usuario, retornar solo el cliente
-    if (!createUserAccount || !clientData.email) {
+    if (!createUserAccount || !clientInsertData.email) {
       console.log(`${logPrefix} No se creará usuario de acceso`)
       return { 
         client, 
@@ -73,10 +74,10 @@ export async function createClientUser(clientData: {
 
     // 2. Crear usuario en Supabase Auth con contraseña temporal
     const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase() + '1!'
-    console.log(`${logPrefix}[Step:Auth] Creando usuario en Auth con email:`, clientData.email)
+    console.log(`${logPrefix}[Step:Auth] Creando usuario en Auth con email:`, clientInsertData.email)
     
     const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
-      email: clientData.email,
+      email: clientInsertData.email,
       password: tempPassword,
       email_confirm: true,
       user_metadata: {
@@ -149,7 +150,7 @@ export async function createClientUser(clientData: {
     try {
       const { data: functionData, error: functionError } = await adminSupabase.functions.invoke('send-welcome-email', {
         body: {
-          email: clientData.email,
+          email: clientInsertData.email,
           nombre: clientData.nombre,
           tempPassword: tempPassword
         }

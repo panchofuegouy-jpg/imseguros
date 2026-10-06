@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { nombre, email, telefono, documento, direccion, numero_cliente, departamento, fecha_nacimiento, createUserAccount } = body
+    const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : null
 
     if (!nombre || !documento) {
       return NextResponse.json(
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (createUserAccount && !email) {
+    if (createUserAccount && !normalizedEmail) {
       return NextResponse.json(
         { error: "Email es requerido para crear cuenta de usuario" },
         { status: 400 }
@@ -71,11 +72,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar si el email ya existe (solo si se va a crear cuenta)
-    if (createUserAccount && email) {
+    if (createUserAccount && normalizedEmail) {
       const { data: existingClientByEmail } = await (await createServerClient())
         .from("clients")
         .select("id")
-        .eq("email", email)
+        .eq("email", normalizedEmail)
         .single();
         
       if (existingClientByEmail) {
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
     const result = await createClientUser({
       nombre,
       // "" no es NULL: email es UNIQUE, así que dos clientes sin email chocan.
-      email: email || null,
+      email: normalizedEmail,
       telefono: telefono || null,
       documento,
       direccion: direccion || null,

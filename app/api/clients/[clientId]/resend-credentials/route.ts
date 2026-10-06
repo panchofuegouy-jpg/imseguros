@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth-server";
 
 function generateTemporaryPassword() {
   return Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase() + '1!';
+}
+
+function normalizeEmail(email: string | null | undefined) {
+  return email?.trim().toLowerCase() ?? '';
 }
 
 export async function POST(
@@ -60,7 +65,8 @@ export async function POST(
     }
 
     const currentEmail = client.email;
-    const effectiveEmail = newEmail || currentEmail;
+    const effectiveEmail = normalizeEmail(newEmail || currentEmail);
+    const emailChanged = Boolean(newEmail && effectiveEmail !== normalizeEmail(currentEmail));
 
     if (!effectiveEmail) {
       return NextResponse.json(
@@ -70,12 +76,12 @@ export async function POST(
     }
 
     // 3. Si el email cambió, actualizar en la DB
-    if (newEmail && newEmail !== currentEmail) {
+    if (emailChanged) {
       // Verificar que el nuevo email no esté en uso por otro cliente
       const { data: existingClient } = await adminSupabase
         .from("clients")
         .select("id")
-        .eq("email", newEmail)
+        .eq("email", effectiveEmail)
         .neq("id", clientId)
         .single();
 
@@ -86,27 +92,28 @@ export async function POST(
         );
       }
 
-      // Actualizar email en clients table
-      const { error: updateClientError } = await adminSupabase
-        .from("clients")
-        .update({ email: newEmail })
-        .eq("id", clientId);
-
-      if (updateClientError) {
-        return NextResponse.json(
-          { error: "Error al actualizar email del cliente" },
-          { status: 500 }
-        );
-      }
     }
 
     // 4. Generar nueva contraseña temporal
     const tempPassword = generateTemporaryPassword();
 
     // 5. Actualizar email y contraseña en Supabase Auth
-    if (newEmail && newEmail !== currentEmail) {
+    // Keep Auth aligned with the address where we are sending the credentials.
+    // The client row may have been edited without updating its Auth user.
+    const { data: authUserResult, error: authUserLookupError } = await adminSupabase.auth.admin.getUserById(userId);
+    if (authUserLookupError || !authUserResult.user) {
+      return NextResponse.json(
+        { error: "No se pudo verificar la cuenta de acceso del cliente" },
+        { status: 500 }
+      );
+    }
+
+    const previousAuthEmail = authUserResult.user.email;
+    let authEmailWasUpdated = false;
+    if (normalizeEmail(authUserResult.user.email) !== effectiveEmail) {
       const { error: authEmailError } = await adminSupabase.auth.admin.updateUserById(userId, {
-        email: newEmail,
+        email: effectiveEmail,
+        email_confirm: true,
       });
 
       if (authEmailError) {
@@ -115,16 +122,61 @@ export async function POST(
           { status: 500 }
         );
       }
+      authEmailWasUpdated = true;
+    }
+
+    if (emailChanged) {
+      const { error: updateClientError } = await adminSupabase
+        .from("clients")
+        .update({ email: effectiveEmail })
+        .eq("id", clientId);
+
+      if (updateClientError) {
+        if (authEmailWasUpdated && previousAuthEmail) {
+          const { error: rollbackError } = await adminSupabase.auth.admin.updateUserById(userId, {
+            email: previousAuthEmail,
+            email_confirm: true,
+          });
+          if (rollbackError) {
+            console.error("Failed to restore Auth email after client update error:", rollbackError.code);
+          }
+        }
+        return NextResponse.json(
+          { error: "No se pudo actualizar el email del cliente; no se modificó la contraseña ni se enviaron las credenciales." },
+          { status: 500 }
+        );
+      }
     }
 
     const { error: authPasswordError } = await adminSupabase.auth.admin.updateUserById(userId, {
       password: tempPassword,
+      email_confirm: true,
     });
 
     if (authPasswordError) {
       return NextResponse.json(
         { error: "Error al actualizar contraseña en Auth" },
         { status: 500 }
+      );
+    }
+
+    // Verify the generated credentials against the same public Auth endpoint
+    // used by the login screen before sending them to the client.
+    const authCheck = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    const { data: checkedCredentials, error: credentialCheckError } = await authCheck.auth.signInWithPassword({
+      email: effectiveEmail,
+      password: tempPassword,
+    });
+
+    if (credentialCheckError || checkedCredentials.user?.id !== userId) {
+      console.error("Temporary credentials failed Auth verification", credentialCheckError?.code ?? "user_mismatch");
+      return NextResponse.json(
+        { error: "Supabase no aceptó la contraseña temporal; no se enviaron las credenciales. Volvé a intentarlo." },
+        { status: 502 }
       );
     }
 

@@ -7,6 +7,10 @@ function generateTemporaryPassword() {
   return Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase() + '1!';
 }
 
+function normalizeEmail(email: string | null | undefined) {
+  return email?.trim().toLowerCase() ?? '';
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ clientId: string }> }
@@ -21,6 +25,7 @@ export async function PATCH(
     const body = await request.json();
 
     const { id, created_at, updated_at, createUserAccount, ...updateData } = body;
+    const emailWasSubmitted = Object.prototype.hasOwnProperty.call(updateData, "email");
 
     // El form manda "" para todo campo vacío, y "" no es NULL para Postgres:
     // un date rechaza "", y email/numero_cliente son UNIQUE, así que dos
@@ -29,6 +34,9 @@ export async function PATCH(
       if (field in updateData && !updateData[field]) {
         updateData[field] = null;
       }
+    }
+    if (updateData.email) {
+      updateData.email = normalizeEmail(updateData.email);
     }
 
     // documento es NOT NULL: si viene vacío no lo tocamos.
@@ -69,6 +77,8 @@ export async function PATCH(
       );
     }
 
+    const emailChanged = emailWasSubmitted && normalizeEmail(updateData.email) !== normalizeEmail(currentClient.email);
+
     // Verificar si el número de cliente ya existe (solo si cambió)
     if (updateData.numero_cliente && updateData.numero_cliente !== currentClient.numero_cliente) {
       const { data: existingClientByNumber } = await adminSupabase
@@ -103,8 +113,8 @@ export async function PATCH(
       }
     }
 
-    // Verificar si el email ya existe (solo si se va a crear cuenta y cambió)
-    if (createUserAccount && updateData.email && updateData.email !== currentClient.email) {
+    // Verificar duplicados cuando cambia el email, tenga o no cuenta de acceso.
+    if (emailChanged && updateData.email) {
       const { data: existingClientByEmail } = await adminSupabase
         .from("clients")
         .select("id")
@@ -125,6 +135,7 @@ export async function PATCH(
     let newAuthUser = null;
     let tempPassword = null;
     let emailSent = false;
+    let authEmailToRestore: { userId: string; email: string; emailConfirmed: boolean } | null = null;
 
     if (isCreatingUser) {
       const logPrefix = `[ClientUpdate][${clientId}][${Date.now()}]`
@@ -214,6 +225,67 @@ export async function PATCH(
       }
     }
 
+    // Keep an existing Auth account aligned whenever its client email changes.
+    // A client edit must not update only `clients.email` and leave Auth behind.
+    if (emailChanged && !isCreatingUser) {
+      const { data: existingProfile, error: existingProfileError } = await adminSupabase
+        .from("user_profiles")
+        .select("id")
+        .eq("client_id", clientId)
+        .maybeSingle();
+
+      if (existingProfileError) {
+        return NextResponse.json(
+          { error: "No se pudo verificar la cuenta de acceso del cliente" },
+          { status: 500 }
+        );
+      }
+
+      if (existingProfile) {
+        if (!updateData.email) {
+          return NextResponse.json(
+            { error: "No se puede borrar el email mientras el cliente tenga una cuenta de acceso" },
+            { status: 400 }
+          );
+        }
+
+        const { data: authUserResult, error: authUserLookupError } = await adminSupabase.auth.admin.getUserById(existingProfile.id);
+        if (authUserLookupError || !authUserResult.user?.email) {
+          return NextResponse.json(
+            { error: "La cuenta de acceso vinculada no existe en Auth" },
+            { status: 409 }
+          );
+        }
+
+        const previousAuthEmail = authUserResult.user.email;
+        if (
+          normalizeEmail(previousAuthEmail) !== normalizeEmail(updateData.email) ||
+          !authUserResult.user.email_confirmed_at
+        ) {
+          const { error: authEmailError } = await adminSupabase.auth.admin.updateUserById(existingProfile.id, {
+            email: updateData.email,
+            email_confirm: true,
+          });
+
+          if (authEmailError) {
+            console.error("Error syncing client email to Auth:", authEmailError.code);
+            return NextResponse.json(
+              { error: authEmailError.message.toLowerCase().includes("already")
+                ? "Ese email ya está asociado a otra cuenta."
+                : "No se pudo actualizar el email de la cuenta de acceso." },
+              { status: authEmailError.message.toLowerCase().includes("already") ? 409 : 500 }
+            );
+          }
+
+          authEmailToRestore = {
+            userId: existingProfile.id,
+            email: previousAuthEmail,
+            emailConfirmed: Boolean(authUserResult.user.email_confirmed_at),
+          };
+        }
+      }
+    }
+
     // 6. Actualizar la información del cliente en la tabla 'clients'
     const { data, error } = await adminSupabase
       .from("clients")
@@ -227,6 +299,15 @@ export async function PATCH(
       // Si la creación del usuario de Auth funcionó, deberíamos intentar revertirla
       if (newAuthUser) {
         await adminSupabase.auth.admin.deleteUser(newAuthUser.id);
+      }
+      if (authEmailToRestore) {
+        const { error: rollbackError } = await adminSupabase.auth.admin.updateUserById(authEmailToRestore.userId, {
+          email: authEmailToRestore.email,
+          email_confirm: authEmailToRestore.emailConfirmed,
+        });
+        if (rollbackError) {
+          console.error("Failed to restore Auth email after client update error:", rollbackError.code);
+        }
       }
       // 23505 = unique_violation. Decir qué campo choca, no un 500 opaco.
       if (error.code === "23505") {

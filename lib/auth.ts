@@ -17,7 +17,7 @@ export async function getCurrentUser() {
 export async function signIn(email: string, password: string) {
   const supabase = createClientClient()
   const { data, error } = await supabase.auth.signInWithPassword({
-    email,
+    email: email.trim().toLowerCase(),
     password,
   })
 
@@ -49,7 +49,7 @@ export async function signOut() {
 // Password reset functions
 export async function sendPasswordResetEmail(email: string) {
   const supabase = createClientClient()
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
     redirectTo: `${window.location.origin}/auth/confirm?next=/reset-password`,
   })
   return { error }
@@ -66,7 +66,7 @@ export async function resetPassword(password: string) {
 export async function signInWithMagicLink(email: string) {
   const supabase = createClientClient()
   const { error } = await supabase.auth.signInWithOtp({
-    email,
+    email: email.trim().toLowerCase(),
     options: {
       emailRedirectTo: `${window.location.origin}/auth/confirm?next=/dashboard`,
     },

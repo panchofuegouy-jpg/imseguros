@@ -21,7 +21,7 @@ export function AuthFrame({ children }: { children: ReactNode }) {
             Clientes, pólizas, vencimientos y cobranza en un solo lugar.
           </p>
         </div>
-        <p className="hidden text-sm text-sidebar-foreground/60 lg:block">Isgleas Seguros · Montevideo, Uruguay</p>
+        <p className="hidden text-sm text-sidebar-foreground/60 lg:block">Isgleas Seguros · Paysandú, Uruguay</p>
         {/* Arco decorativo en latón */}
         <svg
           aria-hidden
