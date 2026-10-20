@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { CreateClientDialog } from "./create-client-dialog";
 import { MultiFilePolicyUploader } from "./multi-file-policy-uploader";
 import { PolicyOcrUpdateDialog } from "./policy-ocr-update-dialog";
+import { ClientRenewalProposals } from "./client-renewal-proposals";
 
 interface Client {
     id: string;
@@ -32,6 +33,7 @@ interface Client {
     numero_cliente: number | null;
     departamento: string | null;
     fecha_nacimiento: string | null;
+    aumento_renovacion_pct?: number | null;
 }
 
 interface Policy {
@@ -795,6 +797,12 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                 onOpenChange={setIsEditModalOpen}
                 client={client}
                 onClientUpdated={handleClientUpdated}
+            />
+
+            <ClientRenewalProposals
+                clientId={client.id}
+                aumentoPct={client.aumento_renovacion_pct ?? null}
+                hasPhone={!!client.telefono}
             />
 
             {/* Search Filter */}

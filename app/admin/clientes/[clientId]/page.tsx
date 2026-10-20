@@ -17,6 +17,17 @@ async function getClientData(clientId: string) {
     return { client: null, policies: [], companies: [], hasAccount: false };
   }
 
+  // % de aumento en renovación (tabla solo para admins). Sin fila = 3 %.
+  const { data: renewalSettings } = await supabase
+    .from("client_renewal_settings")
+    .select("aumento_renovacion_pct")
+    .eq("client_id", clientId)
+    .maybeSingle();
+  const clientWithSettings = {
+    ...client,
+    aumento_renovacion_pct: renewalSettings ? Number(renewalSettings.aumento_renovacion_pct) : 3,
+  };
+
   const { data: policies, error: policiesError } = await fetchAllSupabaseRows((from, to) =>
     supabase
       .from("policies")
@@ -46,7 +57,7 @@ async function getClientData(clientId: string) {
     .single();
 
   return {
-    client,
+    client: clientWithSettings,
     policies: policies || [],
     companies: companies || [],
     hasAccount: !!userProfile,

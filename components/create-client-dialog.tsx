@@ -51,6 +51,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
     numero_cliente: "",
     departamento: "",
     fecha_nacimiento: "",
+    aumento_renovacion_pct: "3",
   })
   const [createUserAccount, setCreateUserAccount] = useState(false)
 
@@ -67,6 +68,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
         numero_cliente: client.numero_cliente || "",
         departamento: client.departamento || "",
         fecha_nacimiento: client.fecha_nacimiento || "",
+        aumento_renovacion_pct: client.aumento_renovacion_pct != null ? String(client.aumento_renovacion_pct) : "3",
       });
       // En modo edición, solo permitir crear cuenta si no tiene email
       setCreateUserAccount(false);
@@ -81,6 +83,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
         numero_cliente: "",
         departamento: "",
         fecha_nacimiento: "",
+        aumento_renovacion_pct: "3",
       });
       setCreateUserAccount(false);
     }
@@ -119,6 +122,11 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             ...formData,
+            // El aumento solo se manda si cambió (vive en otra tabla).
+            aumento_renovacion_pct:
+              formData.aumento_renovacion_pct.trim() !== String(client.aumento_renovacion_pct ?? 3)
+                ? formData.aumento_renovacion_pct
+                : undefined,
             createUserAccount: createUserAccount && canCreateUserAccount()
           }),
         });
@@ -155,6 +163,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             ...formData, 
+            aumento_renovacion_pct: undefined,
             createUserAccount,
             // Si no se crea cuenta de usuario pero se proporcionó email, lo guardamos para referencia
             email: formData.email || null
@@ -203,6 +212,7 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
       numero_cliente: "",
       departamento: "",
       fecha_nacimiento: "",
+      aumento_renovacion_pct: "3",
     })
     setCreateUserAccount(false)
     setError("")
@@ -395,6 +405,20 @@ export function CreateClientDialog({ open, onOpenChange, onClientCreated, onClie
                 </SelectContent>
               </Select>
             </div>
+
+            {isEditMode && (
+              <div className="space-y-2">
+                <Label htmlFor="aumento_renovacion_pct">Aumento en renovación (%)</Label>
+                <Input
+                  id="aumento_renovacion_pct"
+                  inputMode="decimal"
+                  value={formData.aumento_renovacion_pct}
+                  onChange={(e) => setFormData({ ...formData, aumento_renovacion_pct: e.target.value })}
+                  placeholder="3"
+                />
+                <p className="text-xs text-muted-foreground">Cuánto sube el premio de sus pólizas al renovar. Se usa en las propuestas de renovación de BSE.</p>
+              </div>
+            )}
             </div>
 
             <DialogFooter className="sticky bottom-0 -mx-1 border-t bg-card/95 px-1 pt-4 backdrop-blur-sm">

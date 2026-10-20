@@ -39,6 +39,22 @@ export async function PATCH(
       updateData.email = normalizeEmail(updateData.email);
     }
 
+    // % de aumento en renovación: va a client_renewal_settings (tabla solo para admins),
+    // no a clients. Número entre 0 y 50, hasta 2 decimales, acepta coma.
+    let aumentoRenovacionPct: number | null = null;
+    if ("aumento_renovacion_pct" in updateData) {
+      const raw = String(updateData.aumento_renovacion_pct ?? "").trim().replace(",", ".");
+      delete updateData.aumento_renovacion_pct;
+      const value = Number(raw);
+      if (!/^\d{1,2}(\.\d{1,2})?$/.test(raw) || value > 50) {
+        return NextResponse.json(
+          { error: "El aumento en renovación tiene que ser un número entre 0 y 50 (por ejemplo, 3 o 4,5)." },
+          { status: 400 }
+        );
+      }
+      aumentoRenovacionPct = value;
+    }
+
     // documento es NOT NULL: si viene vacío no lo tocamos.
     if ("documento" in updateData && !updateData.documento) {
       delete updateData.documento;
@@ -327,6 +343,22 @@ export async function PATCH(
         { error: "Error al actualizar el cliente" },
         { status: 500 }
       );
+    }
+
+    if (aumentoRenovacionPct !== null) {
+      const { error: aumentoError } = await adminSupabase
+        .from("client_renewal_settings")
+        .upsert(
+          { client_id: clientId, aumento_renovacion_pct: aumentoRenovacionPct, updated_by: currentUser.user.id },
+          { onConflict: "client_id" }
+        );
+      if (aumentoError) {
+        console.error("Error guardando aumento de renovación:", aumentoError.code);
+        return NextResponse.json(
+          { error: "Se guardaron los datos del cliente, pero no el aumento en renovación. Probá de nuevo." },
+          { status: 500 }
+        );
+      }
     }
 
     // Si se creó usuario, incluir información adicional

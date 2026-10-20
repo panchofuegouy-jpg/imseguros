@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import {
+import { FileSignature,
   BarChart3,
   Cake,
   CalendarClock,
@@ -34,10 +34,11 @@ const inicio: NavItem = { name: "Inicio", href: "/admin", icon: Home }
 const clientes: NavItem = { name: "Clientes", href: "/admin/clientes", icon: Users }
 const polizas: NavItem = { name: "Pólizas", href: "/admin/polizas", icon: FileText }
 const porVencer: NavItem = { name: "Por vencer", href: "/admin/polizas/por-vencer", icon: CalendarClock }
+const propuestas: NavItem = { name: "Propuestas", href: "/admin/polizas/propuestas", icon: FileSignature }
 const cobranza: NavItem = { name: "Cobranza", href: "/admin/cobranza", icon: HandCoins }
 
 const NAV_GROUPS: NavGroup[] = [
-  { label: "Día a día", items: [inicio, clientes, polizas, porVencer] },
+  { label: "Día a día", items: [inicio, clientes, polizas, porVencer, propuestas] },
   {
     label: "Gestión",
     items: [
