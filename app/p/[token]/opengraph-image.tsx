@@ -7,7 +7,7 @@ import { readPoliciesShareToken } from "@/lib/share-link"
 // Vista previa del link (WhatsApp, etc.): logo de IM Seguros y nombre del cliente.
 
 export const runtime = "nodejs"
-export const alt = "Tus pólizas · IM Seguros"
+export const alt = "Tus pólizas · Isgleas Seguros"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
@@ -31,10 +31,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
   // ImageResponse no lee webp: el logo de Isgleas va en una copia png.
   const toDataUrl = async (file: string) =>
     `data:image/png;base64,${(await readFile(path.join(process.cwd(), "public", file))).toString("base64")}`
-  const [imLogo, isgleasLogo] = await Promise.all([
-    toDataUrl("IM_IDEINTIDAD-LOGO.png"),
-    toDataUrl("nuevo-logo-isgleas-seguros.png"),
-  ])
+  const logo = await toDataUrl("nuevo-logo-isgleas-seguros.png")
 
   // WhatsApp recorta los costados de la vista previa: todo va centrado en el medio de la imagen.
   return new ImageResponse(
@@ -53,13 +50,8 @@ export default async function Image({ params }: { params: Promise<{ token: strin
           textAlign: "center",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 36 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imLogo} alt="" width={170} height={80} />
-          <div style={{ width: 2, height: 72, background: "#3c5a5c" }} />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={isgleasLogo} alt="" width={219} height={80} />
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logo} alt="" width={274} height={100} />
         <div style={{ width: 80, height: 4, background: "#a8844a", marginTop: 36, marginBottom: 28 }} />
         <div style={{ fontSize: 32, color: "#b9cfcf" }}>
           {cantidad === 1 ? "Tu póliza vigente" : cantidad > 1 ? `Tus ${cantidad} pólizas vigentes` : "Tus pólizas"}
