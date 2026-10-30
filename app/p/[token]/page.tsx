@@ -1,10 +1,10 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { headers } from "next/headers"
-import { Download, FileText } from "lucide-react"
 import { createAdminClient } from "@/lib/supabase/server"
 import { readPoliciesShareToken } from "@/lib/share-link"
 import { formatDate } from "@/lib/format"
+import { PoliciesList } from "./policies-list"
 
 // Página pública (sin login) con las pólizas vigentes de un cliente. Se llega
 // solo con el link firmado que manda el corredor por WhatsApp.
@@ -64,43 +64,21 @@ export default async function SharedPoliciesPage({ params }: { params: Promise<{
         {!policies?.length ? (
           <p className="mt-8 text-muted-foreground">No hay pólizas vigentes por ahora.</p>
         ) : (
-          <ul className="mt-6 space-y-3">
-            {policies.map((p) => {
-              const file = p.archivo_urls?.[0] ?? p.archivo_url
-              // Las notas cargadas desde el BSE traen «vehículo · cobertura · póliza anterior».
-              const detail = p.notas?.split(" · ")[0]
+          <PoliciesList
+            policies={policies.map((p) => {
               const companies = p.companies as { name: string } | { name: string }[] | null
-              const company = Array.isArray(companies) ? companies[0]?.name : companies?.name
-              return (
-                <li key={p.id} className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <FileText className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold">
-                        Póliza {p.numero_poliza}
-                        <span className="font-normal text-muted-foreground"> · {[company, p.tipo].filter(Boolean).join(" · ")}</span>
-                      </p>
-                      {detail && <p className="mt-0.5 text-sm text-foreground/80">{detail}</p>}
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Vigencia {formatDate(p.vigencia_inicio)} al {formatDate(p.vigencia_fin)}
-                      </p>
-                    </div>
-                  </div>
-                  {file && (
-                    <a
-                      href={file}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
-                    >
-                      <Download className="size-4" aria-hidden />
-                      Descargar PDF
-                    </a>
-                  )}
-                </li>
-              )
+              return {
+                id: p.id,
+                numero: p.numero_poliza,
+                company: (Array.isArray(companies) ? companies[0]?.name : companies?.name) ?? undefined,
+                tipo: p.tipo ?? undefined,
+                // Las notas cargadas desde el BSE traen «vehículo · cobertura · póliza anterior».
+                detail: p.notas?.split(" · ")[0],
+                vigencia: `${formatDate(p.vigencia_inicio)} al ${formatDate(p.vigencia_fin)}`,
+                file: p.archivo_urls?.[0] ?? p.archivo_url ?? undefined,
+              }
             })}
-          </ul>
+          />
         )}
 
         <p className="mt-10 text-center text-xs text-muted-foreground">Isgleas Seguros · Consultas por WhatsApp a tu asesor</p>
