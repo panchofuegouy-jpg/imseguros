@@ -21,6 +21,7 @@ import { CreateClientDialog } from "./create-client-dialog";
 import { MultiFilePolicyUploader } from "./multi-file-policy-uploader";
 import { PolicyOcrUpdateDialog } from "./policy-ocr-update-dialog";
 import { ClientRenewalProposals } from "./client-renewal-proposals";
+import { generateWhatsAppPoliciesLink } from "@/lib/whatsapp-share";
 
 interface Client {
     id: string;
@@ -603,6 +604,20 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
         );
     };
 
+    const today = new Date().toISOString().slice(0, 10);
+    const vigentes = policies.filter(p => p.vigencia_fin.slice(0, 10) >= today);
+    const whatsAppPoliciesHref = generateWhatsAppPoliciesLink({
+        phone: client.telefono,
+        clientName: client.nombre,
+        policies: vigentes.map(p => ({
+            numero_poliza: p.numero_poliza,
+            notas: p.notas,
+            companyName: p.companies?.name,
+            vigencia_fin: p.vigencia_fin,
+            fileUrl: p.archivo_urls?.[0] ?? p.archivo_url,
+        })),
+    });
+
     const formatPolicyDate = (dateString: string) => {
         const [year, month, day] = dateString.split('T')[0].split('-');
         return year && month && day ? `${day}/${month}/${year}` : dateString;
@@ -866,9 +881,19 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
 
             <Card className="gap-4 py-4 overflow-visible h-auto">
                 <CardHeader className="px-4">
-                    <CardTitle className="text-sm">
-                        Pólizas ({filteredPolicies.length}{filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})
-                    </CardTitle>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <CardTitle className="text-sm">
+                            Pólizas ({filteredPolicies.length}{filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})
+                        </CardTitle>
+                        {vigentes.length > 0 && (
+                            <Button variant="outline" size="sm" className="gap-2" asChild>
+                                <a href={whatsAppPoliciesHref} target="_blank" rel="noopener noreferrer">
+                                    <MessageCircle className="h-4 w-4" />
+                                    Enviar {vigentes.length} pólizas vigentes por WhatsApp
+                                </a>
+                            </Button>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent className="px-3 sm:px-4 overflow-visible h-auto">
                     {filteredPolicies.length === 0 ? (
