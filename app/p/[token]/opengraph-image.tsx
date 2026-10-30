@@ -28,8 +28,13 @@ export default async function Image({ params }: { params: Promise<{ token: strin
     cantidad = count ?? 0
   }
 
-  const logo = await readFile(path.join(process.cwd(), "public", "IM_IDEINTIDAD-LOGO.png"))
-  const logoSrc = `data:image/png;base64,${logo.toString("base64")}`
+  // ImageResponse no lee webp: el logo de Isgleas va en una copia png.
+  const toDataUrl = async (file: string) =>
+    `data:image/png;base64,${(await readFile(path.join(process.cwd(), "public", file))).toString("base64")}`
+  const [imLogo, isgleasLogo] = await Promise.all([
+    toDataUrl("IM_IDEINTIDAD-LOGO.png"),
+    toDataUrl("nuevo-logo-isgleas-seguros.png"),
+  ])
 
   // WhatsApp recorta los costados de la vista previa: todo va centrado en el medio de la imagen.
   return new ImageResponse(
@@ -48,8 +53,13 @@ export default async function Image({ params }: { params: Promise<{ token: strin
           textAlign: "center",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoSrc} alt="" width={212} height={100} />
+        <div style={{ display: "flex", alignItems: "center", gap: 36 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imLogo} alt="" width={170} height={80} />
+          <div style={{ width: 2, height: 72, background: "#3c5a5c" }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={isgleasLogo} alt="" width={219} height={80} />
+        </div>
         <div style={{ width: 80, height: 4, background: "#a8844a", marginTop: 36, marginBottom: 28 }} />
         <div style={{ fontSize: 32, color: "#b9cfcf" }}>
           {cantidad === 1 ? "Tu póliza vigente" : cantidad > 1 ? `Tus ${cantidad} pólizas vigentes` : "Tus pólizas"}
