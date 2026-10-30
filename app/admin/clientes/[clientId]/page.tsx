@@ -78,10 +78,10 @@ export default async function ClientDetailsPage({ params }: { params: Promise<{ 
     );
   }
 
-  // El link público usa el dominio de la app; en local, el host del request.
+  // El link público usa el dominio desde donde se abre la app (NEXT_PUBLIC_APP_URL apunta al sitio web, no a la app).
   const host = (await headers()).get("host");
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://${host}`;
-  const policiesShareUrl = `${baseUrl.replace(/\/$/, "")}/p/${createPoliciesShareToken(client.id)}`;
+  const protocol = host?.startsWith("localhost") ? "http" : "https";
+  const policiesShareUrl = `${protocol}://${host}/p/${createPoliciesShareToken(client.id)}`;
 
   return (
     <AdminLayout>

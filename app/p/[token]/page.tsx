@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { headers } from "next/headers"
 import { Download, FileText } from "lucide-react"
 import { createAdminClient } from "@/lib/supabase/server"
 import { readPoliciesShareToken } from "@/lib/share-link"
@@ -10,9 +11,22 @@ import { formatDate } from "@/lib/format"
 
 export const dynamic = "force-dynamic"
 
-export const metadata: Metadata = {
-  title: "Tus pólizas · Isgleas Seguros",
-  robots: { index: false, follow: false },
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const { token } = await params
+  const clientId = readPoliciesShareToken(token)
+  const { data: client } = clientId
+    ? await createAdminClient().from("clients").select("nombre").eq("id", clientId).single()
+    : { data: null }
+  // URL absoluta para la imagen de vista previa: el dominio desde donde se abre el link.
+  const host = (await headers()).get("host")
+  const title = client ? `Pólizas de ${client.nombre} · IM Seguros` : "Tus pólizas · IM Seguros"
+  return {
+    metadataBase: host ? new URL(`${host.startsWith("localhost") ? "http" : "https"}://${host}`) : undefined,
+    title,
+    description: "Tocá para ver y descargar los PDF de tus pólizas vigentes.",
+    openGraph: { title, description: "Tocá para ver y descargar los PDF de tus pólizas vigentes.", siteName: "IM Seguros" },
+    robots: { index: false, follow: false },
+  }
 }
 
 export default async function SharedPoliciesPage({ params }: { params: Promise<{ token: string }> }) {
