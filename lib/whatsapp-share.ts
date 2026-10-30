@@ -87,26 +87,15 @@ export function generateWhatsAppRenewalLink(params: {
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
 }
 
-/** Todas las pólizas vigentes del cliente en un solo mensaje, cada una con su PDF. */
+/** Link corto a la página pública con todas las pólizas vigentes del cliente. */
 export function generateWhatsAppPoliciesLink(params: {
   phone: string | undefined | null
   clientName: string
-  policies: {
-    numero_poliza: string
-    notas?: string | null
-    companyName?: string | null
-    vigencia_fin: string
-    fileUrl?: string | null
-  }[]
+  count: number
+  shareUrl: string
 }): string {
-  const lines = params.policies.map((p) => {
-    // Las notas cargadas desde el BSE traen «vehículo · cobertura · póliza anterior»: alcanza con lo primero.
-    const detail = [p.notas?.split(" · ")[0], p.companyName].filter(Boolean).join(" - ")
-    let line = `• Póliza ${p.numero_poliza}${detail ? ` (${detail})` : ""}, vigente hasta ${formatDate(p.vigencia_fin)}`
-    if (p.fileUrl) line += `\n  ${p.fileUrl}`
-    return line
-  })
-  const message = `Hola ${params.clientName.trim()},\n\nTe enviamos tus pólizas vigentes:\n\n${lines.join("\n\n")}\n\nSaludos, Isgleas Seguros.`
+  const plural = params.count === 1 ? "tu póliza vigente" : `tus ${params.count} pólizas vigentes`
+  const message = `Hola ${params.clientName.trim()},\n\nAcá podés ver y descargar ${plural}:\n${params.shareUrl}\n\nSaludos, Isgleas Seguros.`
 
   // Sin teléfono, wa.me deja elegir el contacto.
   const phone = toWhatsAppPhone(params.phone)

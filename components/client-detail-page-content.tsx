@@ -69,9 +69,10 @@ interface ClientDetailPageContentProps {
     initialPolicies: Policy[];
     companies: Company[];
     hasAccount: boolean;
+    policiesShareUrl: string;
 }
 
-export function ClientDetailPageContent({ client, initialPolicies, companies, hasAccount }: ClientDetailPageContentProps) {
+export function ClientDetailPageContent({ client, initialPolicies, companies, hasAccount, policiesShareUrl }: ClientDetailPageContentProps) {
     const [policies, setPolicies] = useState<Policy[]>(initialPolicies);
     const [searchTerm, setSearchTerm] = useState("");
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -609,13 +610,8 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
     const whatsAppPoliciesHref = generateWhatsAppPoliciesLink({
         phone: client.telefono,
         clientName: client.nombre,
-        policies: vigentes.map(p => ({
-            numero_poliza: p.numero_poliza,
-            notas: p.notas,
-            companyName: p.companies?.name,
-            vigencia_fin: p.vigencia_fin,
-            fileUrl: p.archivo_urls?.[0] ?? p.archivo_url,
-        })),
+        count: vigentes.length,
+        shareUrl: policiesShareUrl,
     });
 
     const formatPolicyDate = (dateString: string) => {
@@ -886,12 +882,24 @@ export function ClientDetailPageContent({ client, initialPolicies, companies, ha
                             Pólizas ({filteredPolicies.length}{filteredPolicies.length !== policies.length ? ` de ${policies.length}` : ''})
                         </CardTitle>
                         {vigentes.length > 0 && (
-                            <Button variant="outline" size="sm" className="gap-2" asChild>
-                                <a href={whatsAppPoliciesHref} target="_blank" rel="noopener noreferrer">
-                                    <MessageCircle className="h-4 w-4" />
-                                    Enviar {vigentes.length} pólizas vigentes por WhatsApp
-                                </a>
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                        await navigator.clipboard.writeText(policiesShareUrl);
+                                        toast.success("Link de pólizas copiado");
+                                    }}
+                                >
+                                    Copiar link
+                                </Button>
+                                <Button variant="outline" size="sm" className="gap-2" asChild>
+                                    <a href={whatsAppPoliciesHref} target="_blank" rel="noopener noreferrer">
+                                        <MessageCircle className="h-4 w-4" />
+                                        Enviar {vigentes.length} pólizas vigentes por WhatsApp
+                                    </a>
+                                </Button>
+                            </div>
                         )}
                     </div>
                 </CardHeader>

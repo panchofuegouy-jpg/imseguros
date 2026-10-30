@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllSupabaseRows } from "@/lib/supabase/fetch-all";
 import { AdminLayout } from "@/components/admin-layout";
 import { ClientDetailPageContent } from "@/components/client-detail-page-content";
+import { headers } from "next/headers";
+import { createPoliciesShareToken } from "@/lib/share-link";
 
 async function getClientData(clientId: string) {
   const supabase = await createClient()
@@ -76,9 +78,14 @@ export default async function ClientDetailsPage({ params }: { params: Promise<{ 
     );
   }
 
+  // El link público usa el dominio de la app; en local, el host del request.
+  const host = (await headers()).get("host");
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://${host}`;
+  const policiesShareUrl = `${baseUrl.replace(/\/$/, "")}/p/${createPoliciesShareToken(client.id)}`;
+
   return (
     <AdminLayout>
-      <ClientDetailPageContent client={client} initialPolicies={policies} companies={companies} hasAccount={hasAccount} />
+      <ClientDetailPageContent client={client} initialPolicies={policies} companies={companies} hasAccount={hasAccount} policiesShareUrl={policiesShareUrl} />
     </AdminLayout>
   );
 }
