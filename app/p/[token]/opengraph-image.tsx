@@ -31,6 +31,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
   const logo = await readFile(path.join(process.cwd(), "public", "IM_IDEINTIDAD-LOGO.png"))
   const logoSrc = `data:image/png;base64,${logo.toString("base64")}`
 
+  // WhatsApp recorta los costados de la vista previa: todo va centrado en el medio de la imagen.
   return new ImageResponse(
     (
       <div
@@ -39,25 +40,32 @@ export default async function Image({ params }: { params: Promise<{ token: strin
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "space-between",
+          alignItems: "center",
+          justifyContent: "center",
           background: "#102a2c",
-          padding: "64px 72px",
           color: "#ffffff",
           fontFamily: "sans-serif",
+          textAlign: "center",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoSrc} alt="" width={234} height={110} />
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ width: 96, height: 4, background: "#a8844a", marginBottom: 28 }} />
-          <div style={{ fontSize: 34, color: "#b9cfcf" }}>
-            {cantidad === 1 ? "Tu póliza vigente" : cantidad > 1 ? `Tus ${cantidad} pólizas vigentes` : "Tus pólizas"}
-          </div>
-          <div style={{ fontSize: nombre.length > 28 ? 60 : 76, fontWeight: 700, lineHeight: 1.1, marginTop: 8 }}>
-            {nombre || "IM Seguros"}
-          </div>
+        <img src={logoSrc} alt="" width={212} height={100} />
+        <div style={{ width: 80, height: 4, background: "#a8844a", marginTop: 36, marginBottom: 28 }} />
+        <div style={{ fontSize: 32, color: "#b9cfcf" }}>
+          {cantidad === 1 ? "Tu póliza vigente" : cantidad > 1 ? `Tus ${cantidad} pólizas vigentes` : "Tus pólizas"}
         </div>
-        <div style={{ fontSize: 26, color: "#b9cfcf" }}>Tocá para ver y descargar los PDF · Paysandú, Uruguay</div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            maxWidth: 640,
+            fontSize: nombre.length > 18 ? 52 : 64,
+            lineHeight: 1.15,
+            marginTop: 10,
+          }}
+        >
+          {nombre || "IM Seguros"}
+        </div>
       </div>
     ),
     size,
