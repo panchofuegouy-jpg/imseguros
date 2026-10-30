@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { headers } from "next/headers"
 import { createAdminClient } from "@/lib/supabase/server"
-import { readPoliciesShareToken } from "@/lib/share-link"
+import { resolvePoliciesShare } from "@/lib/policy-share"
 import { formatDate } from "@/lib/format"
 import { PoliciesList } from "./policies-list"
 
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic"
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
   const { token } = await params
-  const clientId = readPoliciesShareToken(token)
+  const clientId = (await resolvePoliciesShare(token))?.clientId
   const { data: client } = clientId
     ? await createAdminClient().from("clients").select("nombre").eq("id", clientId).single()
     : { data: null }
@@ -31,19 +31,21 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
 
 export default async function SharedPoliciesPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
-  const clientId = readPoliciesShareToken(token)
-  if (!clientId) notFound()
+  const share = await resolvePoliciesShare(token)
+  if (!share) notFound()
+  const { clientId, policyIds } = share
 
   const supabase = createAdminClient()
   const today = new Date().toISOString().slice(0, 10)
+  let policiesQuery = supabase
+    .from("policies")
+    .select("id, numero_poliza, tipo, notas, vigencia_inicio, vigencia_fin, archivo_url, archivo_urls, companies(name)")
+    .eq("client_id", clientId)
+    .gte("vigencia_fin", today)
+  if (policyIds) policiesQuery = policiesQuery.in("id", policyIds)
   const [{ data: client }, { data: policies }] = await Promise.all([
     supabase.from("clients").select("nombre").eq("id", clientId).single(),
-    supabase
-      .from("policies")
-      .select("id, numero_poliza, tipo, notas, vigencia_inicio, vigencia_fin, archivo_url, archivo_urls, companies(name)")
-      .eq("client_id", clientId)
-      .gte("vigencia_fin", today)
-      .order("numero_poliza", { ascending: false }),
+    policiesQuery.order("numero_poliza", { ascending: false }),
   ])
   if (!client) notFound()
 

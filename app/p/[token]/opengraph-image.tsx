@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og"
 import { readFile } from "fs/promises"
 import path from "path"
 import { createAdminClient } from "@/lib/supabase/server"
-import { readPoliciesShareToken } from "@/lib/share-link"
+import { resolvePoliciesShare } from "@/lib/policy-share"
 
 // Vista previa del link (WhatsApp, etc.): logo de IM Seguros y nombre del cliente.
 
@@ -13,16 +13,19 @@ export const contentType = "image/png"
 
 export default async function Image({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
-  const clientId = readPoliciesShareToken(token)
+  const share = await resolvePoliciesShare(token)
 
   let nombre = ""
   let cantidad = 0
-  if (clientId) {
+  if (share) {
+    const { clientId, policyIds } = share
     const supabase = createAdminClient()
     const today = new Date().toISOString().slice(0, 10)
+    let countQuery = supabase.from("policies").select("id", { count: "exact", head: true }).eq("client_id", clientId).gte("vigencia_fin", today)
+    if (policyIds) countQuery = countQuery.in("id", policyIds)
     const [{ data: client }, { count }] = await Promise.all([
       supabase.from("clients").select("nombre").eq("id", clientId).single(),
-      supabase.from("policies").select("id", { count: "exact", head: true }).eq("client_id", clientId).gte("vigencia_fin", today),
+      countQuery,
     ])
     nombre = client?.nombre ?? ""
     cantidad = count ?? 0
